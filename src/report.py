@@ -5,7 +5,6 @@ import os
 import shutil
 import matplotlib.pyplot as plt
 
-
 from typing import List
 from sql_formatter.core import format_sql
 from database import Optimization, Query

@@ -1,8 +1,8 @@
 import dataclasses
 import itertools
+
 from enum import Enum
 from pprint import pprint
-
 from database import Query
 
 

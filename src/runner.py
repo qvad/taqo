@@ -1,14 +1,11 @@
 import argparse
-import re
-import time
-import psycopg2
 
-from src.regression import evaluate_regression
-from src.taqo import evaluate_taqo
+from regression import evaluate_regression
+from taqo import evaluate_taqo
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='TAQO Python framework.')
+    parser = argparse.ArgumentParser(description='Query Optimizer Testing framework for Posgtres-compatible DBs.')
     parser.add_argument('--host',
                         default="localhost",
                         help='Target host IP for YugabyteDB')

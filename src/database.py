@@ -1,5 +1,6 @@
 import dataclasses
 import itertools
+
 from enum import Enum
 from pprint import pprint
 from typing import List
