@@ -25,8 +25,6 @@ def calculate_avg_execution_time(cur, query, num_retries):
         except psycopg2.errors.QueryCanceled:
             # failed by timeout - it's ok
             sum_execution_times += 0
-        else:
-            sum_execution_times += current_milli_time() - start_time
         finally:
             actual_evaluations += 1
 

@@ -3,13 +3,16 @@
 # Setup
 
 Install Python dependencies `pip install -r requirements.txt` and setup you SUT database.
-To generate PDF/HTML from `.adoc` file [special utility](https://asciidoc.org/) needed.
+To generate PDF/HTML from `.adoc` file [asciidoc utility](https://asciidoc.org/) needed.
 
 # How to run
 
 ```
-usage: runner.py [-h] [--host HOST] [--port PORT] [--username USERNAME] [--password PASSWORD] [--database DATABASE] [--test TEST] [--num-queries NUM_QUERIES]
-                 [--num-retries NUM_RETRIES] [--skip-timeout SKIP_TIMEOUT] [--num-optimizations NUM_OPTIMIZATIONS]
+usage: runner.py [-h] [--host HOST] [--port PORT] [--username USERNAME] 
+                 [--password PASSWORD] [--database DATABASE] 
+                 [--test TEST] [--num-queries NUM_QUERIES]
+                 [--num-retries NUM_RETRIES] [--skip-timeout SKIP_TIMEOUT] 
+                 [--num-optimizations NUM_OPTIMIZATIONS]
 
 Query Optimizer Testing framework for Posgtres-compatible DBs.
 
@@ -20,7 +23,7 @@ options:
   --username USERNAME   Username for connection
   --password PASSWORD   Password for user for connection
   --database DATABASE   Target database in YugabyteDB
-  --test TEST           Target database in YugabyteDB
+  --test TEST           taqo or regression
   --num-queries NUM_QUERIES
                         Number of queries for default model
   --num-retries NUM_RETRIES
@@ -35,7 +38,7 @@ options:
 
 This test is inspired by [TAQO](https://www.researchgate.net/publication/241623318_Testing_the_accuracy_of_query_optimizers) page.
 Idea is to evaluate query and all possible optimisations for it. After that we compare execution time and other 
-parameters to tell if optimiser works well.
+parameters to tell if optimiser works well. Query evaluated few times (see `--num-retries`) to avoid invalid results.
 
 How algorithm works:
 
@@ -49,7 +52,17 @@ How algorithm works:
 4. Create asciidoc report
 
 ```sh
-python3 src/runner.py --host localhost --test taqo 
+python3 src/runner.py --host localhost --test taqo --num-queries 5
+```
+
+Example output
+```
+Evaluating query SELECT * FROM t500000  inner join t10000... [1/5]
+Setting query timeout to 3 seconds
+100%|██████████| 54/54 [07:48<00:00,  8.67s/it]
+Evaluating query SELECT * FROM t500000  right outer join ... [2/5]
+Setting query timeout to 3 seconds
+ 72%|███████▏  | 39/54 [05:31<02:18,  9.25s/it]
 ```
 
 ## Run regression test
