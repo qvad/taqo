@@ -3,3 +3,4 @@ asciidoc3~=3.2.3
 matplotlib
 psycopg2
 tqdm
+Pygments

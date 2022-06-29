@@ -3,16 +3,22 @@
 # Setup
 
 Install Python dependencies `pip install -r requirements.txt` and setup you SUT database.
+
+### Additional dependencies
 To generate PDF/HTML from `.adoc` file [asciidoc utility](https://asciidoc.org/) needed.
+Note that in some environments `--asciidoc-path` must be specified, 
+e.g. for MacOS Homebrew installation value should be `/opt/homebrew/bin/asciidoc`
+
+For proper syntax highlight `coderay` must be installed by `gem install coderay`
 
 # How to run
 
 ```
 usage: runner.py [-h] [--host HOST] [--port PORT] [--username USERNAME] 
-                 [--password PASSWORD] [--database DATABASE] 
-                 [--test TEST] [--num-queries NUM_QUERIES]
-                 [--num-retries NUM_RETRIES] [--skip-timeout SKIP_TIMEOUT] 
-                 [--num-optimizations NUM_OPTIMIZATIONS]
+                 [--password PASSWORD] [--database DATABASE] [--test TEST]
+                 [--num-queries NUM_QUERIES] [--num-retries NUM_RETRIES] 
+                 [--skip-timeout SKIP_TIMEOUT] [--num-optimizations NUM_OPTIMIZATIONS]
+                 [--asciidoc-path ASCIIDOC_PATH]
 
 Query Optimizer Testing framework for Posgtres-compatible DBs.
 
@@ -23,7 +29,7 @@ options:
   --username USERNAME   Username for connection
   --password PASSWORD   Password for user for connection
   --database DATABASE   Target database in YugabyteDB
-  --test TEST           taqo or regression
+  --test TEST           Type of test to evaluate - taqo (default) or regression
   --num-queries NUM_QUERIES
                         Number of queries for default model
   --num-retries NUM_RETRIES
@@ -32,6 +38,9 @@ options:
                         Timeout delta for optimized query
   --num-optimizations NUM_OPTIMIZATIONS
                         Maximum number of allowed optimizations (default 0 - disabled)
+  --asciidoc-path ASCIIDOC_PATH
+                        Full path to asciidoc command (default asciidoc)
+
 ```
 
 ## Run TAQO-inspired test

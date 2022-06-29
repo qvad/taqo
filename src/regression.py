@@ -43,7 +43,7 @@ def evaluate_regression(args):
                     original_query.optimizer_score = get_optimizer_score_from_plan(
                         original_query.execution_plan)
 
-                    calculate_avg_execution_time(cur, original_query, args.num_retries)
+                    calculate_avg_execution_time(cur, original_query, int(args.num_retries))
                 except Exception as e:
                     raise e
     finally:

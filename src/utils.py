@@ -8,7 +8,7 @@ def current_milli_time():
 
 
 def get_optimizer_score_from_plan(execution_plan):
-    matches = re.finditer(r"cost=.*\.\.(\d+\.\d+)", execution_plan, re.MULTILINE)
+    matches = re.finditer(r"\(cost=.*\.\.(\d+\.\d+)\s", execution_plan)
     for matchNum, match in enumerate(matches, start=1):
         return float(match.groups()[0])
 
@@ -16,6 +16,9 @@ def get_optimizer_score_from_plan(execution_plan):
 def calculate_avg_execution_time(cur, query, num_retries):
     sum_execution_times = 0
     actual_evaluations = 0
+
+    # run at least one iteration
+    num_retries = max(num_retries, 2)
 
     for _ in range(num_retries):
         try:

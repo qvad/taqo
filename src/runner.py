@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--test',
                         default="taqo",
-                        help='Target database in YugabyteDB')
+                        help='Type of test to evaluate - taqo (default) or regression')
 
     parser.add_argument('--num-queries',
                         default=0,
@@ -38,6 +38,10 @@ if __name__ == "__main__":
     parser.add_argument('--num-optimizations',
                         default=0,
                         help='Maximum number of allowed optimizations (default 0 - disabled)')
+
+    parser.add_argument('--asciidoc-path',
+                        default="asciidoc",
+                        help='Full path to asciidoc command (default asciidoc)')
 
     args = parser.parse_args()
 

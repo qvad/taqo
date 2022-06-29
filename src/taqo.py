@@ -48,7 +48,7 @@ def evaluate_taqo(args):
                     original_query.optimizer_score = get_optimizer_score_from_plan(
                         original_query.execution_plan)
 
-                    calculate_avg_execution_time(cur, original_query, args.num_retries)
+                    calculate_avg_execution_time(cur, original_query, int(args.num_retries))
 
                     # set maximum execution time
                     print(f"Setting query timeout to {int(original_query.execution_time_ms / 1000) + int(args.skip_timeout)} seconds")
@@ -70,7 +70,7 @@ def evaluate_taqo(args):
                         optimization.optimizer_score = get_optimizer_score_from_plan(
                             optimization.execution_plan)
 
-                        calculate_avg_execution_time(cur, optimization, args.num_retries)
+                        calculate_avg_execution_time(cur, optimization, int(args.num_retries))
 
                     best_optimization = original_query
                     for optimization in list_of_optimizations:
@@ -87,6 +87,7 @@ def evaluate_taqo(args):
                     counter += 1
     finally:
         # publish current report
-        report.publish_report()
+        report.publish_report(args.asciidoc_path)
+
         # close connection
         conn.close()

@@ -3,6 +3,8 @@ import itertools
 import math
 import os
 import shutil
+import subprocess
+
 import matplotlib.pyplot as plt
 
 from typing import List
@@ -12,7 +14,7 @@ from database import Optimization, Query
 
 class Report:
     def __init__(self):
-        self.report = ""
+        self.report = "= Query Optimizer Test report\n:source-highlighter: pygments\n\n"
         self.reported_queries_counter = 0
 
         shutil.rmtree("report")
@@ -52,7 +54,7 @@ class Report:
                   optimizations: List[Optimization]):
         self.reported_queries_counter += 1
 
-        self.report += f"= Query {self.reported_queries_counter}, " \
+        self.report += f"== Query {self.reported_queries_counter}, " \
                        f"optimizer score - {self.calculate_score(optimizations)}"
         self.__add_double_newline()
 
@@ -80,7 +82,7 @@ class Report:
         self.__end_table_row()
 
         self.__start_table_row()
-        self.__start_source()
+        self.__start_source(["diff"])
         self.report += query.execution_plan
         self.__end_source()
         self.__end_table_row()
@@ -120,14 +122,13 @@ class Report:
         a_diff = a_best - min(op.execution_time_ms for op in optimizations)
         e_diff = e_best - min(op.optimizer_score for op in optimizations)
 
-        score = 0
-        # TODO check score calculation
-        for pi, pj in list(itertools.combinations(optimizations, 2)):
-            score += (pi.execution_time_ms / a_best) *\
-                     (pj.execution_time_ms / a_best) *\
-                     math.sqrt(((pj.execution_time_ms - pi.execution_time_ms) / a_diff) ** 2 +
-                               ((pj.optimizer_score - pi.optimizer_score) / e_diff) ** 2) *\
-                     math.copysign(1, (pj.optimizer_score - pi.optimizer_score))
+        score = sum(
+            (pi.execution_time_ms / a_best) *
+            (pj.execution_time_ms / a_best) *
+            math.sqrt(((pj.execution_time_ms - pi.execution_time_ms) / a_diff) ** 2 +
+                      ((pj.optimizer_score - pi.optimizer_score) / e_diff) ** 2) *
+            math.copysign(1, (pj.optimizer_score - pi.optimizer_score))
+            for pi, pj in list(itertools.combinations(optimizations, 2)))
 
         return "{:.2f}".format(score)
 
@@ -150,6 +151,17 @@ class Report:
 
         return file_name
 
-    def publish_report(self):
+    def publish_report(self, asciidoc_path):
         with open("report/taqo.adoc", "w") as file:
             file.write(self.report)
+
+        print("Generating report file")
+        subprocess.run(
+            f'{asciidoc_path} -a stylesheet={os.path.abspath("css/adoc.css")} report/taqo.adoc',
+            shell=True)
+
+
+if __name__ == "__main__":
+    print("Generating report file")
+    css_link = os.path.abspath("css/adoc.css")
+    subprocess.call(f'asciidoc -a stylesheet={css_link} report/taqo.adoc', shell=True)
