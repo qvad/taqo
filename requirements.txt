@@ -1,7 +1,7 @@
 sql-formatter~=0.6.2
 asciidoc3~=3.2.3
 matplotlib
-psycopg2
+psycopg
 tqdm
 Pygments
-sqlparse
+sql_metadata

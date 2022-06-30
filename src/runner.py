@@ -1,7 +1,7 @@
 import argparse
 
-from regression import evaluate_regression
-from taqo import evaluate_taqo
+from src.tests.regression import evaluate_regression
+from src.tests.taqo import evaluate_taqo
 
 
 if __name__ == "__main__":
@@ -25,6 +25,9 @@ if __name__ == "__main__":
     parser.add_argument('--test',
                         default="taqo",
                         help='Type of test to evaluate - taqo (default) or regression')
+    parser.add_argument('--model',
+                        default="simple",
+                        help='Test model to use - simple or tpch')
 
     parser.add_argument('--num-queries',
                         default=0,
@@ -36,8 +39,8 @@ if __name__ == "__main__":
                         default=2,
                         help='Timeout delta for optimized query')
     parser.add_argument('--num-optimizations',
-                        default=0,
-                        help='Maximum number of allowed optimizations (default 0 - disabled)')
+                        default=300,
+                        help='Maximum number of allowed optimizations (default 300)')
 
     parser.add_argument('--asciidoctor-path',
                         default="asciidoctor",

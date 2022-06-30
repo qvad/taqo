@@ -4,12 +4,12 @@ import math
 import os
 import shutil
 import subprocess
-
 import matplotlib.pyplot as plt
 
 from typing import List
+
 from sql_formatter.core import format_sql
-from database import Optimization, Query
+from src.database import Optimization, Query
 
 
 class Report:
@@ -71,7 +71,7 @@ class Report:
         self.__end_source()
 
         self.__add_double_newline()
-        self.report += f"Better optimization hints - `+{best_optimization.explain_hints}+`"
+        self.report += f"Better optimization hints - `{best_optimization.explain_hints}`"
         self.__add_double_newline()
 
         filename = self.create_plot(best_optimization, optimizations, query)
@@ -108,7 +108,13 @@ class Report:
         self.__end_collapsible()
 
         self.__start_source(["diff"])
-        self.report += self.__get_plan_diff(query.execution_plan, best_optimization.execution_plan)
+
+        diff = self.__get_plan_diff(query.execution_plan, best_optimization.execution_plan)
+        if not diff:
+            # todo content identical
+            diff = query.execution_plan
+
+        self.report += diff
         self.__end_source()
         self.__end_table_row()
 
@@ -125,19 +131,23 @@ class Report:
                          q.optimizer_score is not None
                          and q.execution_time_ms != 0]
 
-        a_best = max(op.execution_time_ms for op in optimizations)
-        e_best = max(op.optimizer_score for op in optimizations)
+        try:
+            a_best = max(op.execution_time_ms for op in optimizations)
+            e_best = max(op.optimizer_score for op in optimizations)
 
-        a_diff = a_best - min(op.execution_time_ms for op in optimizations)
-        e_diff = e_best - min(op.optimizer_score for op in optimizations)
+            a_diff = a_best - min(op.execution_time_ms for op in optimizations)
+            e_diff = e_best - min(op.optimizer_score for op in optimizations)
 
-        score = sum(
-            (pi.execution_time_ms / a_best) *
-            (pj.execution_time_ms / a_best) *
-            math.sqrt(((pj.execution_time_ms - pi.execution_time_ms) / a_diff) ** 2 +
-                      ((pj.optimizer_score - pi.optimizer_score) / e_diff) ** 2) *
-            math.copysign(1, (pj.optimizer_score - pi.optimizer_score))
-            for pi, pj in list(itertools.combinations(optimizations, 2)))
+            score = sum(
+                (pi.execution_time_ms / a_best) *
+                (pj.execution_time_ms / a_best) *
+                math.sqrt(((pj.execution_time_ms - pi.execution_time_ms) / a_diff) ** 2 +
+                          ((pj.optimizer_score - pi.optimizer_score) / e_diff) ** 2) *
+                math.copysign(1, (pj.optimizer_score - pi.optimizer_score))
+                for pi, pj in list(itertools.combinations(optimizations, 2)))
+        except Exception:
+            print("Failed to calculate score, setting score as 0.0")
+            return 0.0
 
         return "{:.2f}".format(score)
 

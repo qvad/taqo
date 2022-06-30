@@ -1,8 +1,8 @@
 import psycopg2
 
-from model import create_tables, create_queries
-from report import Report
-from utils import get_optimizer_score_from_plan, calculate_avg_execution_time
+from src.models.factory import get_test_model
+from src.report import Report
+from src.utils import get_optimizer_score_from_plan, calculate_avg_execution_time
 
 
 def evaluate_regression(args):
@@ -28,8 +28,9 @@ def evaluate_regression(args):
             print(version)
 
         # evaluate original query
-        create_tables(conn)
-        queries = create_queries()
+        model = get_test_model(args)
+        model.create_tables(conn)
+        queries = model.get_queries()
 
         with conn.cursor() as cur:
             counter = 1

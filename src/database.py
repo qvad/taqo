@@ -61,7 +61,7 @@ class Optimization:
     query: str = None
     explain_hints: str = None
     execution_plan: str = None
-    optimizer_score: float = None
+    optimizer_score: float = 1
     execution_time_ms: int = 0
 
     def get_query(self):
@@ -80,9 +80,10 @@ class Optimization:
 @dataclasses.dataclass
 class Query:
     query: str = None
+    explain_hints: str = None  # TODO parse possible explain hints?
     tables: List[str] = None
     execution_plan: str = None
-    optimizer_score: int = None
+    optimizer_score: float = 1
     execution_time_ms: int = 0
 
     def get_explain(self):
@@ -101,16 +102,22 @@ class ListOfOptimizations:
         self.leading = Leading(tables)
         self.leading.construct()
 
-    def get_all_optimizations(self) -> List[Optimization]:
+    def get_all_optimizations(self, max_optimizations) -> List[Optimization]:
         optimizations = []
+        interrupt = False
         for leading, joins in self.leading.joins.items():
-            optimizations.extend(
-                Optimization(
-                    query=self.query,
-                    explain_hints=f"{leading} {join}"
-                )
-                for join in joins
-            )
+            if not interrupt:
+                for join in joins:
+                    if len(optimizations) >= max_optimizations:
+                        interrupt = True
+                        break
+
+                    optimizations.append(
+                        Optimization(
+                            query=self.query,
+                            explain_hints=f"{leading} {join}"
+                        )
+                    )
 
         return optimizations
 

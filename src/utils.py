@@ -2,6 +2,8 @@ import re
 import time
 import psycopg2
 
+from sql_metadata import Parser
+
 
 def current_milli_time():
     return round(time.time() * 1000)
@@ -32,3 +34,21 @@ def calculate_avg_execution_time(cur, query, num_retries):
             actual_evaluations += 1
 
     query.execution_time_ms = sum_execution_times / actual_evaluations
+
+
+def get_alias_table_names(sql_str):
+    parser = Parser(sql_str)
+
+    # todo some workarounds for sql_metadata package issues
+    # 1. 'where' may occur in table aliases
+    tables = parser.tables
+    aliases = parser.tables_aliases
+
+    result_tables = {alias: table_name for alias, table_name in aliases.items()
+                     if alias not in ['where', 'group by', 'from']}
+
+    for table in tables:
+        if table not in result_tables.keys():
+            result_tables[table] = table
+
+    return result_tables
