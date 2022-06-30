@@ -39,9 +39,9 @@ if __name__ == "__main__":
                         default=0,
                         help='Maximum number of allowed optimizations (default 0 - disabled)')
 
-    parser.add_argument('--asciidoc-path',
-                        default="asciidoc",
-                        help='Full path to asciidoc command (default asciidoc)')
+    parser.add_argument('--asciidoctor-path',
+                        default="asciidoctor",
+                        help='Full path to asciidoc command (default asciidoctor)')
 
     args = parser.parse_args()
 

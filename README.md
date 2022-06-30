@@ -6,8 +6,9 @@ Install Python dependencies `pip install -r requirements.txt` and setup you SUT 
 
 ### Additional dependencies
 To generate PDF/HTML from `.adoc` file [asciidoc utility](https://asciidoc.org/) needed.
-Note that in some environments `--asciidoc-path` must be specified, 
-e.g. for MacOS Homebrew installation value should be `/opt/homebrew/bin/asciidoc`
+In some environments `--asciidoctor-path` must be specified, 
+e.g. for MacOS Homebrew installation value should be `/opt/homebrew/bin/asciidoctor`.
+Note that `asciidoc` and `asciidoctor` are separate projects!
 
 For proper syntax highlight `coderay` must be installed by `gem install coderay`
 
@@ -38,8 +39,8 @@ options:
                         Timeout delta for optimized query
   --num-optimizations NUM_OPTIMIZATIONS
                         Maximum number of allowed optimizations (default 0 - disabled)
-  --asciidoc-path ASCIIDOC_PATH
-                        Full path to asciidoc command (default asciidoc)
+  --asciidoctor-path ASCIIDOC_PATH
+                        Full path to asciidoc command (default asciidoctor)
 
 ```
 

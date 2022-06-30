@@ -14,7 +14,9 @@ from database import Optimization, Query
 
 class Report:
     def __init__(self):
-        self.report = "= Query Optimizer Test report\n:source-highlighter: pygments\n\n"
+        self.report = "= Query Optimizer Test report\n" \
+                      ":source-highlighter: coderay\n" \
+                      ":coderay-linenums-mode: inline\n\n"
         self.reported_queries_counter = 0
 
         shutil.rmtree("report")
@@ -26,7 +28,7 @@ class Report:
         self.report += "\n\n"
 
     def __start_execution_plan_tables(self):
-        self.report += "[cols=\"1,1\"]\n|===\n"
+        self.report += "[cols=\"1\"]\n|===\n"
 
     def __start_table_row(self):
         self.report += "a|"
@@ -40,10 +42,16 @@ class Report:
     def __start_source(self, additional_tags=None):
         tags = f",{','.join(additional_tags)}" if additional_tags else ""
 
-        self.report += f"[source{tags}]\n----\n"
+        self.report += f"[source{tags},linenums]\n----\n"
 
     def __end_source(self):
         self.report += "\n----\n"
+
+    def __start_collapsible(self, name):
+        self.report += f"""\n\n.{name}\n[%collapsible]\n====\n"""
+
+    def __end_collapsible(self):
+        self.report += """\n====\n\n"""
 
     def __get_plan_diff(self, original, changed):
         return "\n".join(
@@ -69,38 +77,39 @@ class Report:
         filename = self.create_plot(best_optimization, optimizations, query)
         self.report += f"image::{filename}[\"Query {self.reported_queries_counter}\"]"
 
+        self.__add_double_newline()
+
         self.__start_execution_plan_tables()
 
-        self.report += "|Original |Optimization\n"
+        self.report += "|Comparison analysis\n"
 
         self.__start_table_row()
-        self.report += f"`+{query.optimizer_score}+` optimizer score"
-        self.__end_table_row()
-
-        self.__start_table_row()
-        self.report += f"`+{best_optimization.optimizer_score}+` optimizer score"
-        self.__end_table_row()
-
-        self.__start_table_row()
-        self.__start_source(["diff"])
-        self.report += query.execution_plan
-        self.__end_source()
-        self.__end_table_row()
-
-        self.__start_table_row()
-        self.__start_source(["diff"])
-        self.report += self.__get_plan_diff(query.execution_plan, best_optimization.execution_plan)
-        self.__end_source()
+        self.report += f"`Cost: {query.optimizer_score}` (default) vs `{best_optimization.optimizer_score}` (optimized)"
         self.__end_table_row()
 
         self.report += "\n"
 
         self.__start_table_row()
-        self.report += f"`+{query.execution_time_ms}ms+` execution time"
+        self.report += f"`Execution time: {query.execution_time_ms}` (default) vs `{best_optimization.execution_time_ms}` (optimized)"
         self.__end_table_row()
 
         self.__start_table_row()
-        self.report += f"`+{best_optimization.execution_time_ms}ms+` execution time"
+
+        self.__start_collapsible("Original plan")
+        self.__start_source(["diff"])
+        self.report += query.execution_plan
+        self.__end_source()
+        self.__end_collapsible()
+
+        self.__start_collapsible("Best optimisation plan")
+        self.__start_source(["diff"])
+        self.report += best_optimization.execution_plan
+        self.__end_source()
+        self.__end_collapsible()
+
+        self.__start_source(["diff"])
+        self.report += self.__get_plan_diff(query.execution_plan, best_optimization.execution_plan)
+        self.__end_source()
         self.__end_table_row()
 
         self.report += "\n"
@@ -164,4 +173,4 @@ class Report:
 if __name__ == "__main__":
     print("Generating report file")
     css_link = os.path.abspath("css/adoc.css")
-    subprocess.call(f'asciidoc -a stylesheet={css_link} report/taqo.adoc', shell=True)
+    subprocess.call(f'asciidoctor -a stylesheet={css_link} report/taqo.adoc', shell=True)

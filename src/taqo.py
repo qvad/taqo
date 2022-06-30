@@ -87,7 +87,7 @@ def evaluate_taqo(args):
                     counter += 1
     finally:
         # publish current report
-        report.publish_report(args.asciidoc_path)
+        report.publish_report(args.asciidoctor_path)
 
         # close connection
         conn.close()
