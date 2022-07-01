@@ -4,13 +4,15 @@ import psycopg2
 
 from sql_metadata import Parser
 
+from src.config import Config
+
 
 def current_milli_time():
     return round(time.time() * 1000)
 
 
 def get_optimizer_score_from_plan(execution_plan):
-    matches = re.finditer(r"\(cost=.*\.\.(\d+\.\d+)\s", execution_plan)
+    matches = re.finditer(r"\s\(cost=.*\.\.(\d+\.\d+)\s", execution_plan, re.MULTILINE)
     for matchNum, match in enumerate(matches, start=1):
         return float(match.groups()[0])
 
@@ -25,7 +27,7 @@ def calculate_avg_execution_time(cur, query, num_retries):
     for _ in range(num_retries):
         try:
             start_time = current_milli_time()
-            cur.execute(query.query)
+            evaluate_sql(cur, query.get_query())
             sum_execution_times += current_milli_time() - start_time
         except psycopg2.errors.QueryCanceled:
             # failed by timeout - it's ok
@@ -52,3 +54,10 @@ def get_alias_table_names(sql_str):
             result_tables[table] = table
 
     return result_tables
+
+
+def evaluate_sql(cur, sql):
+    if Config().verbose:
+        print(sql.replace("\n", "")[:120] + "..." if len(sql) > 120 else sql.replace("\n", ""))
+
+    cur.execute(sql)

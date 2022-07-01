@@ -5,8 +5,18 @@ from enum import Enum
 from pprint import pprint
 from typing import List
 
+from src.config import Config
+
 EXPLAIN = "EXPLAIN "
+EXPLAIN_ANALYZE = "EXPLAIN ANALYZE "
 ENABLE_HINT = "SET pg_hint_plan.enable_hint = ON;"
+
+
+@dataclasses.dataclass
+class QueryTips:
+    accept: List[str] = dataclasses.field(default_factory=list)
+    reject: List[str] = dataclasses.field(default_factory=list)
+    max_timeout: str = dataclasses.field(default_factory=str)
 
 
 class Scans(Enum):
@@ -14,6 +24,15 @@ class Scans(Enum):
     INDEX = "IndexScan"
     INDEX_ONLY = "IndexOnlyScan"
     BITMAP = "BitmapScan"
+
+
+class Joins(Enum):
+    HASH = "HashJoin"
+    MERGE = "MergeJoin"
+    NESTED_LOOP = "NestLoop"
+
+    def construct(self, tables: List[str]):
+        return f"{self.value}({' '.join(tables)})"
 
 
 class Leading:
@@ -47,15 +66,6 @@ class Leading:
             self.joins[leading_hint] = joins
 
 
-class Joins(Enum):
-    HASH = "HashJoin"
-    MERGE = "MergeJoin"
-    NESTED_LOOP = "NestLoop"
-
-    def construct(self, tables: List[str]):
-        return f"{self.value}({' '.join(tables)})"
-
-
 @dataclasses.dataclass
 class Optimization:
     query: str = None
@@ -68,7 +78,8 @@ class Optimization:
         return f"/*+ {self.explain_hints} */ {self.query}"
 
     def get_explain(self):
-        return f"{EXPLAIN}  /*+ {self.explain_hints} */ {self.query}"
+        explain = EXPLAIN_ANALYZE if Config().explain_analyze else EXPLAIN
+        return f"{explain}  /*+ {self.explain_hints} */ {self.query}"
 
     def __str__(self):
         return f"Query - \"{self.query}\"\n" \
@@ -84,10 +95,15 @@ class Query:
     tables: List[str] = None
     execution_plan: str = None
     optimizer_score: float = 1
+    optimizer_tips: QueryTips = None
     execution_time_ms: int = 0
 
+    def get_query(self):
+        return self.query
+
     def get_explain(self):
-        return f"{EXPLAIN} {self.query}"
+        explain = EXPLAIN_ANALYZE if Config().explain_analyze else EXPLAIN
+        return f"{explain} {self.query}"
 
     def __str__(self):
         return f"Query - \"{self.query}\"\n" \
@@ -97,9 +113,9 @@ class Query:
 
 
 class ListOfOptimizations:
-    def __init__(self, query: str, tables: List[str]):
+    def __init__(self, query: Query):
         self.query = query
-        self.leading = Leading(tables)
+        self.leading = Leading(query.tables)
         self.leading.construct()
 
     def get_all_optimizations(self, max_optimizations) -> List[Optimization]:
@@ -112,12 +128,26 @@ class ListOfOptimizations:
                         interrupt = True
                         break
 
-                    optimizations.append(
-                        Optimization(
-                            query=self.query,
-                            explain_hints=f"{leading} {join}"
+                    # todo refactor this
+                    explain_hints = f"{leading} {join}"
+                    skip_optimization = False
+                    for accept_tip in self.query.optimizer_tips.accept:
+                        if accept_tip not in explain_hints:
+                            skip_optimization = True
+                            break
+                    if not skip_optimization:
+                        for reject_tip in self.query.optimizer_tips.reject:
+                            if reject_tip in explain_hints:
+                                skip_optimization = True
+                                break
+
+                    if not skip_optimization:
+                        optimizations.append(
+                            Optimization(
+                                query=self.query.query,
+                                explain_hints=f"{leading} {join}"
+                            )
                         )
-                    )
 
         return optimizations
 

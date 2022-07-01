@@ -1,3 +1,7 @@
+-- accept: part supplier nation
+-- reject: nation region, NestLoop
+-- max_timeout: 1s
+
 select
 	s_acctbal,
 	s_name,
