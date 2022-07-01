@@ -131,15 +131,16 @@ class ListOfOptimizations:
                     # todo refactor this
                     explain_hints = f"{leading} {join}"
                     skip_optimization = False
-                    for accept_tip in self.query.optimizer_tips.accept:
-                        if accept_tip not in explain_hints:
-                            skip_optimization = True
-                            break
-                    if not skip_optimization:
-                        for reject_tip in self.query.optimizer_tips.reject:
-                            if reject_tip in explain_hints:
+                    if self.query.optimizer_tips:
+                        for accept_tip in self.query.optimizer_tips.accept:
+                            if accept_tip not in explain_hints:
                                 skip_optimization = True
                                 break
+                        if not skip_optimization:
+                            for reject_tip in self.query.optimizer_tips.reject:
+                                if reject_tip in explain_hints:
+                                    skip_optimization = True
+                                    break
 
                     if not skip_optimization:
                         optimizations.append(

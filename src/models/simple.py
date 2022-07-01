@@ -26,7 +26,7 @@ class QueryJoins(Enum):
 
 class SimpleModel(QTFModel):
     TABLES = [
-        Table(f"t{num}", num) for num in [10_000_000, 1_000_000, 500_000, 50_000, 100]
+        Table(f"t{num}", num) for num in [1_000_000, 500_000, 50_000, 100]
     ]
 
     def create_tables(self, conn):
