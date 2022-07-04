@@ -9,5 +9,5 @@ class QTFModel(ABC):
         pass
 
     @abc.abstractmethod
-    def get_queries(self):
+    def get_queries(self, tables):
         pass

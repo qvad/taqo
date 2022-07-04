@@ -19,12 +19,13 @@ class QueryJoins(Enum):
 
 class SimpleModel(QTFModel):
     TABLES = [
-        Table(f"t{num}", [Field('a', True), Field('md5', False)], num) for num in [1_000_000, 500_000, 50_000, 100]
+        Table(f"t{num}", [Field('a', True), Field('md5', False)], num) for num in
+        [1_000_000, 500_000, 50_000, 100]
     ]
 
     def create_tables(self, conn):
         if Config().skip_model_creation:
-            return
+            return self.TABLES
 
         if Config().verbose:
             print("Creating simple model tables and run analyze")
@@ -43,7 +44,7 @@ class SimpleModel(QTFModel):
 
         return self.TABLES
 
-    def get_queries(self):
+    def get_queries(self, tables):
         queries = []
 
         where_clauses = itertools.cycle([
@@ -53,7 +54,7 @@ class SimpleModel(QTFModel):
             "", "limit"
         ])
 
-        for perm in itertools.permutations(self.TABLES, 3):
+        for perm in itertools.permutations(tables, 3):
             first_table = perm[0]
             for query_join in QueryJoins:
                 query = f"SELECT * FROM {first_table.name} "

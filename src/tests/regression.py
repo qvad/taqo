@@ -53,8 +53,8 @@ def evaluate_regression():
 
         # evaluate original query
         model = get_test_model()
-        model.create_tables(conn)
-        queries = model.get_queries()
+        created_tables = model.create_tables(conn)
+        queries = model.get_queries(created_tables)
 
         first_version_queries = evaluate_queries_for_version(conn, queries)
 

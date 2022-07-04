@@ -4,7 +4,6 @@ from src.config import Config
 from src.tests.regression import evaluate_regression
 from src.tests.taqo import evaluate_taqo
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Query Optimizer Testing framework for PostgreSQL compatible DBs')

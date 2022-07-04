@@ -80,7 +80,8 @@ class Leading:
             self.joins[leading_hint] = joins
 
         for table in self.tables:
-            tables_and_idxs = [f"{Scans.INDEX.value}({table.name})" for field in table.fields if field.is_index]
+            tables_and_idxs = [f"{Scans.INDEX.value}({table.name})" for field in table.fields if
+                               field.is_index]
             tables_and_idxs.append(f"{Scans.SEQ.value}({table.name})")
             self.table_scan_hints.append(tables_and_idxs)
 
@@ -153,9 +154,16 @@ class ListOfOptimizations:
                         self.add_optimization(explain_hints, optimizations)
                     else:
                         for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
+                            if len(optimizations) >= max_optimizations:
+                                interrupt = True
+                                break
+
                             explain_hints = f"{leading} {join} {' '.join(table_scan_hint)}"
 
                             self.add_optimization(explain_hints, optimizations)
+
+                    if interrupt:
+                        break
 
         return optimizations
 

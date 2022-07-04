@@ -1,6 +1,6 @@
 import time
-import psycopg2
 
+import psycopg2
 from tqdm import tqdm
 
 from src.config import Config
@@ -33,8 +33,8 @@ def evaluate_taqo():
 
         # evaluate original query
         model = get_test_model()
-        model.create_tables(conn)
-        queries = model.get_queries()
+        created_tables = model.create_tables(conn)
+        queries = model.get_queries(created_tables)
 
         if config.num_queries:
             queries = queries[:int(config.num_queries)]
@@ -66,7 +66,8 @@ def evaluate_taqo():
 
                     # set maximum execution time
                     optimizer_query_timeout = \
-                        (original_query.optimizer_tips and original_query.optimizer_tips.max_timeout) or \
+                        (
+                                    original_query.optimizer_tips and original_query.optimizer_tips.max_timeout) or \
                         f"{int(original_query.execution_time_ms / 1000) + int(config.skip_timeout_delta)}s"
 
                     if Config().verbose:

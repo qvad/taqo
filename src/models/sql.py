@@ -1,9 +1,11 @@
 import glob
 import sqlparse
+
+from typing import List
 from sqlparse.sql import Comment
 
 from src.config import Config
-from src.database import Query, QueryTips
+from src.database import Query, QueryTips, Table, Field
 from src.models.abstract import QTFModel
 from src.utils import get_alias_table_names, evaluate_sql
 
@@ -11,15 +13,77 @@ from src.utils import get_alias_table_names, evaluate_sql
 class SQLModel(QTFModel):
 
     def create_tables(self, conn):
-        if Config().skip_model_creation:
-            return
+        created_tables: List[Table] = []
 
         with conn.cursor() as cur:
-            with open(f"sql/{Config().model}/create.sql", "r") as create_sql:
-                full_queries = '\n'.join(create_sql.readlines())
-                for query in full_queries.split(";"):
-                    if cleaned := query.lstrip():
-                        evaluate_sql(cur, cleaned)
+            if not Config().skip_model_creation:
+                with open(f"sql/{Config().model}/create.sql", "r") as create_sql:
+                    full_queries = '\n'.join(create_sql.readlines())
+                    for query in full_queries.split(";"):
+                        if cleaned := query.lstrip():
+                            evaluate_sql(cur, cleaned)
+
+            self.load_tables_from_public(created_tables, cur)
+
+        return created_tables
+
+    def load_tables_from_public(self, created_tables, cur):
+        print("Loading tables...")
+        cur.execute(
+            "select table_name, table_schema from information_schema.tables where table_schema = 'public'")
+        tables = []
+        result = list(cur.fetchall())
+        tables.extend((row[0], row[1])
+                      for row in result
+                      if row[1] not in ["pg_catalog", "information_schema"])
+
+        print("Loading columns and constraints...")
+        for table in tables:
+            evaluate_sql(
+                cur,
+                f"""
+                        SELECT column_name
+                          FROM information_schema.columns
+                         WHERE table_schema = '{table[1]}'
+                           AND table_name   = '{table[0]}';
+                        """
+            )
+
+            columns = [row[0] for row in list(cur.fetchall())]
+
+            evaluate_sql(
+                cur,
+                f"""
+                        select
+                            t.relname as table_name,
+                            i.relname as index_name,
+                            a.attname as column_name
+                        from
+                            pg_class t,
+                            pg_class i,
+                            pg_index ix,
+                            pg_attribute a
+                        where
+                            t.oid = ix.indrelid
+                            and i.oid = ix.indexrelid
+                            and a.attrelid = t.oid
+                            and a.attnum = ANY(ix.indkey)
+                            and t.relkind = 'r'
+                            and t.relname like '{table[0]}'
+                        order by
+                            t.relname,
+                            i.relname;
+                        """
+            )
+
+            fields = []
+
+            result = list(cur.fetchall())
+            for column in columns:
+                is_indexed = any(column == row[2] for row in result)
+                fields.append(Field(column, is_indexed))
+
+            created_tables.append(Table(table[0], fields, 0))
 
     def get_comments(self, full_query):
         for token in sqlparse.parse(full_query)[0].tokens:
@@ -42,22 +106,18 @@ class SQLModel(QTFModel):
 
         return tips
 
-    def get_queries(self):
-        # todo not fully automated because of sql_metadata lib issues
-        tables = ['supplier', 'part', 'partsupp', 'customer', 'orders', 'lineitem', 'nation',
-                  'region']
+    def get_queries(self, tables):
+        table_names = [table.name for table in tables]
 
         queries = []
         query_file_lists = list(glob.glob(f"sql/{Config().model}/queries/*.sql"))
         for query in query_file_lists:
             with open(query, "r") as query_file:
                 full_query = ''.join(query_file.readlines())
-                tables_list = get_alias_table_names(full_query)
+                tables_list = get_alias_table_names(full_query, table_names)
                 queries.append(Query(
                     query=sqlparse.format(full_query, strip_comments=True).strip(),
-                    tables=[alias_t
-                            for alias_t, name_t in list(tables_list.items()) if name_t in tables],
-                    optimizer_tips=self.get_query_hint_tips(full_query)
-                ))
+                    tables=[table for table in tables if table.name in tables_list.values()],
+                    optimizer_tips=self.get_query_hint_tips(full_query)))
 
         return queries

@@ -3,7 +3,6 @@ import time
 import psycopg2
 
 from sql_metadata import Parser
-
 from src.config import Config
 
 
@@ -29,16 +28,18 @@ def calculate_avg_execution_time(cur, query, num_retries):
             start_time = current_milli_time()
             evaluate_sql(cur, query.get_query())
             sum_execution_times += current_milli_time() - start_time
-        except psycopg2.errors.QueryCanceled:
-            # failed by timeout - it's ok
-            sum_execution_times += 0
+        except psycopg2.errors.QueryCanceled as e:
+            # failed by timeout - it's ok just skip optimization
+            query.execution_time_ms = 0
+            return
+        # todo add exception when wrong hints used?
         finally:
             actual_evaluations += 1
 
     query.execution_time_ms = sum_execution_times / actual_evaluations
 
 
-def get_alias_table_names(sql_str):
+def get_alias_table_names(sql_str, table_names):
     parser = Parser(sql_str)
 
     # todo some workarounds for sql_metadata package issues
@@ -47,7 +48,7 @@ def get_alias_table_names(sql_str):
     aliases = parser.tables_aliases
 
     result_tables = {alias: table_name for alias, table_name in aliases.items()
-                     if alias not in ['where', 'group by', 'from']}
+                     if alias not in ['where', 'group by', 'from'] and table_name in table_names}
 
     for table in tables:
         if table not in result_tables.keys():
