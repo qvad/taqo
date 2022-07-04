@@ -22,7 +22,7 @@ class Report:
                       f"[VERSION]\n====\n{version}\n====\n\n"
         self.reported_queries_counter = 0
 
-        shutil.rmtree("report")
+        shutil.rmtree("report", ignore_errors=True)
 
         os.mkdir("report")
         os.mkdir("report/imgs")
