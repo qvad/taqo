@@ -63,7 +63,7 @@ class Leading:
             joined_tables = []
 
             for table in tables_perm:
-                prev_el = f"( {prev_el} {table.name} )" if prev_el else table
+                prev_el = f"( {prev_el} {table.name} )" if prev_el else table.name
                 joined_tables.append(table.name)
 
                 if prev_el != table.name:
@@ -153,7 +153,7 @@ class ListOfOptimizations:
                         self.add_optimization(explain_hints, optimizations)
                     else:
                         for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
-                            explain_hints = f"{leading} {join} {table_scan_hint}"
+                            explain_hints = f"{leading} {join} {' '.join(table_scan_hint)}"
 
                             self.add_optimization(explain_hints, optimizations)
 
