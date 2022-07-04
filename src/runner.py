@@ -45,6 +45,10 @@ if __name__ == "__main__":
                         action=argparse.BooleanOptionalAction,
                         default=False,
                         help='Skip model creation queries')
+    parser.add_argument('--skip-table-scan-hints',
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help='Skip table scan hinting')
 
     parser.add_argument('--num-queries',
                         default=0,
@@ -84,6 +88,7 @@ if __name__ == "__main__":
         model=args.model,
 
         skip_model_creation=args.skip_model_creation,
+        skip_table_scan_hints=args.skip_table_scan_hints,
 
         num_queries=args.num_queries,
         num_retries=args.num_retries,

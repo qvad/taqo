@@ -35,12 +35,26 @@ class Joins(Enum):
         return f"{self.value}({' '.join(tables)})"
 
 
+@dataclasses.dataclass
+class Field:
+    name: str = None
+    is_index: bool = None
+
+
+@dataclasses.dataclass
+class Table:
+    name: str = None
+    fields: List[Field] = None
+    size: int = 0
+
+
 class Leading:
     LEADING = "Leading"
 
-    def __init__(self, tables: List[str]):
+    def __init__(self, tables: List[Table]):
         self.tables = tables
         self.joins = {}
+        self.table_scan_hints = []
 
     def construct(self):
         for tables_perm in itertools.permutations(self.tables):
@@ -49,10 +63,10 @@ class Leading:
             joined_tables = []
 
             for table in tables_perm:
-                prev_el = f"( {prev_el} {table} )" if prev_el else table
-                joined_tables.append(table)
+                prev_el = f"( {prev_el} {table.name} )" if prev_el else table
+                joined_tables.append(table.name)
 
-                if prev_el != table:
+                if prev_el != table.name:
                     if joins:
                         new_joins = [f"{join} {new_join.construct(joined_tables)}"
                                      for join, new_join in itertools.product(joins, Joins)]
@@ -64,6 +78,11 @@ class Leading:
 
             leading_hint = f"{self.LEADING} ({prev_el})"
             self.joins[leading_hint] = joins
+
+        for table in self.tables:
+            tables_and_idxs = [f"{Scans.INDEX.value}({table.name})" for field in table.fields if field.is_index]
+            tables_and_idxs.append(f"{Scans.SEQ.value}({table.name})")
+            self.table_scan_hints.append(tables_and_idxs)
 
 
 @dataclasses.dataclass
@@ -92,7 +111,7 @@ class Optimization:
 class Query:
     query: str = None
     explain_hints: str = None  # TODO parse possible explain hints?
-    tables: List[str] = None
+    tables: List[Table] = None
     execution_plan: str = None
     optimizer_score: float = 1
     optimizer_tips: QueryTips = None
@@ -128,29 +147,41 @@ class ListOfOptimizations:
                         interrupt = True
                         break
 
-                    # todo refactor this
-                    explain_hints = f"{leading} {join}"
-                    skip_optimization = False
-                    if self.query.optimizer_tips:
-                        for accept_tip in self.query.optimizer_tips.accept:
-                            if accept_tip not in explain_hints:
-                                skip_optimization = True
-                                break
-                        if not skip_optimization:
-                            for reject_tip in self.query.optimizer_tips.reject:
-                                if reject_tip in explain_hints:
-                                    skip_optimization = True
-                                    break
+                    if Config().skip_table_scan_hints:
+                        explain_hints = f"{leading} {join}"
 
-                    if not skip_optimization:
-                        optimizations.append(
-                            Optimization(
-                                query=self.query.query,
-                                explain_hints=f"{leading} {join}"
-                            )
-                        )
+                        self.add_optimization(explain_hints, optimizations)
+                    else:
+                        for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
+                            explain_hints = f"{leading} {join} {table_scan_hint}"
+
+                            self.add_optimization(explain_hints, optimizations)
 
         return optimizations
+
+    def add_optimization(self, explain_hints, optimizations):
+        skip_optimization = self.filter_optimization_tips(explain_hints)
+        if not skip_optimization:
+            optimizations.append(
+                Optimization(
+                    query=self.query.query,
+                    explain_hints=explain_hints
+                )
+            )
+
+    def filter_optimization_tips(self, explain_hints):
+        skip_optimization = False
+        if self.query.optimizer_tips:
+            for accept_tip in self.query.optimizer_tips.accept:
+                if accept_tip not in explain_hints:
+                    skip_optimization = True
+                    break
+            if not skip_optimization:
+                for reject_tip in self.query.optimizer_tips.reject:
+                    if reject_tip in explain_hints:
+                        skip_optimization = True
+                        break
+        return skip_optimization
 
 
 if __name__ == "__main__":
