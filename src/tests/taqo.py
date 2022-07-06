@@ -81,15 +81,35 @@ def evaluate_taqo():
                     list_of_optimizations = ListOfOptimizations(
                         original_query) \
                         .get_all_optimizations(int(config.max_optimizations))
-                    for optimization in tqdm(list_of_optimizations):
-                        evaluate_sql(cur, optimization.get_explain())
+
+                    progress_bar = tqdm(list_of_optimizations)
+                    num_skipped = 0
+                    for optimization in progress_bar:
+                        # in case of enable statistics enabled
+                        # we can get failure here and throw timeout
+                        try:
+                            evaluate_sql(cur, optimization.get_explain())
+                        except psycopg2.errors.QueryCanceled as e:
+                            # failed by timeout - it's ok just skip optimization
+                            if config.verbose:
+                                print(f"Getting execution plan failed with {e}")
+
+                            num_skipped += 1
+                            optimization.execution_time_ms = 0
+                            optimization.execution_plan = ""
+                            optimization.optimizer_score = 0
+                            continue
+
                         optimization.execution_plan = '\n'.join(
                             str(item[0]) for item in cur.fetchall())
 
                         optimization.optimizer_score = get_optimizer_score_from_plan(
                             optimization.execution_plan)
 
-                        calculate_avg_execution_time(cur, optimization, int(config.num_retries))
+                        if not calculate_avg_execution_time(cur, optimization, int(config.num_retries)):
+                            num_skipped += 1
+
+                        progress_bar.set_postfix({'skipped': num_skipped})
 
                     best_optimization = original_query
                     for optimization in list_of_optimizations:

@@ -31,12 +31,14 @@ def calculate_avg_execution_time(cur, query, num_retries):
         except psycopg2.errors.QueryCanceled as e:
             # failed by timeout - it's ok just skip optimization
             query.execution_time_ms = 0
-            return
+            return False
         # todo add exception when wrong hints used?
         finally:
             actual_evaluations += 1
 
     query.execution_time_ms = sum_execution_times / actual_evaluations
+
+    return True
 
 
 def get_alias_table_names(sql_str, table_names):
