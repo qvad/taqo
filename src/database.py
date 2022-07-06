@@ -98,7 +98,7 @@ class Optimization:
         return f"/*+ {self.explain_hints} */ {self.query}"
 
     def get_explain(self):
-        explain = EXPLAIN_ANALYZE if Config().explain_analyze else EXPLAIN
+        explain = EXPLAIN_ANALYZE if Config().enable_statistics else EXPLAIN
         return f"{explain}  /*+ {self.explain_hints} */ {self.query}"
 
     def __str__(self):
@@ -122,7 +122,7 @@ class Query:
         return self.query
 
     def get_explain(self):
-        explain = EXPLAIN_ANALYZE if Config().explain_analyze else EXPLAIN
+        explain = EXPLAIN_ANALYZE if Config().enable_statistics else EXPLAIN
         return f"{explain} {self.query}"
 
     def __str__(self):

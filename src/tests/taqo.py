@@ -46,7 +46,7 @@ def evaluate_taqo():
 
             evaluate_sql(cur, ENABLE_PLAN_HINTING)
             if config.enable_statistics:
-                if Config().verbose:
+                if config.verbose:
                     print("Enable yb_enable_optimizer_statistics flag")
 
                 evaluate_sql(cur, ENABLE_STATISTICS_HINT)
@@ -72,7 +72,7 @@ def evaluate_taqo():
                                     original_query.optimizer_tips and original_query.optimizer_tips.max_timeout) or \
                         f"{int(original_query.execution_time_ms / 1000) + int(config.skip_timeout_delta)}s"
 
-                    if Config().verbose:
+                    if config.verbose:
                         print(f"Setting query timeout to {optimizer_query_timeout} seconds")
 
                     evaluate_sql(cur, f"SET statement_timeout = '{optimizer_query_timeout}'")

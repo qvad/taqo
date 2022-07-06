@@ -20,7 +20,6 @@ class Config(metaclass=Singleton):
     database: str = None
 
     enable_statistics: bool = False
-    explain_analyze: bool = False
 
     test: str = None
     model: str = None

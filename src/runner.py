@@ -28,10 +28,6 @@ if __name__ == "__main__":
                         action=argparse.BooleanOptionalAction,
                         default=False,
                         help='Evaluate yb_enable_optimizer_statistics before running queries')
-    parser.add_argument('--explain-analyze',
-                        action=argparse.BooleanOptionalAction,
-                        default=False,
-                        help='Evaluate EXPLAIN ANALYZE instead of EXPLAIN')
 
     parser.add_argument('--test',
                         default="taqo",
@@ -81,7 +77,6 @@ if __name__ == "__main__":
         database=args.database,
 
         enable_statistics=args.enable_statistics,
-        explain_analyze=args.explain_analyze,
 
         test=args.test,
         model=args.model,
