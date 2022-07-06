@@ -48,6 +48,9 @@ if __name__ == "__main__":
                         action=argparse.BooleanOptionalAction,
                         default=False,
                         help='Skip table scan hinting')
+    parser.add_argument('--skip-timeout-delta',
+                        default=1,
+                        help='Timeout delta for optimized query (default 1s)')
 
     parser.add_argument('--num-queries',
                         default=0,
@@ -55,12 +58,9 @@ if __name__ == "__main__":
     parser.add_argument('--num-retries',
                         default=5,
                         help='Number of retries')
-    parser.add_argument('--skip-timeout-delta',
-                        default=2,
-                        help='Timeout delta for optimized query')
     parser.add_argument('--max-optimizations',
-                        default=300,
-                        help='Maximum number of allowed optimizations (default 300)')
+                        default=1000,
+                        help='Maximum number of allowed optimizations (default 1000)')
 
     parser.add_argument('--asciidoctor-path',
                         default="asciidoctor",

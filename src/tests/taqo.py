@@ -53,6 +53,8 @@ def evaluate_taqo():
 
             for original_query in queries:
                 try:
+                    evaluate_sql(cur, "SET statement_timeout = '1200s'")
+
                     short_query = original_query.query.replace('\n', '')[:40]
                     print(f"Evaluating query {short_query}... [{counter}/{len(queries)}]")
 
