@@ -4,19 +4,23 @@ import psycopg2
 from tqdm import tqdm
 
 from src.config import Config
-from src.database import ListOfOptimizations
+from src.database import ListOfOptimizations, ENABLE_PLAN_HINTING, ENABLE_STATISTICS_HINT
 from src.models.factory import get_test_model
 from src.report import Report
 from src.utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
-
-ENABLE_PLAN_HINTING = "SET pg_hint_plan.enable_hint = ON;"
-ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
+from yugabyte import Yugabyte
 
 
 def evaluate_taqo():
+    config = Config()
+
+    yugabyte = Yugabyte(config.yugabyte_code_path)
+    yugabyte.compile(config.revisions[0])
+    yugabyte.destroy()
+    yugabyte.start_node()
+
     conn = None
     report = None
-    config = Config()
 
     try:
         conn = psycopg2.connect(
@@ -69,7 +73,7 @@ def evaluate_taqo():
                     # set maximum execution time
                     optimizer_query_timeout = \
                         (
-                                    original_query.optimizer_tips and original_query.optimizer_tips.max_timeout) or \
+                                original_query.optimizer_tips and original_query.optimizer_tips.max_timeout) or \
                         f"{int(original_query.execution_time_ms / 1000) + int(config.skip_timeout_delta)}s"
 
                     if config.verbose:
@@ -77,39 +81,7 @@ def evaluate_taqo():
 
                     evaluate_sql(cur, f"SET statement_timeout = '{optimizer_query_timeout}'")
 
-                    # build all possible optimizations
-                    list_of_optimizations = ListOfOptimizations(
-                        original_query) \
-                        .get_all_optimizations(int(config.max_optimizations))
-
-                    progress_bar = tqdm(list_of_optimizations)
-                    num_skipped = 0
-                    for optimization in progress_bar:
-                        # in case of enable statistics enabled
-                        # we can get failure here and throw timeout
-                        try:
-                            evaluate_sql(cur, optimization.get_explain())
-                        except psycopg2.errors.QueryCanceled as e:
-                            # failed by timeout - it's ok just skip optimization
-                            if config.verbose:
-                                print(f"Getting execution plan failed with {e}")
-
-                            num_skipped += 1
-                            optimization.execution_time_ms = 0
-                            optimization.execution_plan = ""
-                            optimization.optimizer_score = 0
-                            continue
-
-                        optimization.execution_plan = '\n'.join(
-                            str(item[0]) for item in cur.fetchall())
-
-                        optimization.optimizer_score = get_optimizer_score_from_plan(
-                            optimization.execution_plan)
-
-                        if not calculate_avg_execution_time(cur, optimization, int(config.num_retries)):
-                            num_skipped += 1
-
-                        progress_bar.set_postfix({'skipped': num_skipped})
+                    list_of_optimizations = evaluate_optimizations(config, cur, original_query)
 
                     best_optimization = original_query
                     for optimization in list_of_optimizations:
@@ -130,3 +102,43 @@ def evaluate_taqo():
 
         # close connection
         conn.close()
+
+        # stop yugabyte
+        yugabyte.stop_node()
+
+
+def evaluate_optimizations(config, cur, original_query):
+    # build all possible optimizations
+    list_of_optimizations = ListOfOptimizations(
+        original_query) \
+        .get_all_optimizations(int(config.max_optimizations))
+    progress_bar = tqdm(list_of_optimizations)
+    num_skipped = 0
+    for optimization in progress_bar:
+        # in case of enable statistics enabled
+        # we can get failure here and throw timeout
+        try:
+            evaluate_sql(cur, optimization.get_explain())
+        except psycopg2.errors.QueryCanceled as e:
+            # failed by timeout - it's ok just skip optimization
+            if config.verbose:
+                print(f"Getting execution plan failed with {e}")
+
+            num_skipped += 1
+            optimization.execution_time_ms = 0
+            optimization.execution_plan = ""
+            optimization.optimizer_score = 0
+            continue
+
+        optimization.execution_plan = '\n'.join(
+            str(item[0]) for item in cur.fetchall())
+
+        optimization.optimizer_score = get_optimizer_score_from_plan(
+            optimization.execution_plan)
+
+        if not calculate_avg_execution_time(cur, optimization,
+                                            int(config.num_retries)):
+            num_skipped += 1
+
+        progress_bar.set_postfix({'skipped': num_skipped})
+    return list_of_optimizations

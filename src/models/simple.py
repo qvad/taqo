@@ -88,7 +88,3 @@ class SimpleModel(QTFModel):
                 ))
 
         return queries
-
-
-if __name__ == "__main__":
-    pprint(SimpleModel().get_queries())

@@ -9,7 +9,7 @@ if __name__ == "__main__":
         description='Query Optimizer Testing framework for PostgreSQL compatible DBs')
 
     parser.add_argument('--host',
-                        default="localhost",
+                        default="127.0.0.1",
                         help='Target host IP for postgres compatible database')
     parser.add_argument('--port',
                         default=5433,
@@ -35,6 +35,12 @@ if __name__ == "__main__":
     parser.add_argument('--model',
                         default="simple",
                         help='Test model to use - simple (default) or tpch')
+
+    parser.add_argument('--yugabyte-code-path',
+                        help='Path to Yugabyte source repository')
+    parser.add_argument('--revisions',
+                        default="master",
+                        help='Comma separated git revisions to test')
 
     parser.add_argument('--skip-model-creation',
                         action=argparse.BooleanOptionalAction,
@@ -81,6 +87,9 @@ if __name__ == "__main__":
         test=args.test,
         model=args.model,
 
+        yugabyte_code_path=args.yugabyte_code_path,
+        revisions=args.revisions.split(","),
+
         skip_model_creation=args.skip_model_creation,
         skip_table_scan_hints=args.skip_table_scan_hints,
 
@@ -93,7 +102,13 @@ if __name__ == "__main__":
         verbose=args.verbose,
     )
 
-    if args.test == "taqo":
+    if config.test == "taqo":
+        # noinspection Assert
+        assert len(config.revisions) in {0, 1}, "One or zero revisions must be defined for TAQO test"
+
         evaluate_taqo()
-    elif args.test == "regression":
+    elif config.test == "regression":
+        # noinspection Assert
+        assert len(config.revisions) == 2, "Exactly 2 revisions must be defined for regression test"
+
         evaluate_regression()

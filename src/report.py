@@ -14,6 +14,7 @@ from src.config import Config
 from src.database import Optimization, Query
 
 
+# noinspection InsecureHash
 class Report:
     def __init__(self, version):
         self.report = f"= Query Optimizer Test report \n" \

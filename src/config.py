@@ -1,5 +1,7 @@
 import dataclasses
 
+from typing import List
+
 
 class Singleton(type):
     _instances = {}
@@ -23,6 +25,9 @@ class Config(metaclass=Singleton):
 
     test: str = None
     model: str = None
+
+    yugabyte_code_path: str = None
+    revisions: List[str] = None
 
     skip_table_scan_hints: bool = None
     skip_model_creation: bool = None

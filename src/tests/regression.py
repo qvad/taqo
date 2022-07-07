@@ -4,6 +4,7 @@ from src.config import Config
 from src.models.factory import get_test_model
 from src.report import Report
 from src.utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
+from yugabyte import Yugabyte
 
 
 def evaluate_queries_for_version(conn, queries):
@@ -25,18 +26,22 @@ def evaluate_queries_for_version(conn, queries):
                 version_queries.append(first_version_query)
             except Exception as e:
                 raise e
+            finally:
+                counter += 1
 
     return version_queries
 
 
 def evaluate_regression():
-    # todo implement
-    print("Not implemented")
-    exit(1)
+    config = Config()
+
+    yugabyte = Yugabyte(config.yugabyte_code_path)
+    yugabyte.compile(config.revisions[0])
+    yugabyte.destroy()
+    yugabyte.start_node()
 
     conn = None
-    report = Report()
-    config = Config()
+    report = None
 
     try:
         conn = psycopg2.connect(
@@ -49,7 +54,7 @@ def evaluate_regression():
 
         with conn.cursor() as cur:
             evaluate_sql(cur, 'SELECT VERSION();')
-            report.version = cur.fetchone()[0]
+            report = Report(cur.fetchone()[0])
 
         # evaluate original query
         model = get_test_model()
@@ -58,7 +63,21 @@ def evaluate_regression():
 
         first_version_queries = evaluate_queries_for_version(conn, queries)
 
-        # todo magic upgrade happens here
+        conn.close()
+
+        yugabyte.stop_node()
+        yugabyte.compile(config.revisions[1])
+        # tod is this correct upgrade path?
+        yugabyte.start_node()
+
+        # reconnect
+        conn = psycopg2.connect(
+            host=config.host,
+            port=config.port,
+            database=config.database,
+            user=config.username,
+            password=config.password)
+        conn.autocommit = True
 
         second_version_queries = evaluate_queries_for_version(conn, queries)
 

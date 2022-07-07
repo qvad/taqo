@@ -24,6 +24,7 @@ def calculate_avg_execution_time(cur, query, num_retries):
     num_retries = max(num_retries, 2)
 
     for _ in range(num_retries):
+        # noinspection PyUnresolvedReferences
         try:
             start_time = current_milli_time()
             evaluate_sql(cur, query.get_query())

@@ -9,7 +9,8 @@ from src.config import Config
 
 EXPLAIN = "EXPLAIN "
 EXPLAIN_ANALYZE = "EXPLAIN ANALYZE "
-ENABLE_HINT = "SET pg_hint_plan.enable_hint = ON;"
+ENABLE_PLAN_HINTING = "SET pg_hint_plan.enable_hint = ON;"
+ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
 
 
 @dataclasses.dataclass
