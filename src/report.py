@@ -91,19 +91,19 @@ class RegressionReport(Report):
             self.worse_execution_time.append([first_query, second_query])
 
     def build_report(self):
-        self.report += "\nPlans with <<worse>> execution time\n"
-        self.report += "\nPlans with <<improved>> execution time\n"
-        self.report += "\nPlans with <<same>> execution time\n"
+        self.report += "\n<<worse>>"
+        self.report += "\n<<improved>>"
+        self.report += "\n<<same>>"
 
-        self.report += "\n[#worse]\n\n= Worse execution time queries\n\n"
+        self.report += "\n[#worse]\n== Worse execution time queries\n\n"
         for query in self.worse_execution_time:
             self.__report_query(query[0], query[1])
 
-        self.report += "\n[#improved]\n\n= Improved execution time\n\n"
+        self.report += "\n[#improved]\n== Improved execution time\n\n"
         for query in self.improved_execution_time:
             self.__report_query(query[0], query[1])
 
-        self.report += "\n[#same]\n\n= Same execution time\n\n"
+        self.report += "\n[#same]\n\n== Same execution time\n\n"
         for query in self.same_execution_plan:
             self.__report_query(query[0], query[1])
 
@@ -227,14 +227,14 @@ class TaqoReport(Report):
             self.better_plan_found.append(query)
 
     def build_report(self):
-        self.report += "\nFound <<better>> execution time\n"
-        self.report += "\nNo better plan <<found>>\n"
+        self.report += "\n<<better>>"
+        self.report += "\n<<found>>\n"
 
-        self.report += "\n[#better]\n\n= Better plan found queries\n\n"
+        self.report += "\n[#better]\n== Better plan found queries\n\n"
         for query in self.better_plan_found:
             self.__report_query(query)
 
-        self.report += "\n[#found]\n\n= No better plan found\n\n"
+        self.report += "\n[#found]\n== No better plan found\n\n"
         for query in self.same_execution_plan:
             self.__report_query(query)
 
