@@ -6,7 +6,7 @@ from tqdm import tqdm
 from src.config import Config
 from src.database import ListOfOptimizations, ENABLE_PLAN_HINTING, ENABLE_STATISTICS_HINT
 from src.models.factory import get_test_model
-from src.report import Report
+from src.report import TaqoReport
 from src.utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
 from yugabyte import Yugabyte
 
@@ -16,6 +16,7 @@ def evaluate_taqo():
 
     yugabyte = Yugabyte(config.yugabyte_code_path)
     yugabyte.compile(config.revisions[0])
+    yugabyte.stop_node()
     yugabyte.destroy()
     yugabyte.start_node()
 
@@ -33,7 +34,7 @@ def evaluate_taqo():
 
         with conn.cursor() as cur:
             evaluate_sql(cur, 'SELECT VERSION();')
-            report = Report(cur.fetchone()[0])
+            report = TaqoReport(cur.fetchone()[0])
 
         # evaluate original query
         model = get_test_model()
@@ -81,16 +82,9 @@ def evaluate_taqo():
 
                     evaluate_sql(cur, f"SET statement_timeout = '{optimizer_query_timeout}'")
 
-                    list_of_optimizations = evaluate_optimizations(config, cur, original_query)
+                    evaluate_optimizations(config, cur, original_query)
 
-                    best_optimization = original_query
-                    for optimization in list_of_optimizations:
-                        if best_optimization.execution_time_ms > optimization.execution_time_ms != 0:
-                            best_optimization = optimization
-
-                    report.add_taqo_query(query=original_query,
-                                          best_optimization=best_optimization,
-                                          optimizations=list_of_optimizations)
+                    report.add_query(original_query)
                 except Exception as e:
                     print(original_query)
                     raise e
@@ -98,6 +92,7 @@ def evaluate_taqo():
                     counter += 1
     finally:
         # publish current report
+        report.build_report()
         report.publish_report("taqo")
 
         # close connection
@@ -114,9 +109,12 @@ def evaluate_optimizations(config, cur, original_query):
         .get_all_optimizations(int(config.max_optimizations))
     progress_bar = tqdm(list_of_optimizations)
     num_skipped = 0
+    original_query.optimizations = []
     for optimization in progress_bar:
         # in case of enable statistics enabled
         # we can get failure here and throw timeout
+        original_query.optimizations.append(optimization)
+
         try:
             evaluate_sql(cur, optimization.get_explain())
         except psycopg2.errors.QueryCanceled as e:

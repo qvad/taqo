@@ -2,7 +2,7 @@ import psycopg2
 
 from src.config import Config
 from src.models.factory import get_test_model
-from src.report import Report
+from src.report import RegressionReport
 from src.utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
 from yugabyte import Yugabyte
 
@@ -37,11 +37,12 @@ def evaluate_regression():
 
     yugabyte = Yugabyte(config.yugabyte_code_path)
     yugabyte.compile(config.revisions[0])
+    yugabyte.stop_node()
     yugabyte.destroy()
     yugabyte.start_node()
 
     conn = None
-    report = None
+    report = RegressionReport()
 
     try:
         conn = psycopg2.connect(
@@ -54,7 +55,7 @@ def evaluate_regression():
 
         with conn.cursor() as cur:
             evaluate_sql(cur, 'SELECT VERSION();')
-            report = Report(cur.fetchone()[0])
+            first_version = cur.fetchone()[0]
 
         # evaluate original query
         model = get_test_model()
@@ -79,14 +80,24 @@ def evaluate_regression():
             password=config.password)
         conn.autocommit = True
 
+        with conn.cursor() as cur:
+            evaluate_sql(cur, 'SELECT VERSION();')
+            second_version = cur.fetchone()[0]
+
+        report.define_versions(first_version, second_version)
+
         second_version_queries = evaluate_queries_for_version(conn, queries)
 
         for first_version_query, second_version_query in zip(first_version_queries,
                                                              second_version_queries):
-            report.add_regression_query(first_version_query, second_version_query)
+            report.add_query(first_version_query, second_version_query)
     finally:
         # publish current report
+        report.build_report()
         report.publish_report("regression")
 
         # close connection
         conn.close()
+
+        # stop yugabyte
+        yugabyte.stop_node()

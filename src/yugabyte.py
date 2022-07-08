@@ -39,8 +39,3 @@ class Yugabyte:
         subprocess.call(['bin/yb-admin', 'upgrade_ysql'],
                         cwd=self.path, )
 
-
-if __name__ == "__main__":
-    yb = Yugabyte("/Users/dsherstobitov/code/yugabyte-db")
-    yb.destroy()
-    yb.stop_node()

@@ -2,7 +2,6 @@ import dataclasses
 import itertools
 
 from enum import Enum
-from pprint import pprint
 from typing import List
 
 from src.config import Config
@@ -118,6 +117,7 @@ class Query:
     optimizer_score: float = 1
     optimizer_tips: QueryTips = None
     execution_time_ms: int = 0
+    optimizations: List[Optimization] = None
 
     def get_query(self):
         return self.query
@@ -125,6 +125,14 @@ class Query:
     def get_explain(self):
         explain = EXPLAIN_ANALYZE if Config().enable_statistics else EXPLAIN
         return f"{explain} {self.query}"
+
+    def get_best_optimization(self):
+        best_optimization = self
+        for optimization in best_optimization.optimizations:
+            if best_optimization.execution_time_ms > optimization.execution_time_ms != 0:
+                best_optimization = optimization
+
+        return best_optimization
 
     def __str__(self):
         return f"Query - \"{self.query}\"\n" \
@@ -191,10 +199,3 @@ class ListOfOptimizations:
                         skip_optimization = True
                         break
         return skip_optimization
-
-
-if __name__ == "__main__":
-    ld = Leading(['a', 'b', 'c', 'd'])
-    ld.construct()
-
-    pprint(ld.joins, width=600)

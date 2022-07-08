@@ -5,188 +5,174 @@ import math
 import os
 import shutil
 import subprocess
-import matplotlib.pyplot as plt
 
-from typing import List
+import matplotlib.pyplot as plt
 from sql_formatter.core import format_sql
 
 from src.config import Config
-from src.database import Optimization, Query
+from src.database import Query
 
 
-# noinspection InsecureHash
 class Report:
-    def __init__(self, version):
+    def __init__(self):
         self.report = f"= Query Optimizer Test report \n" \
                       f":source-highlighter: coderay\n" \
-                      f":coderay-linenums-mode: inline\n\n" \
-                      f"[VERSION]\n====\n{version}\n====\n\n"
+                      f":coderay-linenums-mode: inline\n\n"
         self.reported_queries_counter = 0
+        self.queries = []
 
         shutil.rmtree("report", ignore_errors=True)
 
         os.mkdir("report")
         os.mkdir("report/imgs")
 
-    def __add_double_newline(self):
+    def _add_double_newline(self):
         self.report += "\n\n"
 
-    def __start_execution_plan_tables(self):
+    def _start_execution_plan_tables(self):
         self.report += "[cols=\"1\"]\n|===\n"
 
-    def __start_table_row(self):
+    def _start_table_row(self):
         self.report += "a|"
 
-    def __end_table_row(self):
+    def _end_table_row(self):
         self.report += "\n"
 
-    def __end_execution_plan_tables(self):
+    def _end_execution_plan_tables(self):
         self.report += "|===\n"
 
-    def __start_source(self, additional_tags=None):
+    def _start_source(self, additional_tags=None):
         tags = f",{','.join(additional_tags)}" if additional_tags else ""
 
         self.report += f"[source{tags},linenums]\n----\n"
 
-    def __end_source(self):
+    def _end_source(self):
         self.report += "\n----\n"
 
-    def __start_collapsible(self, name):
+    def _start_collapsible(self, name):
         self.report += f"""\n\n.{name}\n[%collapsible]\n====\n"""
 
-    def __end_collapsible(self):
+    def _end_collapsible(self):
         self.report += """\n====\n\n"""
 
     @staticmethod
-    def __get_plan_diff(original, changed):
+    def _get_plan_diff(original, changed):
         return "\n".join(
             text for text in difflib.unified_diff(original.split("\n"), changed.split("\n")) if
             text[:3] not in ('+++', '---', '@@ '))
 
-    def add_regression_query(self, first_query: Query, second_query: Query):
+    def publish_report(self, report_name):
+        with open(f"report/taqo_{report_name}.adoc", "w") as file:
+            file.write(self.report)
+
+        print("Generating report file")
+        subprocess.run(
+            f'{Config().asciidoctor_path} -a stylesheet={os.path.abspath("css/adoc.css")} report/taqo_{report_name}.adoc',
+            shell=True)
+
+
+class RegressionReport(Report):
+    def __init__(self):
+        super().__init__()
+
+        self.same_execution_plan = []
+        self.improved_execution_time = []
+        self.worse_execution_time = []
+
+    def define_versions(self, first_version, second_version):
+        self.report += f"[VERSION]\n====\nFirst:\n{first_version}\n\nSecond:\n{second_version}\n====\n\n"
+
+    def add_query(self, first_query: Query, second_query: Query):
+        if first_query.execution_plan == second_query.execution_plan:
+            self.same_execution_plan.append([first_query, second_query])
+        elif first_query.execution_time_ms > second_query.execution_time_ms:
+            self.improved_execution_time.append([first_query, second_query])
+        else:
+            self.worse_execution_time.append([first_query, second_query])
+
+    def build_report(self):
+        self.report += "\nPlans with <<worse>> execution time\n"
+        self.report += "\nPlans with <<improved>> execution time\n"
+        self.report += "\nPlans with <<same>> execution time\n"
+
+        self.report += "\n[#worse]\n\n= Worse execution time queries\n\n"
+        for query in self.worse_execution_time:
+            self.__report_query(query[0], query[1])
+
+        self.report += "\n[#improved]\n\n= Improved execution time\n\n"
+        for query in self.improved_execution_time:
+            self.__report_query(query[0], query[1])
+
+        self.report += "\n[#same]\n\n= Same execution time\n\n"
+        for query in self.same_execution_plan:
+            self.__report_query(query[0], query[1])
+
+    # noinspection InsecureHash
+    def __report_query(self, first_query: Query, second_query: Query):
         self.reported_queries_counter += 1
         query_hash = hashlib.md5(first_query.query.encode('utf-8')).hexdigest()
 
-        self.report += f"== Query {query_hash} "
-        self.__add_double_newline()
+        self.report += f"=== Query {query_hash} "
+        self._add_double_newline()
 
-        self.__start_source(["sql"])
+        self._start_source(["sql"])
         self.report += format_sql(first_query.query)
-        self.__end_source()
+        self._end_source()
 
-        self.__add_double_newline()
+        self._add_double_newline()
 
-        self.__start_execution_plan_tables()
+        self._start_execution_plan_tables()
 
         self.report += "|Comparison analysis\n"
 
-        self.__start_table_row()
+        self._start_table_row()
         self.report += f"`Cost: {first_query.optimizer_score}` (first) vs `{second_query.optimizer_score}` (second)"
-        self.__end_table_row()
+        self._end_table_row()
 
         self.report += "\n"
 
-        self.__start_table_row()
+        self._start_table_row()
         self.report += f"`Execution time: {first_query.execution_time_ms}` (first) vs `{second_query.execution_time_ms}` (second)"
-        self.__end_table_row()
+        self._end_table_row()
 
-        self.__start_table_row()
+        self._start_table_row()
 
-        self.__start_collapsible("First version plan")
-        self.__start_source(["diff"])
+        self._start_collapsible("First version plan")
+        self._start_source(["diff"])
         self.report += first_query.execution_plan
-        self.__end_source()
-        self.__end_collapsible()
+        self._end_source()
+        self._end_collapsible()
 
-        self.__start_collapsible("Second version plan")
-        self.__start_source(["diff"])
+        self._start_collapsible("Second version plan")
+        self._start_source(["diff"])
         self.report += second_query.execution_plan
-        self.__end_source()
-        self.__end_collapsible()
+        self._end_source()
+        self._end_collapsible()
 
-        self.__start_source(["diff"])
+        self._start_source(["diff"])
 
-        diff = self.__get_plan_diff(first_query.execution_plan, second_query.execution_plan)
+        diff = self._get_plan_diff(first_query.execution_plan, second_query.execution_plan)
         if not diff:
-            # todo content identical
             diff = first_query.execution_plan
 
         self.report += diff
-        self.__end_source()
-        self.__end_table_row()
+        self._end_source()
+        self._end_table_row()
 
         self.report += "\n"
 
-        self.__end_execution_plan_tables()
+        self._end_execution_plan_tables()
 
-        self.__add_double_newline()
+        self._add_double_newline()
 
-    def add_taqo_query(self, query: Query, best_optimization: Optimization,
-                       optimizations: List[Optimization]):
-        self.reported_queries_counter += 1
-        query_hash = hashlib.md5(query.query.encode('utf-8')).hexdigest()
 
-        self.report += f"== Query {query_hash} " \
-                       f"(TAQO efficiency - {self.calculate_score(optimizations)})"
-        self.__add_double_newline()
+class TaqoReport(Report):
+    def __init__(self, version):
+        super().__init__()
+        self.report += f"[VERSION]\n====\n{version}\n====\n\n"
 
-        self.__start_source(["sql"])
-        self.report += format_sql(query.query)
-        self.__end_source()
-
-        self.__add_double_newline()
-        self.report += f"Better optimization hints - `{best_optimization.explain_hints}`"
-        self.__add_double_newline()
-
-        filename = self.create_plot(best_optimization, optimizations, query)
-        self.report += f"image::{filename}[\"Query {self.reported_queries_counter}\"]"
-
-        self.__add_double_newline()
-
-        self.__start_execution_plan_tables()
-
-        self.report += "|Comparison analysis\n"
-
-        self.__start_table_row()
-        self.report += f"Optimizer cost: `{query.optimizer_score}` (default) vs `{best_optimization.optimizer_score}` (best)"
-        self.__end_table_row()
-
-        self.report += "\n"
-
-        self.__start_table_row()
-        self.report += f"Execution time: `{query.execution_time_ms}` (default) vs `{best_optimization.execution_time_ms}` (best)"
-        self.__end_table_row()
-
-        self.__start_table_row()
-
-        self.__start_collapsible("Original plan")
-        self.__start_source(["diff"])
-        self.report += query.execution_plan
-        self.__end_source()
-        self.__end_collapsible()
-
-        self.__start_collapsible("Best plan")
-        self.__start_source(["diff"])
-        self.report += best_optimization.execution_plan
-        self.__end_source()
-        self.__end_collapsible()
-
-        self.__start_source(["diff"])
-
-        diff = self.__get_plan_diff(query.execution_plan, best_optimization.execution_plan)
-        if not diff:
-            # todo content identical
-            diff = query.execution_plan
-
-        self.report += diff
-        self.__end_source()
-        self.__end_table_row()
-
-        self.report += "\n"
-
-        self.__end_execution_plan_tables()
-
-        self.__add_double_newline()
+        self.same_execution_plan = []
+        self.better_plan_found = []
 
     @staticmethod
     def calculate_score(optimizations):
@@ -232,17 +218,90 @@ class Report:
 
         return file_name
 
-    def publish_report(self, report_name):
-        with open(f"report/taqo_{report_name}.adoc", "w") as file:
-            file.write(self.report)
+    def add_query(self, query: Query):
+        best_optimization = query.get_best_optimization()
 
-        print("Generating report file")
-        subprocess.run(
-            f'{Config().asciidoctor_path} -a stylesheet={os.path.abspath("css/adoc.css")} report/taqo_{report_name}.adoc',
-            shell=True)
+        if query.execution_time_ms == best_optimization.execution_time_ms:
+            self.same_execution_plan.append(query)
+        else:
+            self.better_plan_found.append(query)
 
+    def build_report(self):
+        self.report += "\nFound <<better>> execution time\n"
+        self.report += "\nNo better plan <<found>>\n"
 
-if __name__ == "__main__":
-    print("Generating report file")
-    css_link = os.path.abspath("css/adoc.css")
-    subprocess.call(f'asciidoctor -a stylesheet={css_link} report/taqo.adoc', shell=True)
+        self.report += "\n[#better]\n\n= Better plan found queries\n\n"
+        for query in self.better_plan_found:
+            self.__report_query(query)
+
+        self.report += "\n[#found]\n\n= No better plan found\n\n"
+        for query in self.same_execution_plan:
+            self.__report_query(query)
+
+    # noinspection InsecureHash
+    def __report_query(self, query: Query):
+        best_optimization = query.get_best_optimization()
+
+        self.reported_queries_counter += 1
+        query_hash = hashlib.md5(query.query.encode('utf-8')).hexdigest()
+
+        self.report += f"=== Query {query_hash} " \
+                       f"(TAQO efficiency - {self.calculate_score(query.optimizations)})"
+        self._add_double_newline()
+
+        self._start_source(["sql"])
+        self.report += format_sql(query.query)
+        self._end_source()
+
+        self._add_double_newline()
+        self.report += f"Better optimization hints - `{best_optimization.explain_hints}`"
+        self._add_double_newline()
+
+        filename = self.create_plot(best_optimization, query.optimizations, query)
+        self.report += f"image::{filename}[\"Query {self.reported_queries_counter}\"]"
+
+        self._add_double_newline()
+
+        self._start_execution_plan_tables()
+
+        self.report += "|Comparison analysis\n"
+
+        self._start_table_row()
+        self.report += f"Optimizer cost: `{query.optimizer_score}` (default) vs `{best_optimization.optimizer_score}` (best)"
+        self._end_table_row()
+
+        self.report += "\n"
+
+        self._start_table_row()
+        self.report += f"Execution time: `{query.execution_time_ms}` (default) vs `{best_optimization.execution_time_ms}` (best)"
+        self._end_table_row()
+
+        self._start_table_row()
+
+        self._start_collapsible("Original plan")
+        self._start_source(["diff"])
+        self.report += query.execution_plan
+        self._end_source()
+        self._end_collapsible()
+
+        self._start_collapsible("Best plan")
+        self._start_source(["diff"])
+        self.report += best_optimization.execution_plan
+        self._end_source()
+        self._end_collapsible()
+
+        self._start_source(["diff"])
+
+        diff = self._get_plan_diff(query.execution_plan, best_optimization.execution_plan)
+        if not diff:
+            diff = query.execution_plan
+
+        self.report += diff
+        self._end_source()
+        self._end_table_row()
+
+        self.report += "\n"
+
+        self._end_execution_plan_tables()
+
+        self._add_double_newline()

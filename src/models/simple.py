@@ -1,7 +1,6 @@
 import itertools
 
 from enum import Enum
-from pprint import pprint
 
 from src.config import Config
 from src.database import Query, Table, Field
