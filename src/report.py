@@ -65,7 +65,7 @@ class Report:
 
     def add_regression_query(self, first_query: Query, second_query: Query):
         self.reported_queries_counter += 1
-        query_hash = hashlib.md5(first_query.query.text.encode('utf-8')).hexdigest()
+        query_hash = hashlib.md5(first_query.query.encode('utf-8')).hexdigest()
 
         self.report += f"== Query {query_hash} "
         self.__add_double_newline()
