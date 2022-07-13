@@ -17,7 +17,7 @@ class Yugabyte:
     def __init__(self, config):
         pass
 
-    def change_version_and_compile(self, revision=None):
+    def change_version_and_compile(self, revision_or_path=None):
         pass
 
     def destroy(self):
@@ -52,6 +52,9 @@ class YugabyteDistributive(Yugabyte):
                         cwd=self.path, )
 
     def unpack_release(self, path):
+        if not path:
+            raise AttributeError("Can't pass empty path into unpack_release method")
+
         print(f"Cleaning /tmp/taqo direactory and unzip {path}")
         shutil.rmtree('/tmp/taqo', ignore_errors=True)
         os.mkdir('/tmp/taqo')

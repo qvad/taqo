@@ -14,11 +14,7 @@ from yugabyte import factory
 def evaluate_taqo():
     config = Config()
 
-    yugabyte = factory(config)
-    yugabyte.change_version_and_compile(config.revisions_or_paths[0])
-    yugabyte.stop_node()
-    yugabyte.destroy()
-    yugabyte.start_node()
+    yugabyte = start_yugabyte(config)
 
     conn = None
     report = None
@@ -100,6 +96,16 @@ def evaluate_taqo():
 
         # stop yugabyte
         yugabyte.stop_node()
+
+
+def start_yugabyte(config):
+    yugabyte = factory(config)
+    yugabyte.change_version_and_compile(config.revisions_or_paths[0])
+    yugabyte.stop_node()
+    yugabyte.destroy()
+    yugabyte.start_node()
+
+    return yugabyte
 
 
 def evaluate_optimizations(config, cur, original_query):

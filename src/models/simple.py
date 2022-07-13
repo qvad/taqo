@@ -86,4 +86,7 @@ class SimpleModel(QTFModel):
                     tables=list(perm)
                 ))
 
+        if Config().num_queries:
+            queries = queries[:int(Config().num_queries)]
+
         return queries

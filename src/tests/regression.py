@@ -35,11 +35,7 @@ def evaluate_queries_for_version(conn, queries):
 def evaluate_regression():
     config = Config()
 
-    yugabyte = factory(config)
-    yugabyte.change_version_and_compile(config.revisions_or_paths[0])
-    yugabyte.stop_node()
-    yugabyte.destroy()
-    yugabyte.start_node()
+    yugabyte = start_yugabyte(config)
 
     conn = None
     report = RegressionReport()
@@ -102,3 +98,13 @@ def evaluate_regression():
 
         # stop yugabyte
         yugabyte.stop_node()
+
+
+def start_yugabyte(config):
+    yugabyte = factory(config)
+    yugabyte.change_version_and_compile(config.revisions_or_paths[0])
+    yugabyte.stop_node()
+    yugabyte.destroy()
+    yugabyte.start_node()
+
+    return yugabyte
