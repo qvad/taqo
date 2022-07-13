@@ -3,7 +3,7 @@ import time
 import psycopg2
 
 from sql_metadata import Parser
-from src.config import Config
+from config import Config
 
 
 def current_milli_time():
@@ -29,9 +29,14 @@ def calculate_avg_execution_time(cur, query, num_retries):
             start_time = current_milli_time()
             evaluate_sql(cur, query.get_query())
             sum_execution_times += current_milli_time() - start_time
-        except psycopg2.errors.QueryCanceled as e:
+        except psycopg2.errors.QueryCanceled as qc:
             # failed by timeout - it's ok just skip optimization
             query.execution_time_ms = 0
+            return False
+        except psycopg2.errors.DatabaseError as ie:
+            # Some serious problem occured - probably an issue
+            query.execution_time_ms = 0
+            print(f"INTERNAL ERROR {ie}\nSQL query:{query.get_query()}")
             return False
         # todo add exception when wrong hints used?
         finally:

@@ -1,12 +1,19 @@
 import argparse
 
-from src.config import Config
-from src.tests.regression import evaluate_regression
-from src.tests.taqo import evaluate_taqo
+from config import Config
+from tests.regression import evaluate_regression
+from tests.taqo import evaluate_taqo
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Query Optimizer Testing framework for PostgreSQL compatible DBs')
+
+    parser.add_argument('--yugabyte-code-path',
+                        default=None,
+                        help='(Optional)Path to Yugabyte source repository')
+    parser.add_argument('--revisions',
+                        default="master",
+                        help='Comma separated git revisions or paths to release builds')
 
     parser.add_argument('--host',
                         default="127.0.0.1",
@@ -35,12 +42,6 @@ if __name__ == "__main__":
     parser.add_argument('--model',
                         default="simple",
                         help='Test model to use - simple (default) or tpch')
-
-    parser.add_argument('--yugabyte-code-path',
-                        help='Path to Yugabyte source repository')
-    parser.add_argument('--revisions',
-                        default="master",
-                        help='Comma separated git revisions to test')
 
     parser.add_argument('--skip-model-creation',
                         action=argparse.BooleanOptionalAction,
@@ -88,7 +89,7 @@ if __name__ == "__main__":
         model=args.model,
 
         yugabyte_code_path=args.yugabyte_code_path,
-        revisions=args.revisions.split(","),
+        revisions_or_paths=args.revisions.split(","),
 
         skip_model_creation=args.skip_model_creation,
         skip_table_scan_hints=args.skip_table_scan_hints,
@@ -104,11 +105,11 @@ if __name__ == "__main__":
 
     if config.test == "taqo":
         # noinspection Assert
-        assert len(config.revisions) in {0, 1}, "One or zero revisions must be defined for TAQO test"
+        assert len(config.revisions_or_paths) in {0, 1}, "One or zero revisions must be defined for TAQO test"
 
         evaluate_taqo()
     elif config.test == "regression":
         # noinspection Assert
-        assert len(config.revisions) == 2, "Exactly 2 revisions must be defined for regression test"
+        assert len(config.revisions_or_paths) == 2, "Exactly 2 revisions must be defined for regression test"
 
         evaluate_regression()

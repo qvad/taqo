@@ -1,10 +1,10 @@
 import psycopg2
 
-from src.config import Config
-from src.models.factory import get_test_model
-from src.report import RegressionReport
-from src.utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
-from yugabyte import Yugabyte
+from config import Config
+from models.factory import get_test_model
+from report import RegressionReport
+from utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
+from yugabyte import factory
 
 
 def evaluate_queries_for_version(conn, queries):
@@ -35,8 +35,8 @@ def evaluate_queries_for_version(conn, queries):
 def evaluate_regression():
     config = Config()
 
-    yugabyte = Yugabyte(config.yugabyte_code_path)
-    yugabyte.compile(config.revisions[0])
+    yugabyte = factory(config)
+    yugabyte.change_version_and_compile(config.revisions_or_paths[0])
     yugabyte.stop_node()
     yugabyte.destroy()
     yugabyte.start_node()
@@ -67,9 +67,10 @@ def evaluate_regression():
         conn.close()
 
         yugabyte.stop_node()
-        yugabyte.compile(config.revisions[1])
+        yugabyte.change_version_and_compile(config.revisions_or_paths[1])
         # tod is this correct upgrade path?
         yugabyte.start_node()
+        yugabyte.call_upgrade_ysql()
 
         # reconnect
         conn = psycopg2.connect(

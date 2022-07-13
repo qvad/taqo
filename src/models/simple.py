@@ -2,10 +2,10 @@ import itertools
 
 from enum import Enum
 
-from src.config import Config
-from src.database import Query, Table, Field
-from src.models.abstract import QTFModel
-from src.utils import evaluate_sql
+from config import Config
+from database import Query, Table, Field
+from models.abstract import QTFModel
+from utils import evaluate_sql
 
 
 class QueryJoins(Enum):

@@ -27,7 +27,7 @@ class Config(metaclass=Singleton):
     model: str = None
 
     yugabyte_code_path: str = None
-    revisions: List[str] = None
+    revisions_or_paths: List[str] = None
 
     skip_table_scan_hints: bool = None
     skip_model_creation: bool = None

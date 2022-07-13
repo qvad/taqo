@@ -3,19 +3,19 @@ import time
 import psycopg2
 from tqdm import tqdm
 
-from src.config import Config
-from src.database import ListOfOptimizations, ENABLE_PLAN_HINTING, ENABLE_STATISTICS_HINT
-from src.models.factory import get_test_model
-from src.report import TaqoReport
-from src.utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
-from yugabyte import Yugabyte
+from config import Config
+from database import ListOfOptimizations, ENABLE_PLAN_HINTING, ENABLE_STATISTICS_HINT
+from models.factory import get_test_model
+from report import TaqoReport
+from utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
+from yugabyte import factory
 
 
 def evaluate_taqo():
     config = Config()
 
-    yugabyte = Yugabyte(config.yugabyte_code_path)
-    yugabyte.compile(config.revisions[0])
+    yugabyte = factory(config)
+    yugabyte.change_version_and_compile(config.revisions_or_paths[0])
     yugabyte.stop_node()
     yugabyte.destroy()
     yugabyte.start_node()

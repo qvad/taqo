@@ -9,8 +9,8 @@ import subprocess
 import matplotlib.pyplot as plt
 from sql_formatter.core import format_sql
 
-from src.config import Config
-from src.database import Query
+from config import Config
+from database import Query
 
 
 class Report:
@@ -91,9 +91,12 @@ class RegressionReport(Report):
             self.worse_execution_time.append([first_query, second_query])
 
     def build_report(self):
-        self.report += "\n<<worse>>"
-        self.report += "\n<<improved>>"
-        self.report += "\n<<same>>"
+        # link to top
+        self.report += "\n[#top]\n== All results by analysis type\n"
+        # different results links
+        self.report += "\n<<worse>>\n"
+        self.report += "\n<<improved>>\n"
+        self.report += "\n<<same>>\n"
 
         self.report += "\n[#worse]\n== Worse execution time queries\n\n"
         for query in self.worse_execution_time:
@@ -112,7 +115,8 @@ class RegressionReport(Report):
         self.reported_queries_counter += 1
         query_hash = hashlib.md5(first_query.query.encode('utf-8')).hexdigest()
 
-        self.report += f"=== Query {query_hash} "
+        self.report += f"=== Query {query_hash}"
+        self.report += "\n<<top,Go to top>>\n"
         self._add_double_newline()
 
         self._start_source(["sql"])
@@ -227,7 +231,10 @@ class TaqoReport(Report):
             self.better_plan_found.append(query)
 
     def build_report(self):
-        self.report += "\n<<better>>"
+        # link to top
+        self.report += "\n[#top]\n== All results by analysis type\n"
+        # different results links
+        self.report += "\n<<better>>\n"
         self.report += "\n<<found>>\n"
 
         self.report += "\n[#better]\n== Better plan found queries\n\n"
@@ -247,6 +254,7 @@ class TaqoReport(Report):
 
         self.report += f"=== Query {query_hash} " \
                        f"(TAQO efficiency - {self.calculate_score(query.optimizations)})"
+        self.report += "\n<<top,Go to top>>\n"
         self._add_double_newline()
 
         self._start_source(["sql"])

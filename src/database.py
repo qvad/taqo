@@ -4,7 +4,7 @@ import itertools
 from enum import Enum
 from typing import List
 
-from src.config import Config
+from config import Config
 
 EXPLAIN = "EXPLAIN "
 EXPLAIN_ANALYZE = "EXPLAIN ANALYZE "

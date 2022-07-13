@@ -4,10 +4,10 @@ import sqlparse
 from typing import List
 from sqlparse.sql import Comment
 
-from src.config import Config
-from src.database import Query, QueryTips, Table, Field
-from src.models.abstract import QTFModel
-from src.utils import get_alias_table_names, evaluate_sql
+from config import Config
+from database import Query, QueryTips, Table, Field
+from models.abstract import QTFModel
+from utils import get_alias_table_names, evaluate_sql
 
 
 class SQLModel(QTFModel):
