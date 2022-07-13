@@ -1,8 +1,8 @@
 import argparse
 
 from config import Config
-from tests.regression import evaluate_regression
-from tests.taqo import evaluate_taqo
+from tests.regression.scenario import RegressionTest
+from tests.taqo.scenario import TaqoTest
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -107,9 +107,13 @@ if __name__ == "__main__":
         # noinspection Assert
         assert len(config.revisions_or_paths) in {0, 1}, "One or zero revisions must be defined for TAQO test"
 
-        evaluate_taqo()
+        test = TaqoTest()
     elif config.test == "regression":
         # noinspection Assert
         assert len(config.revisions_or_paths) == 2, "Exactly 2 revisions must be defined for regression test"
 
-        evaluate_regression()
+        test = RegressionTest()
+    else:
+        raise AttributeError(f"Unknown test type defined {config.test}")
+
+    test.evaluate()

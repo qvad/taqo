@@ -198,4 +198,5 @@ class ListOfOptimizations:
                     if reject_tip in explain_hints:
                         skip_optimization = True
                         break
+
         return skip_optimization

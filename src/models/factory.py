@@ -4,7 +4,4 @@ from models.sql import SQLModel
 
 
 def get_test_model():
-    if Config().model == "simple":
-        return SimpleModel()
-    else:
-        return SQLModel()
+    return SimpleModel() if Config().model == "simple" else SQLModel()
