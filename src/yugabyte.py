@@ -3,6 +3,8 @@ import shutil
 import subprocess
 from time import sleep
 
+from config import Config
+
 
 def factory(config):
     if config.yugabyte_code_path is None:
@@ -48,8 +50,9 @@ class YugabyteDistributive(Yugabyte):
         self.unpack_release(revision_or_path)
 
     def call_upgrade_ysql(self):
-        subprocess.call(['bin/yb-admin', 'upgrade_ysql'],
-                        cwd=self.path, )
+        subprocess.call(
+            ['bin/yb-admin', 'upgrade_ysql', '-master_addresses', f"{Config().host}:7100"],
+            cwd=self.path, )
 
     def unpack_release(self, path):
         if not path:
