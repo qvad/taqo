@@ -1,10 +1,13 @@
 import re
 import time
-import psycopg2
 
+import psycopg2
 from sql_metadata import Parser
 
 from config import Config
+
+EXPLAIN = "EXPLAIN "
+EXPLAIN_ANALYZE = "EXPLAIN ANALYZE "
 
 
 def current_milli_time():
@@ -35,7 +38,8 @@ def calculate_avg_execution_time(cur, query, num_retries):
         except psycopg2.errors.QueryCanceled as qc:
             # failed by timeout - it's ok just skip optimization
             query.execution_time_ms = 0
-            config.logger.debug(f"Skipping optimization due to timeout limitation: {query.get_query()}")
+            config.logger.debug(
+                f"Skipping optimization due to timeout limitation: {query.get_query()}")
             return False
         except psycopg2.errors.DatabaseError as ie:
             # Some serious problem occured - probably an issue
@@ -69,9 +73,14 @@ def get_alias_table_names(sql_str, table_names):
     return result_tables
 
 
+def get_explain_clause():
+    return EXPLAIN_ANALYZE if Config().enable_statistics else EXPLAIN
+
+
 def evaluate_sql(cur, sql):
     config = Config()
 
-    config.logger.debug(sql.replace("\n", "")[:120] + "..." if len(sql) > 120 else sql.replace("\n", ""))
+    config.logger.debug(
+        sql.replace("\n", "")[:120] + "..." if len(sql) > 120 else sql.replace("\n", ""))
 
     cur.execute(sql)

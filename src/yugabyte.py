@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+from time import sleep
 
 
 def factory(config):
@@ -40,6 +41,9 @@ class Yugabyte:
         if 'YugabyteDB started successfully!' not in str(out):
             self.logger.error(f"Failed to start Yugabyte\n{str(out)}")
             exit(1)
+
+        self.logger.info("Waiting for 15 seconds for connection availability")
+        sleep(15)
 
     def stop_node(self):
         self.logger.info("Stopping Yugabyte node if exists")

@@ -1,13 +1,11 @@
 import dataclasses
 import itertools
-
 from enum import Enum
 from typing import List
 
 from config import Config
+from utils import get_explain_clause
 
-EXPLAIN = "EXPLAIN "
-EXPLAIN_ANALYZE = "EXPLAIN ANALYZE "
 ENABLE_PLAN_HINTING = "SET pg_hint_plan.enable_hint = ON;"
 ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
 
@@ -87,28 +85,6 @@ class Leading:
 
 
 @dataclasses.dataclass
-class Optimization:
-    query: str = None
-    explain_hints: str = None
-    execution_plan: str = None
-    optimizer_score: float = 1
-    execution_time_ms: int = 0
-
-    def get_query(self):
-        return f"/*+ {self.explain_hints} */ {self.query}"
-
-    def get_explain(self):
-        explain = EXPLAIN_ANALYZE if Config().enable_statistics else EXPLAIN
-        return f"{explain}  /*+ {self.explain_hints} */ {self.query}"
-
-    def __str__(self):
-        return f"Query - \"{self.query}\"\n" \
-               f"Optimization hints - \"{self.explain_hints}\"\n" \
-               f"Execution plan - \"{self.execution_plan}\"\n" \
-               f"Execution time - \"{self.execution_time_ms}\""
-
-
-@dataclasses.dataclass
 class Query:
     query: str = None
     explain_hints: str = None  # TODO parse possible explain hints?
@@ -117,14 +93,13 @@ class Query:
     optimizer_score: float = 1
     optimizer_tips: QueryTips = None
     execution_time_ms: int = 0
-    optimizations: List[Optimization] = None
+    optimizations: List['Query'] = None
 
     def get_query(self):
         return self.query
 
     def get_explain(self):
-        explain = EXPLAIN_ANALYZE if Config().enable_statistics else EXPLAIN
-        return f"{explain} {self.query}"
+        return f"{get_explain_clause()} {self.query}"
 
     def get_best_optimization(self):
         best_optimization = self
@@ -137,8 +112,18 @@ class Query:
     def __str__(self):
         return f"Query - \"{self.query}\"\n" \
                f"Tables - \"{self.tables}\"\n" \
+               f"Optimization hints - \"{self.explain_hints}\"\n" \
                f"Execution plan - \"{self.execution_plan}\"\n" \
                f"Execution time - \"{self.execution_time_ms}\""
+
+
+@dataclasses.dataclass
+class Optimization(Query):
+    def get_query(self):
+        return f"/*+ {self.explain_hints} */ {self.query}"
+
+    def get_explain(self):
+        return f"{get_explain_clause()}  /*+ {self.explain_hints} */ {self.query}"
 
 
 class ListOfOptimizations:

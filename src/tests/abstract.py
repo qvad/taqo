@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 from abc import ABC
+from pathlib import Path
 
 import psycopg2
 
@@ -104,4 +105,6 @@ class Report:
         subprocess.run(
             f'{self.config.asciidoctor_path} -a stylesheet={os.path.abspath("css/adoc.css")} report/taqo_{report_name}.adoc',
             shell=True)
-        self.logger.info(f"Done! Check report at report/taqo_{report_name}.html")
+
+        full_path = Path(f'report/taqo_{report_name}.html')
+        self.logger.info(f"Done! Check report at {full_path.absolute()}")
