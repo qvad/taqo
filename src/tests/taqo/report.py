@@ -18,8 +18,7 @@ class TaqoReport(Report):
     def define_version(self, version):
         self.report += f"[VERSION]\n====\n{version}\n====\n\n"
 
-    @staticmethod
-    def calculate_score(optimizations):
+    def calculate_score(self, optimizations):
         optimizations = [q for q in optimizations
                          if q and
                          q.optimizer_score is not None
@@ -40,7 +39,7 @@ class TaqoReport(Report):
                 math.copysign(1, (pj.optimizer_score - pi.optimizer_score))
                 for pi, pj in list(itertools.combinations(optimizations, 2)))
         except Exception:
-            print("Failed to calculate score, setting TAQO score as 0.0")
+            self.logger.debug("Failed to calculate score, setting TAQO score as 0.0")
             return 0.0
 
         return "{:.2f}".format(score)

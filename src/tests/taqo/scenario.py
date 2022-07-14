@@ -39,8 +39,7 @@ class TaqoTest(AbstractTest):
 
                 evaluate_sql(cur, ENABLE_PLAN_HINTING)
                 if self.config.enable_statistics:
-                    if self.config.verbose:
-                        print("Enable yb_enable_optimizer_statistics flag")
+                    self.logger.debug("Enable yb_enable_optimizer_statistics flag")
 
                     evaluate_sql(cur, ENABLE_STATISTICS_HINT)
 
@@ -49,7 +48,7 @@ class TaqoTest(AbstractTest):
                         evaluate_sql(cur, "SET statement_timeout = '1200s'")
 
                         short_query = original_query.query.replace('\n', '')[:40]
-                        print(f"Evaluating query {short_query}... [{counter}/{len(queries)}]")
+                        self.logger.info(f"Evaluating query {short_query}... [{counter}/{len(queries)}]")
 
                         evaluate_sql(cur, original_query.get_explain())
                         original_query.execution_plan = '\n'.join(
@@ -66,8 +65,7 @@ class TaqoTest(AbstractTest):
                                     original_query.optimizer_tips and original_query.optimizer_tips.max_timeout) or \
                             f"{int(original_query.execution_time_ms / 1000) + int(self.config.skip_timeout_delta)}s"
 
-                        if self.config.verbose:
-                            print(f"Setting query timeout to {optimizer_query_timeout} seconds")
+                        self.logger.debug(f"Setting query timeout to {optimizer_query_timeout} seconds")
 
                         evaluate_sql(cur, f"SET statement_timeout = '{optimizer_query_timeout}'")
 
@@ -75,7 +73,7 @@ class TaqoTest(AbstractTest):
 
                         self.report.add_query(original_query)
                     except Exception as e:
-                        print(original_query)
+                        self.logger.info(original_query)
                         raise e
                     finally:
                         counter += 1
@@ -108,7 +106,7 @@ class TaqoTest(AbstractTest):
             except psycopg2.errors.QueryCanceled as e:
                 # failed by timeout - it's ok just skip optimization
                 if self.config.verbose:
-                    print(f"Getting execution plan failed with {e}")
+                    self.logger.info(f"Getting execution plan failed with {e}")
 
                 num_skipped += 1
                 optimization.execution_time_ms = 0

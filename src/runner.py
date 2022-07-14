@@ -10,7 +10,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--yugabyte-code-path',
                         default=None,
-                        help='(Optional)Path to Yugabyte source repository')
+                        help='(Optional) Path to Yugabyte source repository')
     parser.add_argument('--revisions',
                         default="master",
                         help='Comma separated git revisions or paths to release builds')
@@ -102,6 +102,10 @@ if __name__ == "__main__":
         asciidoctor_path=args.asciidoctor_path,
         verbose=args.verbose,
     )
+
+    config.logger.info("------------------------------------------------------------")
+    config.logger.info("Query Optimizer Testing Framework for Yugabyte/PG DBs")
+    config.logger.info("------------------------------------------------------------")
 
     if config.test == "taqo":
         # noinspection Assert

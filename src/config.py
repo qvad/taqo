@@ -1,4 +1,6 @@
 import dataclasses
+import logging
+import sys
 
 from typing import List
 
@@ -13,8 +15,23 @@ class Singleton(type):
         return cls._instances[cls]
 
 
+def init_logger() -> logging.Logger:
+    f = logging.Formatter('%(asctime)s:%(levelname)5s: %(message)s')
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(f)
+
+    _logger = logging.getLogger("taqo")
+    _logger.setLevel("INFO")
+    _logger.addHandler(console_handler)
+
+    return _logger
+
+
 @dataclasses.dataclass
 class Config(metaclass=Singleton):
+    logger: logging.Logger = init_logger()
+
     host: str = None
     port: str = None
     username: str = None

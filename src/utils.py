@@ -3,6 +3,7 @@ import time
 import psycopg2
 
 from sql_metadata import Parser
+
 from config import Config
 
 
@@ -17,6 +18,8 @@ def get_optimizer_score_from_plan(execution_plan):
 
 
 def calculate_avg_execution_time(cur, query, num_retries):
+    config = Config()
+
     sum_execution_times = 0
     actual_evaluations = 0
 
@@ -32,11 +35,12 @@ def calculate_avg_execution_time(cur, query, num_retries):
         except psycopg2.errors.QueryCanceled as qc:
             # failed by timeout - it's ok just skip optimization
             query.execution_time_ms = 0
+            config.logger.debug(f"Skipping optimization due to timeout limitation: {query.get_query()}")
             return False
         except psycopg2.errors.DatabaseError as ie:
             # Some serious problem occured - probably an issue
             query.execution_time_ms = 0
-            print(f"INTERNAL ERROR {ie}\nSQL query:{query.get_query()}")
+            config.logger.error(f"INTERNAL ERROR {ie}\nSQL query:{query.get_query()}")
             return False
         # todo add exception when wrong hints used?
         finally:
@@ -66,7 +70,8 @@ def get_alias_table_names(sql_str, table_names):
 
 
 def evaluate_sql(cur, sql):
-    if Config().verbose:
-        print(sql.replace("\n", "")[:120] + "..." if len(sql) > 120 else sql.replace("\n", ""))
+    config = Config()
+
+    config.logger.debug(sql.replace("\n", "")[:120] + "..." if len(sql) > 120 else sql.replace("\n", ""))
 
     cur.execute(sql)

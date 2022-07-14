@@ -1,10 +1,11 @@
 import glob
+
 import sqlparse
 
 from typing import List
 from sqlparse.sql import Comment
+from tqdm import tqdm
 
-from config import Config
 from database import Query, QueryTips, Table, Field
 from models.abstract import QTFModel
 from utils import get_alias_table_names, evaluate_sql
@@ -16,10 +17,10 @@ class SQLModel(QTFModel):
         created_tables: List[Table] = []
 
         with conn.cursor() as cur:
-            if not Config().skip_model_creation:
-                with open(f"sql/{Config().model}/create.sql", "r") as create_sql:
+            if not self.config.skip_model_creation:
+                with open(f"sql/{self.config.model}/create.sql", "r") as create_sql:
                     full_queries = '\n'.join(create_sql.readlines())
-                    for query in full_queries.split(";"):
+                    for query in tqdm(full_queries.split(";")):
                         if cleaned := query.lstrip():
                             evaluate_sql(cur, cleaned)
 
@@ -28,7 +29,7 @@ class SQLModel(QTFModel):
         return created_tables
 
     def load_tables_from_public(self, created_tables, cur):
-        print("Loading tables...")
+        self.logger.info("Loading tables...")
         cur.execute(
             "select table_name, table_schema from information_schema.tables where table_schema = 'public'")
         tables = []
@@ -37,7 +38,7 @@ class SQLModel(QTFModel):
                       for row in result
                       if row[1] not in ["pg_catalog", "information_schema"])
 
-        print("Loading columns and constraints...")
+        self.logger.info("Loading columns and constraints...")
         for table in tables:
             evaluate_sql(
                 cur,
@@ -110,7 +111,7 @@ class SQLModel(QTFModel):
         table_names = [table.name for table in tables]
 
         queries = []
-        query_file_lists = list(glob.glob(f"sql/{Config().model}/queries/*.sql"))
+        query_file_lists = list(glob.glob(f"sql/{self.config.model}/queries/*.sql"))
         for query in query_file_lists:
             with open(query, "r") as query_file:
                 full_query = ''.join(query_file.readlines())

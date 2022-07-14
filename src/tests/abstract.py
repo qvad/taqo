@@ -15,6 +15,7 @@ class AbstractTest(ABC):
     def __init__(self):
         self.yugabyte = None
         self.config = Config()
+        self.logger = self.config.logger
 
     @abc.abstractmethod
     def evaluate(self):
@@ -51,6 +52,9 @@ class AbstractTest(ABC):
 
 class Report:
     def __init__(self):
+        self.config = Config()
+        self.logger = self.config.logger
+
         self.report = f"= Query Optimizer Test report \n" \
                       f":source-highlighter: coderay\n" \
                       f":coderay-linenums-mode: inline\n\n"
@@ -101,7 +105,7 @@ class Report:
         with open(f"report/taqo_{report_name}.adoc", "w") as file:
             file.write(self.report)
 
-        print("Generating report file")
+        self.logger.info("Generating report file")
         subprocess.run(
-            f'{Config().asciidoctor_path} -a stylesheet={os.path.abspath("css/adoc.css")} report/taqo_{report_name}.adoc',
+            f'{self.config.asciidoctor_path} -a stylesheet={os.path.abspath("css/adoc.css")} report/taqo_{report_name}.adoc',
             shell=True)

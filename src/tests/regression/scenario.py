@@ -1,4 +1,3 @@
-from config import Config
 from models.factory import get_test_model
 from tests.regression.report import RegressionReport
 from tests.abstract import AbstractTest
@@ -11,14 +10,13 @@ class RegressionTest(AbstractTest):
         super().__init__()
         self.report = RegressionReport()
 
-    @staticmethod
-    def evaluate_queries_for_version(conn, queries):
+    def evaluate_queries_for_version(self, conn, queries):
         version_queries = []
         with conn.cursor() as cur:
             counter = 1
             for first_version_query in queries:
                 try:
-                    print(
+                    self.logger.info(
                         f"Evaluating query {first_version_query.query[:40]}... [{counter}/{len(queries)}]")
                     evaluate_sql(cur, first_version_query.get_explain())
                     first_version_query.execution_plan = '\n'.join(
@@ -27,7 +25,7 @@ class RegressionTest(AbstractTest):
                         first_version_query.execution_plan)
 
                     calculate_avg_execution_time(cur, first_version_query,
-                                                 int(Config().num_retries))
+                                                 int(self.config.num_retries))
 
                     version_queries.append(first_version_query)
                 except Exception as e:

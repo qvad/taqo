@@ -2,7 +2,8 @@ import itertools
 
 from enum import Enum
 
-from config import Config
+from tqdm import tqdm
+
 from database import Query, Table, Field
 from models.abstract import QTFModel
 from utils import evaluate_sql
@@ -23,14 +24,13 @@ class SimpleModel(QTFModel):
     ]
 
     def create_tables(self, conn):
-        if Config().skip_model_creation:
+        if self.config.skip_model_creation:
             return self.TABLES
 
-        if Config().verbose:
-            print("Creating simple model tables and run analyze")
+        self.logger.info("Creating simple model tables and run analyze")
 
         with conn.cursor() as cur:
-            for table in self.TABLES:
+            for table in tqdm(self.TABLES):
                 evaluate_sql(cur, f"DROP TABLE IF EXISTS {table.name}")
                 evaluate_sql(
                     cur,
@@ -52,6 +52,8 @@ class SimpleModel(QTFModel):
         limit_clauses = itertools.cycle([
             "", "limit"
         ])
+
+        self.logger.info(f"Generating {self.config.num_queries} queries for test")
 
         for perm in itertools.permutations(tables, 3):
             first_table = perm[0]
@@ -86,7 +88,7 @@ class SimpleModel(QTFModel):
                     tables=list(perm)
                 ))
 
-        if Config().num_queries:
-            queries = queries[:int(Config().num_queries)]
+        if self.config.num_queries:
+            queries = queries[:int(self.config.num_queries)]
 
         return queries
