@@ -12,14 +12,15 @@ JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]
 
 def factory(config):
     if config.yugabyte_code_path is not None:
-        return YugabyteRepository(config)
+        return YugabyteLocalRepository(config)
 
-    return YugabyteCluster(config)
+    if not config.revisions_or_paths:
+        return Yugabyte(config)
+
+    return YugabyteLocalCluster(config)
 
 
 class Yugabyte:
-    path = None
-
     def __init__(self, config):
         self.config = config
         self.logger = self.config.logger
@@ -53,7 +54,18 @@ class Yugabyte:
         pass
 
 
-class YugabyteCluster(Yugabyte):
+class YugabyteLocalCluster(Yugabyte):
+    def unpack_release(self, path):
+        if not path:
+            raise AttributeError("Can't pass empty path into unpack_release method")
+
+        self.logger.info(f"Cleaning /tmp/taqo directory and unpacking {path}")
+        shutil.rmtree('/tmp/taqo', ignore_errors=True)
+        os.mkdir('/tmp/taqo')
+        subprocess.call(['tar', '-xf', path, '-C', '/tmp/taqo'])
+
+        self.path = '/tmp/taqo/' + list(os.walk('/tmp/taqo'))[0][1][0]
+
     def start_database(self):
         self.logger.info(f"Starting Yugabyte cluster with {self.config.num_nodes} nodes")
 
@@ -114,19 +126,8 @@ class YugabyteCluster(Yugabyte):
         if 'error' in str(out.lower()):
             self.logger.error(f"Failed to upgrade YSQL\n{str(out)}")
 
-    def unpack_release(self, path):
-        if not path:
-            raise AttributeError("Can't pass empty path into unpack_release method")
 
-        self.logger.info(f"Cleaning /tmp/taqo directory and unpacking {path}")
-        shutil.rmtree('/tmp/taqo', ignore_errors=True)
-        os.mkdir('/tmp/taqo')
-        subprocess.call(['tar', '-xf', path, '-C', '/tmp/taqo'])
-
-        self.path = '/tmp/taqo/' + list(os.walk('/tmp/taqo'))[0][1][0]
-
-
-class YugabyteRepository(Yugabyte):
+class YugabyteLocalRepository(Yugabyte):
     def __init__(self, config):
         super().__init__(config)
 

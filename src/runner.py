@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--yugabyte-code-path',
                         default=None,
-                        help='(Optional) Path to Yugabyte source repository')
+                        help='Path to Yugabyte source repository')
     parser.add_argument('--revisions',
                         default="master",
                         help='Comma separated git revisions or paths to release builds')
