@@ -59,7 +59,7 @@ class YugabyteCluster(Yugabyte):
 
         launch_cmds = ['bin/yb-ctl',
                        '--replication_factor',
-                       self.config.num_nodes,
+                       str(self.config.num_nodes),
                        'create']
 
         if self.config.tserver_flags:
