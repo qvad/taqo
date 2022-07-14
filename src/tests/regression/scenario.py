@@ -1,3 +1,5 @@
+from time import sleep
+
 from models.factory import get_test_model
 from tests.regression.report import RegressionReport
 from tests.abstract import AbstractTest
@@ -67,6 +69,9 @@ class RegressionTest(AbstractTest):
             conn.close()
 
             self.switch_version()
+
+            self.logger.info("Waiting for 15 seconds")
+            sleep(15)
 
             # reconnect
             self.logger.info("Reconnecting to DB after upgrade")

@@ -100,11 +100,13 @@ if __name__ == "__main__":
         max_optimizations=args.max_optimizations,
 
         asciidoctor_path=args.asciidoctor_path,
-        verbose=args.verbose,
     )
 
     config.logger.info("------------------------------------------------------------")
     config.logger.info("Query Optimizer Testing Framework for Yugabyte/PG DBs")
+    config.logger.info("")
+    for line in str(config).split("\n"):
+        config.logger.info(line)
     config.logger.info("------------------------------------------------------------")
 
     if config.test == "taqo":

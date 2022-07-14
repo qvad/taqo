@@ -95,19 +95,23 @@ class YugabyteRepository(Yugabyte):
 
     def change_version_and_compile(self, revision_or_path=None):
         if revision_or_path:
-            self.logger.info(f"Checkout revision {revision_or_path} for yugabyte repository")
+            self.logger.info(f"Checkout revision '{revision_or_path}' for yugabyte repository")
             try:
                 subprocess.check_output(['git', 'checkout', revision_or_path],
                                         stderr=subprocess.PIPE,
                                         cwd=self.path)
             except subprocess.CalledProcessError as e:
-                self.logger.error(f"Failed to checkout revision {revision_or_path}\n{e}")
+                self.logger.error(f"Failed to checkout revision '{revision_or_path}'\n{e}")
 
-        self.logger.info(f"Building yugabyte from source code {self.path}")
-        subprocess.check_output(['./yb_build.sh',
-                                 'release', '--no-tests', '--skip-java-build'],
-                                stderr=subprocess.PIPE,
-                                cwd=self.path)
+        self.logger.info(f"Building yugabyte from source code '{self.path}'")
+        out = subprocess.check_output(['./yb_build.sh',
+                                       'release', '--no-tests', '--skip-java-build'],
+                                      stderr=subprocess.PIPE,
+                                      cwd=self.path)
+
+        if 'Built target initial_sys_catalog_snapshot' not in str(out):
+            self.logger.error(f"Failed to build Yugabyte\n{str(out)}")
+            exit(1)
 
     def call_upgrade_ysql(self):
         pass

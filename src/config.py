@@ -54,4 +54,20 @@ class Config(metaclass=Singleton):
     max_optimizations: int = None
 
     asciidoctor_path: str = None
-    verbose: bool = False
+
+    def __str__(self):
+        explain_query = "EXPLAIN ANALYZE" if self.enable_statistics else "EXPLAIN"
+
+        return f"Current test configuration:\n" + \
+               f"  Connection - {self.host}:{self.port}@{self.username}:{self.password}, database '{self.database}'\n" + \
+               f"  Using following explain syntax - '{explain_query} /*+ ... */ QUERY'\n" + \
+               f"  Running '{self.test}' test on model '{self.model}'\n" + \
+               f"  Repository code path '{self.yugabyte_code_path}', revisions to test {self.revisions_or_paths}\n" + \
+               f"  Additional properties:\n" + \
+               f"    - skip_table_scan_hints: {self.skip_table_scan_hints}\n" + \
+               f"    - skip_model_creation: {self.skip_model_creation}\n" + \
+               f"    - num_queries: {self.num_queries}\n" + \
+               f"    - num_retries: {self.num_retries}\n" + \
+               f"    - skip_timeout_delta: ±{self.skip_timeout_delta}s\n" + \
+               f"    - max_optimizations: {self.max_optimizations}\n" + \
+               f"    - asciidoctor_path: '{self.asciidoctor_path}'\n"
