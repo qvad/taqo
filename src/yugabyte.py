@@ -65,6 +65,8 @@ class YugabyteDistributive(Yugabyte):
         self.unpack_release(revision_or_path)
 
     def call_upgrade_ysql(self):
+        self.logger.info("Calling upgrade_ysql and trying to upgrade metadata")
+
         out = subprocess.check_output(
             ['bin/yb-admin', 'upgrade_ysql', '-master_addresses', f"{self.config.host}:7100"],
             stderr=subprocess.PIPE,
@@ -101,7 +103,7 @@ class YugabyteRepository(Yugabyte):
             except subprocess.CalledProcessError as e:
                 self.logger.error(f"Failed to checkout revision {revision_or_path}\n{e}")
 
-        self.logger.info(f"Build yugabyte from source code {self.path}")
+        self.logger.info(f"Building yugabyte from source code {self.path}")
         subprocess.check_output(['./yb_build.sh',
                                  'release', '--no-tests', '--skip-java-build'],
                                 stderr=subprocess.PIPE,

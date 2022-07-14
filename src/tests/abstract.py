@@ -30,15 +30,6 @@ class AbstractTest(ABC):
         self.yugabyte.destroy()
         self.yugabyte.start_node()
 
-    def switch_version(self):
-        self.logger.info("Switching Yugabyte version using same data dirs")
-
-        self.yugabyte.stop_node()
-        self.yugabyte.change_version_and_compile(self.config.revisions_or_paths[1])
-        # todo is this correct upgrade path?
-        self.yugabyte.start_node()
-        self.yugabyte.call_upgrade_ysql()
-
     def stop_db(self):
         self.yugabyte.stop_node()
 
@@ -113,4 +104,4 @@ class Report:
         subprocess.run(
             f'{self.config.asciidoctor_path} -a stylesheet={os.path.abspath("css/adoc.css")} report/taqo_{report_name}.adoc',
             shell=True)
-        self.logger.info(f"Done! Check report at eport/taqo_{report_name}.html")
+        self.logger.info(f"Done! Check report at report/taqo_{report_name}.html")
