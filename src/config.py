@@ -70,14 +70,16 @@ class Config(metaclass=Singleton):
     def __str__(self):
         explain_query = "EXPLAIN ANALYZE" if self.enable_statistics else "EXPLAIN"
 
+        build_param_skipped = "(skipped)" if self.yugabyte_code_path and self.num_nodes > 1 else ""
+
         return f"  Connection - {self.connection}\n" + \
                f"  Using following explain syntax - '{explain_query} /*+ ... */ QUERY'\n" + \
                f"  Running '{self.test}' test on model '{self.model}'\n" + \
                f"  Repository code path '{self.yugabyte_code_path}', revisions to test {self.revisions_or_paths}\n" + \
                f"  Additional properties defined:\n" + \
-               f"    - num_nodes: {self.num_nodes}\n" + \
-               f"    - tserver_flags: {self.tserver_flags}\n" + \
-               f"    - master_flags: {self.master_flags}\n" + \
+               f"    - num_nodes: {self.num_nodes} {build_param_skipped}\n" + \
+               f"    - tserver_flags: {self.tserver_flags} {build_param_skipped}\n" + \
+               f"    - master_flags: {self.master_flags} {build_param_skipped}\n" + \
                f"    - skip_table_scan_hints: {self.skip_table_scan_hints}\n" + \
                f"    - skip_model_creation: {self.skip_model_creation}\n" + \
                f"    - num_queries: {self.num_queries}\n" + \
