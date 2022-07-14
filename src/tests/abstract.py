@@ -64,7 +64,7 @@ class Report:
             self.logger.info("Clearing report directory")
             shutil.rmtree("report", ignore_errors=True)
 
-        if os.path.isdir("report"):
+        if not os.path.isdir("report"):
             os.mkdir("report")
 
         os.mkdir(f"report/{self.start_date}")
