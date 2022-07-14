@@ -105,8 +105,7 @@ class TaqoTest(AbstractTest):
                 evaluate_sql(cur, optimization.get_explain())
             except psycopg2.errors.QueryCanceled as e:
                 # failed by timeout - it's ok just skip optimization
-                if self.config.verbose:
-                    self.logger.info(f"Getting execution plan failed with {e}")
+                self.logger.debug(f"Getting execution plan failed with {e}")
 
                 num_skipped += 1
                 optimization.execution_time_ms = 0

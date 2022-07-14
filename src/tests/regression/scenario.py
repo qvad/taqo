@@ -46,6 +46,7 @@ class RegressionTest(AbstractTest):
             with conn.cursor() as cur:
                 evaluate_sql(cur, 'SELECT VERSION();')
                 first_version = cur.fetchone()[0]
+                self.logger.info(f"Running regression test against {first_version}")
 
             # evaluate original query
             model = get_test_model()
@@ -59,11 +60,13 @@ class RegressionTest(AbstractTest):
             self.switch_version()
 
             # reconnect
+            self.logger.info("Reconnecting to DB after upgrade")
             conn = self.connect_to_db()
 
             with conn.cursor() as cur:
                 evaluate_sql(cur, 'SELECT VERSION();')
                 second_version = cur.fetchone()[0]
+                self.logger.info(f"Running regression test against {second_version}")
 
             self.report.define_version(first_version, second_version)
 

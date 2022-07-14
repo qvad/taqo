@@ -42,7 +42,7 @@ class Yugabyte:
             exit(1)
 
     def stop_node(self):
-        self.logger.info("Stopping Yugabyte node")
+        self.logger.info("Stopping Yugabyte node if exists")
         out = subprocess.check_output(['bin/yugabyted', 'stop'],
                                       stderr=subprocess.PIPE,
                                       cwd=self.path, )
@@ -77,7 +77,7 @@ class YugabyteDistributive(Yugabyte):
         if not path:
             raise AttributeError("Can't pass empty path into unpack_release method")
 
-        self.logger.info(f"Cleaning /tmp/taqo directory and unzip {path}")
+        self.logger.info(f"Cleaning /tmp/taqo directory and unpacking {path}")
         shutil.rmtree('/tmp/taqo', ignore_errors=True)
         os.mkdir('/tmp/taqo')
         subprocess.call(['tar', '-xf', path, '-C', '/tmp/taqo'])

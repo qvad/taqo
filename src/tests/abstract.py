@@ -22,6 +22,8 @@ class AbstractTest(ABC):
         pass
 
     def start_db(self):
+        self.logger.info("Starting Yugabyte DB")
+
         self.yugabyte = factory(self.config)
         self.yugabyte.change_version_and_compile(self.config.revisions_or_paths[0])
         self.yugabyte.stop_node()
@@ -29,6 +31,8 @@ class AbstractTest(ABC):
         self.yugabyte.start_node()
 
     def switch_version(self):
+        self.logger.info("Switching Yugabyte version using same data dirs")
+
         self.yugabyte.stop_node()
         self.yugabyte.change_version_and_compile(self.config.revisions_or_paths[1])
         # todo is this correct upgrade path?
@@ -105,7 +109,8 @@ class Report:
         with open(f"report/taqo_{report_name}.adoc", "w") as file:
             file.write(self.report)
 
-        self.logger.info("Generating report file")
+        self.logger.info(f"Generating report file from report/taqo_{report_name}.adoc")
         subprocess.run(
             f'{self.config.asciidoctor_path} -a stylesheet={os.path.abspath("css/adoc.css")} report/taqo_{report_name}.adoc',
             shell=True)
+        self.logger.info(f"Done! Check report at eport/taqo_{report_name}.html")
