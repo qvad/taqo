@@ -14,7 +14,7 @@ def factory(config):
     if config.yugabyte_code_path is not None:
         return YugabyteRepository(config)
 
-    if config.num_nodes > 1:
+    if int(config.num_nodes) > 1:
         return YugabyteCluster(config)
     else:
         return YugabyteDistributive(config)
