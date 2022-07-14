@@ -1,6 +1,7 @@
 import argparse
 
-from config import Config
+from config import Config, Connection
+from database import DEFAULT_USERNAME, DEFAULT_PASSWORD
 from tests.regression.scenario import RegressionTest
 from tests.taqo.scenario import TaqoTest
 
@@ -15,6 +16,17 @@ if __name__ == "__main__":
                         default="master",
                         help='Comma separated git revisions or paths to release builds')
 
+    parser.add_argument('--num-nodes',
+                        default=1,
+                        help='Number of nodes in cluster (default 1), '
+                             'for more than 1 node bin/yb-ctl create will be called')
+    parser.add_argument('--tserver-flags',
+                        default=None,
+                        help='Comma separated tserver flags')
+    parser.add_argument('--master-flags',
+                        default=None,
+                        help='Comma separated master flags')
+
     parser.add_argument('--host',
                         default="127.0.0.1",
                         help='Target host IP for postgres compatible database')
@@ -22,10 +34,10 @@ if __name__ == "__main__":
                         default=5433,
                         help='Target port for postgres compatible database')
     parser.add_argument('--username',
-                        default="postgres",
+                        default=DEFAULT_USERNAME,
                         help='Username for connection')
     parser.add_argument('--password',
-                        default="postgres",
+                        default=DEFAULT_PASSWORD,
                         help='Password for user for connection')
     parser.add_argument('--database',
                         default="postgres",
@@ -77,19 +89,23 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     config = Config(
-        host=args.host,
-        port=args.port,
-        username=args.username,
-        password=args.password,
-        database=args.database,
+        yugabyte_code_path=args.yugabyte_code_path,
+        revisions_or_paths=args.revisions.split(","),
+
+        num_nodes=args.num_nodes,
+        tserver_flags=args.tserver_flags,
+        master_flags=args.master_flags,
+
+        connection=Connection(host=args.host,
+                              port=args.port,
+                              username=args.username,
+                              password=args.password,
+                              database=args.database),
 
         enable_statistics=args.enable_statistics,
 
         test=args.test,
         model=args.model,
-
-        yugabyte_code_path=args.yugabyte_code_path,
-        revisions_or_paths=args.revisions.split(","),
 
         skip_model_creation=args.skip_model_creation,
         skip_table_scan_hints=args.skip_table_scan_hints,
@@ -105,6 +121,7 @@ if __name__ == "__main__":
     config.logger.info("------------------------------------------------------------")
     config.logger.info("Query Optimizer Testing Framework for Yugabyte/PG DBs")
     config.logger.info("")
+    config.logger.info("Initial configuration:")
     for line in str(config).split("\n"):
         config.logger.info(line)
     config.logger.info("------------------------------------------------------------")

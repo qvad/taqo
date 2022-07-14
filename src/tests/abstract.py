@@ -36,11 +36,11 @@ class AbstractTest(ABC):
 
     def connect_to_db(self):
         conn = psycopg2.connect(
-            host=self.config.host,
-            port=self.config.port,
-            database=self.config.database,
-            user=self.config.username,
-            password=self.config.password)
+            host=self.config.connection.host,
+            port=self.config.connection.port,
+            database=self.config.connection.database,
+            user=self.config.connection.username,
+            password=self.config.connection.password)
         conn.autocommit = True
 
         return conn

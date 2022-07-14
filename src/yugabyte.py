@@ -1,14 +1,23 @@
 import os
+import re
 import shutil
 import subprocess
 from time import sleep
 
+from config import Connection
+from database import DEFAULT_USERNAME, DEFAULT_PASSWORD
+
+JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)):(\d+)\/([a-z]+)(\?user=([a-z]+)&password=([a-z]+))?'
+
 
 def factory(config):
-    if config.yugabyte_code_path is None:
-        return YugabyteDistributive(config)
-    else:
+    if config.yugabyte_code_path is not None:
         return YugabyteRepository(config)
+
+    if config.num_nodes > 1:
+        return YugabyteCluster(config)
+    else:
+        return YugabyteDistributive(config)
 
 
 class Yugabyte:
@@ -17,6 +26,19 @@ class Yugabyte:
     def __init__(self, config):
         self.config = config
         self.logger = self.config.logger
+
+    def get_connection_from_output(self, out):
+        self.logger.info("Reinitializing connection based on cluster creation output")
+        # parsing jdbc:postgresql://127.0.0.1:5433/yugabyte
+        parsing = re.findall(JDBC_STRING_PARSE, str(out))[0]
+
+        self.config.connection = Connection(host=parsing[0],
+                                            port=parsing[4],
+                                            username=parsing[7] or DEFAULT_USERNAME,
+                                            password=parsing[8] or DEFAULT_PASSWORD,
+                                            database=parsing[5], )
+
+        self.logger.info(f"Connection - {self.config.connection}")
 
     def change_version_and_compile(self, revision_or_path=None):
         pass
@@ -41,6 +63,8 @@ class Yugabyte:
         if 'YugabyteDB started successfully!' not in str(out):
             self.logger.error(f"Failed to start Yugabyte\n{str(out)}")
             exit(1)
+
+        self.get_connection_from_output(out)
 
         self.logger.info("Waiting for 15 seconds for connection availability")
         sleep(15)
@@ -89,6 +113,54 @@ class YugabyteDistributive(Yugabyte):
         subprocess.call(['tar', '-xf', path, '-C', '/tmp/taqo'])
 
         self.path = '/tmp/taqo/' + list(os.walk('/tmp/taqo'))[0][1][0]
+
+
+class YugabyteCluster(YugabyteDistributive):
+    def start_node(self):
+        self.logger.info(f"Starting Yugabyte cluster with {self.config.num_nodes} nodes")
+
+        launch_cmds = ['bin/yb-ctl',
+                       '--replication_factor',
+                       self.config.num_nodes,
+                       'create']
+
+        if self.config.tserver_flags:
+            launch_cmds.append(f'--tserver_flags={self.config.tserver_flags}')
+
+        if self.config.master_flags:
+            launch_cmds.append(f'--master_flags={self.config.master_flags}')
+
+        out = subprocess.check_output(launch_cmds,
+                                      stderr=subprocess.PIPE,
+                                      cwd=self.path, )
+
+        if 'For more info, please use: yb-ctl status' not in str(out):
+            self.logger.error(f"Failed to start Yugabyte cluster\n{str(out)}")
+            exit(1)
+
+        self.get_connection_from_output(out)
+
+        self.logger.info("Waiting for 15 seconds for connection availability")
+        sleep(15)
+
+    def destroy(self):
+        self.logger.info("Destroying existing Yugabyte var/ directory")
+
+        out = subprocess.check_output(['bin/yb-ctl', 'destroy'],
+                                      stderr=subprocess.PIPE,
+                                      cwd=self.path, )
+
+        if 'error' in str(out.lower()):
+            self.logger.error(f"Failed to destroy Yugabyte\n{str(out.lower())}")
+
+    def stop_node(self):
+        self.logger.info("Stopping Yugabyte node if exists")
+        out = subprocess.check_output(['bin/yb-ctl', 'stop'],
+                                      stderr=subprocess.PIPE,
+                                      cwd=self.path, )
+
+        if 'error' in str(out.lower()):
+            self.logger.error(f"Failed to stop Yugabyte\n{str(out.lower())}")
 
 
 class YugabyteRepository(Yugabyte):

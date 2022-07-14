@@ -6,6 +6,9 @@ from typing import List
 from config import Config
 from utils import get_explain_clause
 
+DEFAULT_USERNAME = 'postgres'
+DEFAULT_PASSWORD = 'postgres'
+
 ENABLE_PLAN_HINTING = "SET pg_hint_plan.enable_hint = ON;"
 ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
 
