@@ -27,12 +27,12 @@ class AbstractTest(ABC):
 
         self.yugabyte = factory(self.config)
         self.yugabyte.change_version_and_compile(self.config.revisions_or_paths[0])
-        self.yugabyte.stop_node()
+        self.yugabyte.stop_database()
         self.yugabyte.destroy()
-        self.yugabyte.start_node()
+        self.yugabyte.start_database()
 
     def stop_db(self):
-        self.yugabyte.stop_node()
+        self.yugabyte.stop_database()
 
     def connect_to_db(self):
         conn = psycopg2.connect(

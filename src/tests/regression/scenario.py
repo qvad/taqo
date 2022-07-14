@@ -38,10 +38,10 @@ class RegressionTest(AbstractTest):
     def switch_version(self):
         self.logger.info(f"Switching Yugabyte version to {self.config.revisions_or_paths[1]}")
 
-        self.yugabyte.stop_node()
+        self.yugabyte.stop_database()
         self.yugabyte.change_version_and_compile(self.config.revisions_or_paths[1])
         # todo is this correct upgrade path?
-        self.yugabyte.start_node()
+        self.yugabyte.start_database()
         self.yugabyte.call_upgrade_ysql()
 
     def evaluate(self):
