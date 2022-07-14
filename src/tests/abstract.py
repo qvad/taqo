@@ -3,6 +3,7 @@ import difflib
 import os
 import shutil
 import subprocess
+import time
 from abc import ABC
 from pathlib import Path
 
@@ -57,10 +58,17 @@ class Report:
         self.reported_queries_counter = 0
         self.queries = []
 
-        shutil.rmtree("report", ignore_errors=True)
+        self.start_date = time.strftime("%Y%m%d-%H%M%S")
 
-        os.mkdir("report")
-        os.mkdir("report/imgs")
+        if self.config.clear:
+            self.logger.info("Clearing report directory")
+            shutil.rmtree("report", ignore_errors=True)
+
+        if os.path.isdir("report"):
+            os.mkdir("report")
+
+        os.mkdir(f"report/{self.start_date}")
+        os.mkdir(f"report/{self.start_date}/imgs")
 
     def _add_double_newline(self):
         self.report += "\n\n"
@@ -98,13 +106,17 @@ class Report:
             text[:3] not in ('+++', '---', '@@ '))
 
     def publish_report(self, report_name):
-        with open(f"report/taqo_{report_name}.adoc", "w") as file:
+        report_adoc = f"report/{self.start_date}/report_{report_name}.adoc"
+
+        with open(report_adoc, "w") as file:
             file.write(self.report)
 
-        self.logger.info(f"Generating report file from report/taqo_{report_name}.adoc")
+        self.logger.info(f"Generating report file from {report_adoc} and compiling html")
         subprocess.run(
-            f'{self.config.asciidoctor_path} -a stylesheet={os.path.abspath("css/adoc.css")} report/taqo_{report_name}.adoc',
+            f'{self.config.asciidoctor_path} '
+            f'-a stylesheet={os.path.abspath("css/adoc.css")} '
+            f'{report_adoc}',
             shell=True)
 
-        full_path = Path(f'report/taqo_{report_name}.html')
-        self.logger.info(f"Done! Check report at {full_path.absolute()}")
+        report_html_path = Path(f'report/{self.start_date}/report_{report_name}.html')
+        self.logger.info(f"Done! Check report at {report_html_path.absolute()}")

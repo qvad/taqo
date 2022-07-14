@@ -81,10 +81,10 @@ if __name__ == "__main__":
                         default="asciidoctor",
                         help='Full path to asciidoc command (default asciidoctor)')
 
-    parser.add_argument('--verbose',
+    parser.add_argument('--clear',
                         action=argparse.BooleanOptionalAction,
                         default=False,
-                        help='Enable extra logging')
+                        help='Clear logs directory')
 
     args = parser.parse_args()
 
@@ -116,6 +116,7 @@ if __name__ == "__main__":
         max_optimizations=args.max_optimizations,
 
         asciidoctor_path=args.asciidoctor_path,
+        clear=args.clear,
     )
 
     config.logger.info("------------------------------------------------------------")

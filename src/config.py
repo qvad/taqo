@@ -66,6 +66,7 @@ class Config(metaclass=Singleton):
     max_optimizations: int = None
 
     asciidoctor_path: str = None
+    clear: bool = False
 
     def __str__(self):
         explain_query = "EXPLAIN ANALYZE" if self.enable_statistics else "EXPLAIN"
