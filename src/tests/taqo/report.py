@@ -56,7 +56,7 @@ class TaqoReport(Report):
                  [best_optimization.optimizer_score], 'go')
 
         file_name = f'imgs/query_{self.reported_queries_counter}.png'
-        plt.savefig(f"report/{file_name}")
+        plt.savefig(f"report/{self.start_date}/{file_name}")
         plt.close()
 
         return file_name

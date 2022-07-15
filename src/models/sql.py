@@ -1,8 +1,7 @@
 import glob
+from typing import List
 
 import sqlparse
-
-from typing import List
 from sqlparse.sql import Comment
 from tqdm import tqdm
 
@@ -94,7 +93,7 @@ class SQLModel(QTFModel):
     def get_query_hint_tips(self, full_query):
         tips = QueryTips()
 
-        if comments := self.get_comments(full_query):
+        if comments := self.get_comments(full_query).split("\n"):
             for comment_line in comments:
                 if comment_line.startswith("-- accept: "):
                     tips.accept = [s.lstrip() for s in
@@ -114,11 +113,15 @@ class SQLModel(QTFModel):
         query_file_lists = list(glob.glob(f"sql/{self.config.model}/queries/*.sql"))
         for query in query_file_lists:
             with open(query, "r") as query_file:
-                full_query = ''.join(query_file.readlines())
-                tables_list = get_alias_table_names(full_query, table_names)
-                queries.append(Query(
-                    query=sqlparse.format(full_query, strip_comments=True).strip(),
-                    tables=[table for table in tables if table.name in tables_list.values()],
-                    optimizer_tips=self.get_query_hint_tips(full_query)))
+                full_queries = ''.join(query_file.readlines())
+                query_tips = self.get_query_hint_tips(full_queries)
+                for query in full_queries.split(";"):
+                    if cleaned := query.lstrip():
+                        tables_list = get_alias_table_names(cleaned, table_names)
+                        queries.append(Query(
+                            query=sqlparse.format(cleaned, strip_comments=True).strip(),
+                            tables=[table for table in tables if
+                                    table.name in tables_list.values()],
+                            optimizer_tips=query_tips))
 
         return queries

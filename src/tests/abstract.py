@@ -55,6 +55,11 @@ class Report:
         self.report = f"= Query Optimizer Test report \n" \
                       f":source-highlighter: coderay\n" \
                       f":coderay-linenums-mode: inline\n\n"
+
+        self._start_source()
+        self.report += str(self.config)
+        self._end_source()
+
         self.reported_queries_counter = 0
         self.queries = []
 

@@ -61,8 +61,7 @@ class TaqoTest(AbstractTest):
 
                         # set maximum execution time
                         optimizer_query_timeout = \
-                            (
-                                    original_query.optimizer_tips and original_query.optimizer_tips.max_timeout) or \
+                            (original_query.optimizer_tips and original_query.optimizer_tips.max_timeout) or \
                             f"{int(original_query.execution_time_ms / 1000) + int(self.config.skip_timeout_delta)}s"
 
                         self.logger.debug(f"Setting query timeout to {optimizer_query_timeout} seconds")
