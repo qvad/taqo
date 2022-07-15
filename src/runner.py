@@ -9,21 +9,21 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Query Optimizer Testing framework for PostgreSQL compatible DBs')
 
-    parser.add_argument('--yugabyte-code-path',
+    parser.add_argument('--yugabyte_code_path',
                         default=None,
                         help='Path to Yugabyte source repository')
     parser.add_argument('--revisions',
                         default="master",
                         help='Comma separated git revisions or paths to release builds')
 
-    parser.add_argument('--num-nodes',
+    parser.add_argument('--num_nodes',
                         default=1,
                         help='Number of nodes in cluster (default 1), '
                              'for more than 1 node bin/yb-ctl create will be called')
-    parser.add_argument('--tserver-flags',
+    parser.add_argument('--tserver_flags',
                         default=None,
                         help='Comma separated tserver flags')
-    parser.add_argument('--master-flags',
+    parser.add_argument('--master_flags',
                         default=None,
                         help='Comma separated master flags')
 
@@ -43,7 +43,7 @@ if __name__ == "__main__":
                         default="postgres",
                         help='Target database in postgres compatible database')
 
-    parser.add_argument('--enable-statistics',
+    parser.add_argument('--enable_statistics',
                         action=argparse.BooleanOptionalAction,
                         default=False,
                         help='Evaluate yb_enable_optimizer_statistics before running queries')
@@ -55,29 +55,29 @@ if __name__ == "__main__":
                         default="simple",
                         help='Test model to use - simple (default) or tpch')
 
-    parser.add_argument('--skip-model-creation',
+    parser.add_argument('--skip_model_creation',
                         action=argparse.BooleanOptionalAction,
                         default=False,
                         help='Skip model creation queries')
-    parser.add_argument('--skip-table-scan-hints',
+    parser.add_argument('--skip_table_scan_hints',
                         action=argparse.BooleanOptionalAction,
                         default=False,
                         help='Skip table scan hinting')
-    parser.add_argument('--skip-timeout-delta',
+    parser.add_argument('--skip_timeout_delta',
                         default=1,
                         help='Timeout delta for optimized query (default 1s)')
 
-    parser.add_argument('--num-queries',
+    parser.add_argument('--num_queries',
                         default=0,
                         help='Number of queries for default model')
-    parser.add_argument('--num-retries',
+    parser.add_argument('--num_retries',
                         default=5,
                         help='Number of retries')
-    parser.add_argument('--max-optimizations',
+    parser.add_argument('--max_optimizations',
                         default=1000,
                         help='Maximum number of allowed optimizations (default 1000)')
 
-    parser.add_argument('--asciidoctor-path',
+    parser.add_argument('--asciidoctor_path',
                         default="asciidoctor",
                         help='Full path to asciidoc command (default asciidoctor)')
 

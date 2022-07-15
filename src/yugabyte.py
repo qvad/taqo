@@ -94,14 +94,15 @@ class YugabyteLocalCluster(Yugabyte):
         sleep(15)
 
     def destroy(self):
-        self.logger.info("Destroying existing Yugabyte var/ directory")
+        if not self.config.skip_model_creation:
+            self.logger.info("Destroying existing Yugabyte var/ directory")
 
-        out = subprocess.check_output(['bin/yb-ctl', 'destroy'],
-                                      stderr=subprocess.PIPE,
-                                      cwd=self.path, )
+            out = subprocess.check_output(['bin/yb-ctl', 'destroy'],
+                                          stderr=subprocess.PIPE,
+                                          cwd=self.path, )
 
-        if 'error' in str(out.lower()):
-            self.logger.error(f"Failed to destroy Yugabyte\n{str(out.lower())}")
+            if 'error' in str(out.lower()):
+                self.logger.error(f"Failed to destroy Yugabyte\n{str(out.lower())}")
 
     def stop_database(self):
         self.logger.info("Stopping Yugabyte node if exists")
@@ -157,14 +158,15 @@ class YugabyteLocalRepository(Yugabyte):
         pass
 
     def destroy(self):
-        self.logger.info("Destroying existing Yugabyte var/ directory")
+        if not self.config.skip_model_creation:
+            self.logger.info("Destroying existing Yugabyte var/ directory")
 
-        out = subprocess.check_output(['bin/yugabyted', 'destroy'],
-                                      stderr=subprocess.PIPE,
-                                      cwd=self.path, )
+            out = subprocess.check_output(['bin/yugabyted', 'destroy'],
+                                          stderr=subprocess.PIPE,
+                                          cwd=self.path, )
 
-        if 'error' in str(out.lower()):
-            self.logger.error(f"Failed to destroy Yugabyte\n{str(out.lower())}")
+            if 'error' in str(out.lower()):
+                self.logger.error(f"Failed to destroy Yugabyte\n{str(out.lower())}")
 
     def start_database(self):
         self.logger.info("Starting Yugabyte node")

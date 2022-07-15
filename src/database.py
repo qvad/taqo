@@ -162,6 +162,17 @@ class ListOfOptimizations:
                     if interrupt:
                         break
 
+        if not optimizations:
+            # case w/o any joins
+            for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
+                if len(optimizations) >= max_optimizations:
+                    interrupt = True
+                    break
+
+                explain_hints = f"{' '.join(table_scan_hint)}"
+
+                self.add_optimization(explain_hints, optimizations)
+
         return optimizations
 
     def add_optimization(self, explain_hints, optimizations):

@@ -78,13 +78,14 @@ class Config(metaclass=Singleton):
                f"  Running '{self.test}' test on model '{self.model}'\n" + \
                f"  Repository code path '{self.yugabyte_code_path}', revisions to test {self.revisions_or_paths}\n" + \
                f"  Additional properties defined:\n" + \
-               f"    - num_nodes: {self.num_nodes} {build_param_skipped}\n" + \
-               f"    - tserver_flags: {self.tserver_flags}\n" + \
-               f"    - master_flags: {self.master_flags}\n" + \
-               f"    - skip_table_scan_hints: {self.skip_table_scan_hints}\n" + \
-               f"    - skip_model_creation: {self.skip_model_creation}\n" + \
-               f"    - num_queries: {self.num_queries}\n" + \
-               f"    - num_retries: {self.num_retries}\n" + \
-               f"    - skip_timeout_delta: ±{self.skip_timeout_delta}s\n" + \
-               f"    - max_optimizations: {self.max_optimizations}\n" + \
-               f"    - asciidoctor_path: '{self.asciidoctor_path}'\n"
+               f"    --num_nodes: {self.num_nodes} {build_param_skipped}\n" + \
+               f"    --tserver_flags: {self.tserver_flags} {build_param_skipped}\n" + \
+               f"    --master_flags: {self.master_flags} {build_param_skipped}\n" + \
+               f"    --num_queries: {self.num_queries}\n" + \
+               f"    --num_retries: {self.num_retries}\n" + \
+               f"    --skip_timeout_delta: ±{self.skip_timeout_delta}s\n" + \
+               f"    --skip_table_scan_hints: {self.skip_table_scan_hints}\n" + \
+               f"    --skip_model_creation: {self.skip_model_creation}\n" + \
+               f"    --max_optimizations: {self.max_optimizations}\n" + \
+               f"    --asciidoctor_path: '{self.asciidoctor_path}'\n" + \
+               f"    --clear: '{self.clear}'\n"

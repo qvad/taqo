@@ -115,11 +115,11 @@ class SQLModel(QTFModel):
             with open(query, "r") as query_file:
                 full_queries = ''.join(query_file.readlines())
                 query_tips = self.get_query_hint_tips(full_queries)
-                for query in full_queries.split(";"):
-                    if cleaned := query.lstrip():
+                for file_query in full_queries.split(";"):
+                    if cleaned := sqlparse.format(file_query.lstrip(), strip_comments=True).strip():
                         tables_list = get_alias_table_names(cleaned, table_names)
                         queries.append(Query(
-                            query=sqlparse.format(cleaned, strip_comments=True).strip(),
+                            query=cleaned,
                             tables=[table for table in tables if
                                     table.name in tables_list.values()],
                             optimizer_tips=query_tips))
