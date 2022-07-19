@@ -1,6 +1,6 @@
 import argparse
 
-from config import Config, Connection
+from config import Config, Connection, init_logger
 from database import DEFAULT_USERNAME, DEFAULT_PASSWORD
 from tests.regression.scenario import RegressionTest
 from tests.taqo.scenario import TaqoTest
@@ -66,6 +66,12 @@ if __name__ == "__main__":
     parser.add_argument('--skip_timeout_delta',
                         default=1,
                         help='Timeout delta for optimized query (default 1s)')
+    parser.add_argument('--skip_percentage_delta',
+                        default=0.05,
+                        help='Percentage difference where 2 plans are counted as similar (default 0.05)')
+    parser.add_argument('--look_near_best_plan',
+                        default=True,
+                        help='If better plan found, then change max query execution time to (best + skip_timeout_delta)s')
 
     parser.add_argument('--num_queries',
                         default=0,
@@ -86,9 +92,16 @@ if __name__ == "__main__":
                         default=False,
                         help='Clear logs directory')
 
+    parser.add_argument('--verbose',
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help='Enable DEBUG logging')
+
     args = parser.parse_args()
 
     config = Config(
+        logger=init_logger("DEBUG" if args.verbose else "INFO"),
+
         yugabyte_code_path=args.yugabyte_code_path,
         revisions_or_paths=args.revisions.split(","),
 
@@ -109,6 +122,8 @@ if __name__ == "__main__":
 
         skip_model_creation=args.skip_model_creation,
         skip_table_scan_hints=args.skip_table_scan_hints,
+        skip_percentage_delta=args.skip_percentage_delta,
+        look_near_best_plan=args.look_near_best_plan,
 
         num_queries=args.num_queries,
         num_retries=args.num_retries,

@@ -38,7 +38,7 @@ class TaqoReport(Report):
                           ((pj.optimizer_score - pi.optimizer_score) / e_diff) ** 2) *
                 math.copysign(1, (pj.optimizer_score - pi.optimizer_score))
                 for pi, pj in list(itertools.combinations(optimizations, 2)))
-        except Exception:
+        except ArithmeticError:
             self.logger.debug("Failed to calculate score, setting TAQO score as 0.0")
             return 0.0
 
@@ -64,7 +64,7 @@ class TaqoReport(Report):
     def add_query(self, query: Query):
         best_optimization = query.get_best_optimization()
 
-        if query.execution_time_ms == best_optimization.execution_time_ms:
+        if self.allowed_diff(query.execution_time_ms, best_optimization.execution_time_ms):
             self.same_execution_plan.append(query)
         else:
             self.better_plan_found.append(query)

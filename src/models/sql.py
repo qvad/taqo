@@ -30,7 +30,11 @@ class SQLModel(QTFModel):
     def load_tables_from_public(self, created_tables, cur):
         self.logger.info("Loading tables...")
         cur.execute(
-            "select table_name, table_schema from information_schema.tables where table_schema = 'public'")
+            """
+            select table_name, table_schema 
+            from information_schema.tables 
+            where table_schema = 'public';
+            """)
         tables = []
         result = list(cur.fetchall())
         tables.extend((row[0], row[1])
@@ -42,11 +46,11 @@ class SQLModel(QTFModel):
             evaluate_sql(
                 cur,
                 f"""
-                        SELECT column_name
-                          FROM information_schema.columns
-                         WHERE table_schema = '{table[1]}'
-                           AND table_name   = '{table[0]}';
-                        """
+                select column_name
+                from information_schema.columns
+                where table_schema = '{table[1]}'
+                and table_name   = '{table[0]}';
+                """
             )
 
             columns = [row[0] for row in list(cur.fetchall())]
@@ -54,26 +58,26 @@ class SQLModel(QTFModel):
             evaluate_sql(
                 cur,
                 f"""
-                        select
-                            t.relname as table_name,
-                            i.relname as index_name,
-                            a.attname as column_name
-                        from
-                            pg_class t,
-                            pg_class i,
-                            pg_index ix,
-                            pg_attribute a
-                        where
-                            t.oid = ix.indrelid
-                            and i.oid = ix.indexrelid
-                            and a.attrelid = t.oid
-                            and a.attnum = ANY(ix.indkey)
-                            and t.relkind = 'r'
-                            and t.relname like '{table[0]}'
-                        order by
-                            t.relname,
-                            i.relname;
-                        """
+                select
+                    t.relname as table_name,
+                    i.relname as index_name,
+                    a.attname as column_name
+                from
+                    pg_class t,
+                    pg_class i,
+                    pg_index ix,
+                    pg_attribute a
+                where
+                    t.oid = ix.indrelid
+                    and i.oid = ix.indexrelid
+                    and a.attrelid = t.oid
+                    and a.attnum = ANY(ix.indkey)
+                    and t.relkind = 'r'
+                    and t.relname like '{table[0]}'
+                order by
+                    t.relname,
+                    i.relname;
+                """
             )
 
             fields = []
@@ -110,7 +114,7 @@ class SQLModel(QTFModel):
         table_names = [table.name for table in tables]
 
         queries = []
-        query_file_lists = list(glob.glob(f"sql/{self.config.model}/queries/*.sql"))
+        query_file_lists = sorted(list(glob.glob(f"sql/{self.config.model}/queries/*.sql")))
         for query in query_file_lists:
             with open(query, "r") as query_file:
                 full_queries = ''.join(query_file.readlines())

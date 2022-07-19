@@ -15,14 +15,14 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-def init_logger() -> logging.Logger:
+def init_logger(level="INFO") -> logging.Logger:
     f = logging.Formatter('%(asctime)s:%(levelname)5s: %(message)s')
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(f)
 
     _logger = logging.getLogger("taqo")
-    _logger.setLevel("INFO")
+    _logger.setLevel(level)
     _logger.addHandler(console_handler)
 
     return _logger
@@ -42,7 +42,7 @@ class Connection():
 
 @dataclasses.dataclass
 class Config(metaclass=Singleton):
-    logger: logging.Logger = init_logger()
+    logger: logging.Logger = None
 
     yugabyte_code_path: str = None
     revisions_or_paths: List[str] = None
@@ -60,6 +60,9 @@ class Config(metaclass=Singleton):
 
     skip_table_scan_hints: bool = None
     skip_model_creation: bool = None
+    skip_percentage_delta: bool = None
+    look_near_best_plan: bool = None
+
     num_queries: int = None
     num_retries: int = None
     skip_timeout_delta: int = None
@@ -86,6 +89,7 @@ class Config(metaclass=Singleton):
                f"    --skip_timeout_delta: ±{self.skip_timeout_delta}s\n" + \
                f"    --skip_table_scan_hints: {self.skip_table_scan_hints}\n" + \
                f"    --skip_model_creation: {self.skip_model_creation}\n" + \
+               f"    --look_near_best_plan: {self.look_near_best_plan}\n" + \
                f"    --max_optimizations: {self.max_optimizations}\n" + \
                f"    --asciidoctor_path: '{self.asciidoctor_path}'\n" + \
                f"    --clear: '{self.clear}'\n"

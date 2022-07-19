@@ -127,3 +127,7 @@ class Report:
 
         report_html_path = Path(f'report/{self.start_date}/report_{report_name}.html')
         self.logger.info(f"Done! Check report at {report_html_path.absolute()}")
+
+    def allowed_diff(self, original_execution_time, best_execution_time):
+        return (abs(original_execution_time - best_execution_time) / best_execution_time) < \
+               self.config.skip_percentage_delta

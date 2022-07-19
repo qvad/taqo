@@ -1,5 +1,4 @@
 import itertools
-
 from enum import Enum
 
 from tqdm import tqdm
@@ -34,7 +33,7 @@ class SimpleModel(QTFModel):
                 evaluate_sql(cur, f"DROP TABLE IF EXISTS {table.name}")
                 evaluate_sql(
                     cur,
-                    f"CREATE TABLE {table.name} as select a, md5(random()::text) from generate_Series(1,{table.size}) a")
+                    f"CREATE TABLE {table.name} AS SELECT a, md5(random()::text) FROM generate_Series(1,{table.size}) a")
                 evaluate_sql(
                     cur,
                     f"CREATE INDEX {table.name}_idx ON {table.name}(a)")
@@ -47,10 +46,16 @@ class SimpleModel(QTFModel):
         queries = []
 
         where_clauses = itertools.cycle([
-            "in", "<", ">"
+            "IN", "<", ">"
+        ])
+        group_clauses = itertools.cycle([
+            "", "ASC", "DESC"
         ])
         limit_clauses = itertools.cycle([
-            "", "limit"
+            "", "LIMIT"
+        ])
+        offset_clauses = itertools.cycle([
+            "", "10", "50"
         ])
 
         self.logger.info(f"Generating {self.config.num_queries} queries for test")
@@ -59,29 +64,21 @@ class SimpleModel(QTFModel):
             first_table = perm[0]
             for query_join in QueryJoins:
                 query = f"SELECT * FROM {first_table.name} "
-                for table in perm[1:]:
-                    query += f" {query_join.value} join {table.name}" \
-                             f" on {first_table.name}.a = {table.name}.a"
 
-                query += " where"
-                min_size = min(tb.size for tb in perm)
+                min_size, query = self.select_where_limit(query,
+                                                          first_table,
+                                                          perm,
+                                                          query_join,
+                                                          limit_clauses,
+                                                          where_clauses)
 
-                # where clause types
-                next_where_expression_type = next(where_clauses)
-                if next_where_expression_type == "<":
-                    query += f" {first_table.name}.a < {min_size}"
-                elif next_where_expression_type == ">":
-                    query += f" {first_table.name}.a > {int(min_size / 2)}"
-                elif next_where_expression_type == "in":
-                    query += f" {first_table.name}.a in ({','.join([str(n) for n in range(100)])})"
-                else:
-                    raise AttributeError(
-                        f"Unknown where expression type {next_where_expression_type}")
+                # group by clauses
+                if next_group_by_clause := next(group_clauses):
+                    query += f" GROUP BY {first_table.name}.a {next_group_by_clause}"
 
-                # limit clause types
-                next_limit_clause = next(limit_clauses)
-                if next_limit_clause == "limit":
-                    query += f" {next_limit_clause} {min(1000, min_size)}"
+                # offset clauses
+                if offset := next(offset_clauses):
+                    query += f" OFFSET {offset}"
 
                 queries.append(Query(
                     query=query,
@@ -92,3 +89,30 @@ class SimpleModel(QTFModel):
             queries = queries[:int(self.config.num_queries)]
 
         return queries
+
+    @staticmethod
+    def select_where_limit(query, first_table, perm, query_join, limit_clauses, where_clauses):
+        for table in perm[1:]:
+            query += f" {query_join.value} JOIN {table.name}" \
+                     f" ON {first_table.name}.a = {table.name}.a"
+
+        query += " WHERE"
+        min_size = min(tb.size for tb in perm)
+
+        # where clause types
+        next_where_expression_type = next(where_clauses)
+        if next_where_expression_type == "<":
+            query += f" {first_table.name}.a {next_where_expression_type} {min_size}"
+        elif next_where_expression_type == ">":
+            query += f" {first_table.name}.a {next_where_expression_type} {int(min_size / 2)}"
+        elif next_where_expression_type == "IN":
+            query += f" {first_table.name}.a {next_where_expression_type} ({','.join([str(n) for n in range(100)])})"
+        else:
+            raise AttributeError(
+                f"Unknown where expression type {next_where_expression_type}")
+
+        # limit clause types
+        if limit_clause := next(limit_clauses):
+            query += f" {limit_clause} {min(1000, min_size)}"
+
+        return min_size, query

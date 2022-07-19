@@ -59,15 +59,6 @@ class TaqoTest(AbstractTest):
                         calculate_avg_execution_time(cur, original_query,
                                                      int(self.config.num_retries))
 
-                        # set maximum execution time
-                        optimizer_query_timeout = \
-                            (original_query.optimizer_tips and original_query.optimizer_tips.max_timeout) or \
-                            f"{int(original_query.execution_time_ms / 1000) + int(self.config.skip_timeout_delta)}s"
-
-                        self.logger.debug(f"Setting query timeout to {optimizer_query_timeout} seconds")
-
-                        evaluate_sql(cur, f"SET statement_timeout = '{optimizer_query_timeout}'")
-
                         self.evaluate_optimizations(cur, original_query)
 
                         self.report.add_query(original_query)
@@ -94,11 +85,23 @@ class TaqoTest(AbstractTest):
             .get_all_optimizations(int(self.config.max_optimizations))
         progress_bar = tqdm(list_of_optimizations)
         num_skipped = 0
+        min_execution_time = original_query.execution_time_ms
         original_query.optimizations = []
         for optimization in progress_bar:
             # in case of enable statistics enabled
             # we can get failure here and throw timeout
             original_query.optimizations.append(optimization)
+
+            # set maximum execution time if this is first query,
+            # or we are evaluating queries near best execution time
+            if self.config.look_near_best_plan or len(original_query.optimizations) == 1:
+                optimizer_query_timeout = \
+                    (original_query.optimizer_tips and original_query.optimizer_tips.max_timeout) or \
+                    f"{int(min_execution_time / 1000) + int(self.config.skip_timeout_delta)}s"
+
+                self.logger.debug(f"Setting query timeout to {optimizer_query_timeout} seconds")
+
+                evaluate_sql(cur, f"SET statement_timeout = '{optimizer_query_timeout}'")
 
             try:
                 evaluate_sql(cur, optimization.get_explain())
@@ -121,6 +124,11 @@ class TaqoTest(AbstractTest):
             if not calculate_avg_execution_time(cur, optimization,
                                                 int(self.config.num_retries)):
                 num_skipped += 1
+
+            # get new minimum execution time
+            if optimization.execution_time_ms != 0 and \
+                    optimization.execution_time_ms < min_execution_time:
+                min_execution_time = optimization.execution_time_ms
 
             progress_bar.set_postfix({'skipped': num_skipped})
         return list_of_optimizations
