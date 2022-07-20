@@ -62,6 +62,9 @@ class TaqoTest(AbstractTest):
                         self.evaluate_optimizations(cur, original_query)
 
                         self.report.add_query(original_query)
+                    except psycopg2.Error as pe:
+                        # do not raise exception
+                        self.logger.exception(f"{original_query}\nFailed because of {pe}")
                     except Exception as e:
                         self.logger.info(original_query)
                         raise e
