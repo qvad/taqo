@@ -48,7 +48,7 @@ class SimpleModel(QTFModel):
         where_clauses = itertools.cycle([
             "IN", "<", ">"
         ])
-        group_clauses = itertools.cycle([
+        order_clauses = itertools.cycle([
             "", "ASC", "DESC"
         ])
         limit_clauses = itertools.cycle([
@@ -65,16 +65,32 @@ class SimpleModel(QTFModel):
             for query_join in QueryJoins:
                 query = f"SELECT * FROM {first_table.name} "
 
-                min_size, query = self.select_where_limit(query,
-                                                          first_table,
-                                                          perm,
-                                                          query_join,
-                                                          limit_clauses,
-                                                          where_clauses)
+                for table in perm[1:]:
+                    query += f" {query_join.value} JOIN {table.name}" \
+                             f" ON {first_table.name}.a = {table.name}.a"
+
+                query += " WHERE"
+                min_size = min(tb.size for tb in perm)
+
+                # where clause types
+                next_where_expression_type = next(where_clauses)
+                if next_where_expression_type == "<":
+                    query += f" {first_table.name}.a {next_where_expression_type} {min_size}"
+                elif next_where_expression_type == ">":
+                    query += f" {first_table.name}.a {next_where_expression_type} {int(min_size / 2)}"
+                elif next_where_expression_type == "IN":
+                    query += f" {first_table.name}.a {next_where_expression_type} ({','.join([str(n) for n in range(100)])})"
+                else:
+                    raise AttributeError(
+                        f"Unknown where expression type {next_where_expression_type}")
 
                 # group by clauses
-                if next_group_by_clause := next(group_clauses):
-                    query += f" GROUP BY {first_table.name}.a {next_group_by_clause}"
+                if next_order_by := next(order_clauses):
+                    query += f" ORDER BY {first_table.name}.a {next_order_by}"
+
+                # limit clause types
+                if limit_clause := next(limit_clauses):
+                    query += f" {limit_clause} {min(1000, min_size)}"
 
                 # offset clauses
                 if offset := next(offset_clauses):
