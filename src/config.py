@@ -1,7 +1,6 @@
 import dataclasses
 import logging
 import sys
-
 from typing import List
 
 
@@ -29,7 +28,7 @@ def init_logger(level="INFO") -> logging.Logger:
 
 
 @dataclasses.dataclass
-class Connection():
+class ConnectionConfig():
     host: str = None
     port: str = None
     username: str = None
@@ -51,8 +50,10 @@ class Config(metaclass=Singleton):
     tserver_flags: List[str] = None
     master_flags: List[str] = None
 
-    connection: Connection = None
+    postgres: ConnectionConfig = None
+    yugabyte: ConnectionConfig = None
 
+    compare_with_pg: bool = False
     enable_statistics: bool = False
 
     test: str = None
@@ -76,7 +77,11 @@ class Config(metaclass=Singleton):
 
         build_param_skipped = "(skipped)" if self.yugabyte_code_path else ""
 
-        return f"  Connection - {self.connection}\n" + \
+        connections = f"  Yugabyte Connection - {self.yugabyte}\n"
+        if self.compare_with_pg:
+            connections += f"  Postgres Connection - {self.postgres}\n"
+
+        return f"{connections}" + \
                f"  Using following explain syntax - '{explain_query} /*+ ... */ QUERY'\n" + \
                f"  Running '{self.test}' test on model '{self.model}'\n" + \
                f"  Repository code path '{self.yugabyte_code_path}', revisions to test {self.revisions_or_paths}\n" + \

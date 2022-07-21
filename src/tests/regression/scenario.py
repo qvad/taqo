@@ -50,7 +50,8 @@ class RegressionTest(AbstractTest):
         conn = None
 
         try:
-            conn = self.connect_to_db()
+            self.yugabyte.establish_connection()
+            conn = self.yugabyte.connection.conn
 
             with conn.cursor() as cur:
                 evaluate_sql(cur, 'SELECT VERSION();')
@@ -70,7 +71,7 @@ class RegressionTest(AbstractTest):
 
             # reconnect
             self.logger.info("Reconnecting to DB after upgrade")
-            conn = self.connect_to_db()
+            conn = self.yugabyte.connection.connect()
 
             with conn.cursor() as cur:
                 evaluate_sql(cur, 'SELECT VERSION();')

@@ -125,6 +125,13 @@ class TaqoReport(Report):
 
         self._start_table_row()
 
+        if self.config.compare_with_pg:
+            self._start_collapsible("Postgres plan")
+            self._start_source(["diff"])
+            self.report += query.postgres_query.execution_plan
+            self._end_source()
+            self._end_collapsible()
+
         self._start_collapsible("Original plan")
         self._start_source(["diff"])
         self.report += query.execution_plan

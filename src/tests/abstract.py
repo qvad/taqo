@@ -7,10 +7,8 @@ import time
 from abc import ABC
 from pathlib import Path
 
-import psycopg2
-
 from config import Config
-from yugabyte import factory
+from db.yugabyte import factory
 
 
 class AbstractTest(ABC):
@@ -34,17 +32,6 @@ class AbstractTest(ABC):
 
     def stop_db(self):
         self.yugabyte.stop_database()
-
-    def connect_to_db(self):
-        conn = psycopg2.connect(
-            host=self.config.connection.host,
-            port=self.config.connection.port,
-            database=self.config.connection.database,
-            user=self.config.connection.username,
-            password=self.config.connection.password)
-        conn.autocommit = True
-
-        return conn
 
 
 class Report:

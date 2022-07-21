@@ -1,6 +1,6 @@
 import argparse
 
-from config import Config, Connection, init_logger
+from config import Config, init_logger, ConnectionConfig
 from database import DEFAULT_USERNAME, DEFAULT_PASSWORD
 from tests.regression.scenario import RegressionTest
 from tests.taqo.scenario import TaqoTest
@@ -27,19 +27,35 @@ if __name__ == "__main__":
                         default=None,
                         help='Comma separated master flags')
 
-    parser.add_argument('--host',
+    parser.add_argument('--pg_host',
                         default="127.0.0.1",
                         help='Target host IP for postgres compatible database')
-    parser.add_argument('--port',
-                        default=5433,
+    parser.add_argument('--pg_port',
+                        default=5432,
                         help='Target port for postgres compatible database')
-    parser.add_argument('--username',
+    parser.add_argument('--pg_username',
                         default=DEFAULT_USERNAME,
                         help='Username for connection')
-    parser.add_argument('--password',
+    parser.add_argument('--pg_password',
                         default=DEFAULT_PASSWORD,
                         help='Password for user for connection')
-    parser.add_argument('--database',
+    parser.add_argument('--pg_database',
+                        default="postgres",
+                        help='Target database in postgres compatible database')
+
+    parser.add_argument('--yb_host',
+                        default="127.0.0.1",
+                        help='Target host IP for postgres compatible database')
+    parser.add_argument('--yb_port',
+                        default=5433,
+                        help='Target port for postgres compatible database')
+    parser.add_argument('--yb_username',
+                        default=DEFAULT_USERNAME,
+                        help='Username for connection')
+    parser.add_argument('--yb_password',
+                        default=DEFAULT_PASSWORD,
+                        help='Password for user for connection')
+    parser.add_argument('--yb_database',
                         default="postgres",
                         help='Target database in postgres compatible database')
 
@@ -47,6 +63,10 @@ if __name__ == "__main__":
                         action=argparse.BooleanOptionalAction,
                         default=False,
                         help='Evaluate yb_enable_optimizer_statistics before running queries')
+    parser.add_argument('--compare_with_pg',
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help='Add compare with postgres to report')
 
     parser.add_argument('--test',
                         default="taqo",
@@ -109,12 +129,18 @@ if __name__ == "__main__":
         tserver_flags=args.tserver_flags,
         master_flags=args.master_flags,
 
-        connection=Connection(host=args.host,
-                              port=args.port,
-                              username=args.username,
-                              password=args.password,
-                              database=args.database),
+        yugabyte=ConnectionConfig(host=args.yb_host,
+                                  port=args.yb_port,
+                                  username=args.yb_username,
+                                  password=args.yb_password,
+                                  database=args.yb_database),
+        postgres=ConnectionConfig(host=args.pg_host,
+                                  port=args.pg_port,
+                                  username=args.pg_username,
+                                  password=args.pg_password,
+                                  database=args.pg_database),
 
+        compare_with_pg=args.compare_with_pg,
         enable_statistics=args.enable_statistics,
 
         test=args.test,
@@ -144,12 +170,14 @@ if __name__ == "__main__":
 
     if config.test == "taqo":
         # noinspection Assert
-        assert len(config.revisions_or_paths) in {0, 1}, "One or zero revisions must be defined for TAQO test"
+        assert len(config.revisions_or_paths) in {0,
+                                                  1}, "One or zero revisions must be defined for TAQO test"
 
         test = TaqoTest()
     elif config.test == "regression":
         # noinspection Assert
-        assert len(config.revisions_or_paths) == 2, "Exactly 2 revisions must be defined for regression test"
+        assert len(
+            config.revisions_or_paths) == 2, "Exactly 2 revisions must be defined for regression test"
 
         test = RegressionTest()
     else:

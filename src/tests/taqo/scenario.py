@@ -3,10 +3,11 @@ import time
 import psycopg2
 from tqdm import tqdm
 
-from database import ListOfOptimizations, ENABLE_PLAN_HINTING, ENABLE_STATISTICS_HINT
+from database import ListOfOptimizations, ENABLE_PLAN_HINTING, ENABLE_STATISTICS_HINT, Query
+from db.postgres import Postgres
 from models.factory import get_test_model
-from tests.taqo.report import TaqoReport
 from tests.abstract import AbstractTest
+from tests.taqo.report import TaqoReport
 from utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
 
 
@@ -21,11 +22,10 @@ class TaqoTest(AbstractTest):
         conn = None
 
         try:
-            conn = self.connect_to_db()
+            self.yugabyte.establish_connection()
+            conn = self.yugabyte.connection.conn
 
-            with conn.cursor() as cur:
-                evaluate_sql(cur, 'SELECT VERSION();')
-                self.report.define_version(cur.fetchone()[0])
+            self.report.define_version(self.yugabyte.connection.get_version())
 
             # evaluate original query
             model = get_test_model()
@@ -34,42 +34,18 @@ class TaqoTest(AbstractTest):
 
             time.sleep(10)
 
-            with conn.cursor() as cur:
-                counter = 1
+            if self.config.compare_with_pg:
+                self.logger.info("Evaluating queries against Postgres DB")
 
-                evaluate_sql(cur, ENABLE_PLAN_HINTING)
-                if self.config.enable_statistics:
-                    self.logger.debug("Enable yb_enable_optimizer_statistics flag")
+                postgres = Postgres(self.config)
+                postgres.establish_connection()
+                pg_conn = postgres.connection.conn
 
-                    evaluate_sql(cur, ENABLE_STATISTICS_HINT)
+                model.create_tables(pg_conn)
 
-                for original_query in queries:
-                    try:
-                        evaluate_sql(cur, "SET statement_timeout = '1200s'")
+                self.evaluate_queries_against_postgres(pg_conn, queries)
 
-                        short_query = original_query.query.replace('\n', '')[:40]
-                        self.logger.info(f"Evaluating query {short_query}... [{counter}/{len(queries)}]")
-
-                        evaluate_sql(cur, original_query.get_explain())
-                        original_query.execution_plan = '\n'.join(
-                            str(item[0]) for item in cur.fetchall())
-                        original_query.optimizer_score = get_optimizer_score_from_plan(
-                            original_query.execution_plan)
-
-                        calculate_avg_execution_time(cur, original_query,
-                                                     int(self.config.num_retries))
-
-                        self.evaluate_optimizations(cur, original_query)
-
-                        self.report.add_query(original_query)
-                    except psycopg2.Error as pe:
-                        # do not raise exception
-                        self.logger.exception(f"{original_query}\nFailed because of {pe}")
-                    except Exception as e:
-                        self.logger.info(original_query)
-                        raise e
-                    finally:
-                        counter += 1
+            self.evaluate_queries_against_yugabyte(conn, queries)
         finally:
             # publish current report
             self.report.build_report()
@@ -80,6 +56,67 @@ class TaqoTest(AbstractTest):
 
             # stop yugabyte
             self.stop_db()
+
+    def evaluate_queries_against_postgres(self, conn, queries):
+        with conn.cursor() as cur:
+
+            evaluate_sql(cur, ENABLE_PLAN_HINTING)
+
+            for original_query in tqdm(queries):
+                original_query.postgres_query = Query(
+                    query=original_query.query
+                )
+                pg_query = original_query.postgres_query
+
+                evaluate_sql(cur, "SET statement_timeout = '1200s'")
+
+                evaluate_sql(cur, pg_query.get_explain())
+                pg_query.execution_plan = '\n'.join(
+                    str(item[0]) for item in cur.fetchall())
+                pg_query.optimizer_score = get_optimizer_score_from_plan(
+                    pg_query.execution_plan)
+
+                calculate_avg_execution_time(cur, pg_query,
+                                             int(self.config.num_retries))
+
+    def evaluate_queries_against_yugabyte(self, conn, queries):
+        with conn.cursor() as cur:
+            counter = 1
+
+            evaluate_sql(cur, ENABLE_PLAN_HINTING)
+            if self.config.enable_statistics:
+                self.logger.debug("Enable yb_enable_optimizer_statistics flag")
+
+                evaluate_sql(cur, ENABLE_STATISTICS_HINT)
+
+            for original_query in queries:
+                try:
+                    evaluate_sql(cur, "SET statement_timeout = '1200s'")
+
+                    short_query = original_query.query.replace('\n', '')[:40]
+                    self.logger.info(
+                        f"Evaluating query {short_query}... [{counter}/{len(queries)}]")
+
+                    evaluate_sql(cur, original_query.get_explain())
+                    original_query.execution_plan = '\n'.join(
+                        str(item[0]) for item in cur.fetchall())
+                    original_query.optimizer_score = get_optimizer_score_from_plan(
+                        original_query.execution_plan)
+
+                    calculate_avg_execution_time(cur, original_query,
+                                                 int(self.config.num_retries))
+
+                    self.evaluate_optimizations(cur, original_query)
+
+                    self.report.add_query(original_query)
+                except psycopg2.Error as pe:
+                    # do not raise exception
+                    self.logger.exception(f"{original_query}\nFailed because of {pe}")
+                except Exception as e:
+                    self.logger.info(original_query)
+                    raise e
+                finally:
+                    counter += 1
 
     def evaluate_optimizations(self, cur, original_query):
         # build all possible optimizations

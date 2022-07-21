@@ -4,8 +4,10 @@ import shutil
 import subprocess
 from time import sleep
 
-from config import Connection
+from config import ConnectionConfig
+from database import Connection
 from database import DEFAULT_USERNAME, DEFAULT_PASSWORD
+from db.postgres import Postgres
 
 JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)):(\d+)\/([a-z]+)(\?user=([a-z]+)&password=([a-z]+))?'
 
@@ -20,23 +22,28 @@ def factory(config):
     return YugabyteLocalCluster(config)
 
 
-class Yugabyte:
+class Yugabyte(Postgres):
     def __init__(self, config):
-        self.config = config
-        self.logger = self.config.logger
+        super().__init__(config)
 
-    def get_connection_from_output(self, out):
+    def establish_connection(self):
+        self.connection = Connection(self.config.yugabyte)
+
+        self.connection.connect()
+
+    def establish_connection_from_output(self, out: str):
         self.logger.info("Reinitializing connection based on cluster creation output")
         # parsing jdbc:postgresql://127.0.0.1:5433/yugabyte
-        parsing = re.findall(JDBC_STRING_PARSE, str(out))[0]
+        parsing = re.findall(JDBC_STRING_PARSE, out)[0]
 
-        self.config.connection = Connection(host=parsing[0],
-                                            port=parsing[4],
-                                            username=parsing[7] or DEFAULT_USERNAME,
-                                            password=parsing[8] or DEFAULT_PASSWORD,
-                                            database=parsing[5], )
+        connection_config = ConnectionConfig(host=parsing[0], port=parsing[4],
+                                             username=parsing[7] or DEFAULT_USERNAME,
+                                             password=parsing[8] or DEFAULT_PASSWORD,
+                                             database=parsing[5], )
+        self.connection = Connection(connection_config)
+        self.connection.connect()
 
-        self.logger.info(f"Connection - {self.config.connection}")
+        self.logger.info(f"Connection - {connection_config}")
 
     def change_version_and_compile(self, revision_or_path=None):
         pass
@@ -88,7 +95,7 @@ class YugabyteLocalCluster(Yugabyte):
             self.logger.error(f"Failed to start Yugabyte cluster\n{str(out)}")
             exit(1)
 
-        self.get_connection_from_output(out)
+        self.establish_connection_from_output(str(out))
 
         self.logger.info("Waiting for 15 seconds for connection availability")
         sleep(15)
@@ -179,7 +186,7 @@ class YugabyteLocalRepository(Yugabyte):
             self.logger.error(f"Failed to start Yugabyte\n{str(out)}")
             exit(1)
 
-        self.get_connection_from_output(out)
+        self.establish_connection_from_output(str(out))
 
         self.logger.info("Waiting for 15 seconds for connection availability")
         sleep(15)

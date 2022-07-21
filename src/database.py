@@ -3,14 +3,37 @@ import itertools
 from enum import Enum
 from typing import List
 
+import psycopg2
+
 from config import Config
-from utils import get_explain_clause
+from utils import get_explain_clause, evaluate_sql
 
 DEFAULT_USERNAME = 'postgres'
 DEFAULT_PASSWORD = 'postgres'
 
 ENABLE_PLAN_HINTING = "SET pg_hint_plan.enable_hint = ON;"
 ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
+
+
+class Connection:
+    conn = None
+
+    def __init__(self, connection_config):
+        self.connection_config = connection_config
+
+    def connect(self):
+        self.conn = psycopg2.connect(
+            host=self.connection_config.host,
+            port=self.connection_config.port,
+            database=self.connection_config.database,
+            user=self.connection_config.username,
+            password=self.connection_config.password)
+        self.conn.autocommit = True
+
+    def get_version(self):
+        with self.conn.cursor() as cur:
+            evaluate_sql(cur, 'SELECT VERSION();')
+            return cur.fetchone()[0]
 
 
 @dataclasses.dataclass
@@ -97,6 +120,7 @@ class Query:
     optimizer_tips: QueryTips = None
     execution_time_ms: int = 0
     optimizations: List['Query'] = None
+    postgres_query: 'Query' = None
 
     def get_query(self):
         return self.query
