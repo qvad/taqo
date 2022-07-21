@@ -38,7 +38,9 @@ class TaqoReport(Report):
                           ((pj.optimizer_score - pi.optimizer_score) / e_diff) ** 2) *
                 math.copysign(1, (pj.optimizer_score - pi.optimizer_score))
                 for pi, pj in list(itertools.combinations(optimizations, 2)))
-        except ArithmeticError:
+        except InterruptedError as ie:
+            raise ie
+        except Exception:
             self.logger.debug("Failed to calculate score, setting TAQO score as 0.0")
             return 0.0
 
