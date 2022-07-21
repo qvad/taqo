@@ -86,6 +86,15 @@ class TaqoReport(Report):
         for query in self.same_execution_plan:
             self.__report_query(query)
 
+    def __report_near_queries(self, query: Query):
+        if add_to_report := "".join(
+                f"`{optimization.explain_hints}`\n\n"
+                for optimization in query.optimizations
+                if self.allowed_diff(query.execution_time_ms, optimization.execution_time_ms)):
+            self._start_collapsible("Near best optimization hints")
+            self.report += add_to_report
+            self._end_collapsible()
+
     # noinspection InsecureHash
     def __report_query(self, query: Query):
         best_optimization = query.get_best_optimization()
@@ -105,6 +114,8 @@ class TaqoReport(Report):
         self._add_double_newline()
         self.report += f"Better optimization hints - `{best_optimization.explain_hints}`"
         self._add_double_newline()
+
+        self.__report_near_queries(query)
 
         filename = self.create_plot(best_optimization, query.optimizations, query)
         self.report += f"image::{filename}[\"Query {self.reported_queries_counter}\"]"
@@ -128,9 +139,17 @@ class TaqoReport(Report):
         self._start_table_row()
 
         if self.config.compare_with_pg:
-            self._start_collapsible("Postgres plan")
+            # todo do we need to report just plan?
+            # self._start_collapsible("Postgres plan")
+            # self._start_source(["diff"])
+            # self.report += query.postgres_query.execution_plan
+            # self._end_source()
+            # self._end_collapsible()
+
+            self._start_collapsible("Postgres plan diff")
             self._start_source(["diff"])
-            self.report += query.postgres_query.execution_plan
+            self.report += self._get_plan_diff(query.execution_plan,
+                                               query.postgres_query.execution_plan)
             self._end_source()
             self._end_collapsible()
 

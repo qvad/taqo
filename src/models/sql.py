@@ -128,4 +128,7 @@ class SQLModel(QTFModel):
                                     table.name in tables_list.values()],
                             optimizer_tips=query_tips))
 
+        if self.config.num_queries > 0:
+            queries = queries[:int(self.config.num_queries)]
+
         return queries

@@ -103,6 +103,7 @@ if __name__ == "__main__":
         skip_timeout_delta=configuration.get("skip_timeout_delta", 1),
         look_near_best_plan=configuration.get("look_near_best_plan", True),
         max_optimizations=configuration.get("max_optimizations", 1000),
+        report_near_queries=configuration.get("report_near_queries", True),
 
         num_queries=configuration.get("num_queries", -1),
         num_retries=configuration.get("num_retries", 5),

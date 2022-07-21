@@ -63,6 +63,7 @@ class Config(metaclass=Singleton):
     skip_model_creation: bool = None
     skip_percentage_delta: bool = None
     look_near_best_plan: bool = None
+    report_near_queries: bool = None
 
     num_queries: int = None
     num_retries: int = None

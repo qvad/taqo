@@ -101,34 +101,7 @@ class SimpleModel(QTFModel):
                     tables=list(perm)
                 ))
 
-        if self.config.num_queries:
+        if self.config.num_queries > 0:
             queries = queries[:int(self.config.num_queries)]
 
         return queries
-
-    @staticmethod
-    def select_where_limit(query, first_table, perm, query_join, limit_clauses, where_clauses):
-        for table in perm[1:]:
-            query += f" {query_join.value} JOIN {table.name}" \
-                     f" ON {first_table.name}.a = {table.name}.a"
-
-        query += " WHERE"
-        min_size = min(tb.size for tb in perm)
-
-        # where clause types
-        next_where_expression_type = next(where_clauses)
-        if next_where_expression_type == "<":
-            query += f" {first_table.name}.a {next_where_expression_type} {min_size}"
-        elif next_where_expression_type == ">":
-            query += f" {first_table.name}.a {next_where_expression_type} {int(min_size / 2)}"
-        elif next_where_expression_type == "IN":
-            query += f" {first_table.name}.a {next_where_expression_type} ({','.join([str(n) for n in range(100)])})"
-        else:
-            raise AttributeError(
-                f"Unknown where expression type {next_where_expression_type}")
-
-        # limit clause types
-        if limit_clause := next(limit_clauses):
-            query += f" {limit_clause} {min(1000, min_size)}"
-
-        return min_size, query
