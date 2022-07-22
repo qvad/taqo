@@ -148,8 +148,9 @@ class TaqoReport(Report):
 
             self._start_collapsible("Postgres plan diff")
             self._start_source(["diff"])
-            self.report += self._get_plan_diff(query.execution_plan,
-                                               query.postgres_query.execution_plan)
+            # postgres plan should be red
+            self.report += self._get_plan_diff(query.postgres_query.execution_plan,
+                                               query.execution_plan,)
             self._end_source()
             self._end_collapsible()
 
