@@ -152,14 +152,10 @@ class YugabyteLocalRepository(Yugabyte):
                 self.logger.error(f"Failed to checkout revision '{revision_or_path}'\n{e}")
 
         self.logger.info(f"Building yugabyte from source code '{self.path}'")
-        out = subprocess.check_output(['./yb_build.sh',
-                                       'release', '--no-tests', '--skip-java-build'],
-                                      stderr=subprocess.PIPE,
-                                      cwd=self.path)
-
-        if 'Built target initial_sys_catalog_snapshot' not in str(out):
-            self.logger.error(f"Failed to build Yugabyte\n{str(out)}")
-            exit(1)
+        subprocess.check_output(['./yb_build.sh',
+                                 'release', '--no-tests', '--skip-java-build'],
+                                stderr=subprocess.PIPE,
+                                cwd=self.path)
 
     def call_upgrade_ysql(self):
         pass
