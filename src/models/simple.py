@@ -58,7 +58,7 @@ class SimpleModel(QTFModel):
             "", "10", "50"
         ])
 
-        self.logger.info(f"Generating {self.config.num_queries} queries for test")
+        self.logger.info("Generating queries for test")
 
         for perm in itertools.permutations(tables, 3):
             first_table = perm[0]

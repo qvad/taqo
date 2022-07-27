@@ -88,7 +88,7 @@ class RegressionTest(AbstractTest):
         finally:
             # publish current report
             self.report.build_report()
-            self.report.publish_report("regression")
+            self.report.publish_report()
 
             # close connection
             conn.close()

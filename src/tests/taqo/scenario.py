@@ -1,14 +1,17 @@
 import time
+from difflib import SequenceMatcher
 
 import psycopg2
 from tqdm import tqdm
 
-from database import ListOfOptimizations, ENABLE_PLAN_HINTING, ENABLE_STATISTICS_HINT, Query
+from database import ListOfOptimizations, ENABLE_PLAN_HINTING, ENABLE_STATISTICS_HINT, Query, \
+    ENABLE_DEBUG_HINTING, DEBUG_MESSAGE_LEVEL, CLIENT_MESSAGES_TO_LOG
 from db.postgres import Postgres
 from models.factory import get_test_model
 from tests.abstract import AbstractTest
 from tests.taqo.report import TaqoReport
-from utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
+from utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql, \
+    allowed_diff
 
 
 class TaqoTest(AbstractTest):
@@ -59,8 +62,9 @@ class TaqoTest(AbstractTest):
 
     def evaluate_queries_against_postgres(self, conn, queries):
         with conn.cursor() as cur:
-
             evaluate_sql(cur, ENABLE_PLAN_HINTING)
+            evaluate_sql(cur, ENABLE_DEBUG_HINTING)
+            evaluate_sql(cur, DEBUG_MESSAGE_LEVEL)
 
             for original_query in tqdm(queries):
                 original_query.postgres_query = Query(
@@ -84,6 +88,10 @@ class TaqoTest(AbstractTest):
             counter = 1
 
             evaluate_sql(cur, ENABLE_PLAN_HINTING)
+            evaluate_sql(cur, ENABLE_DEBUG_HINTING)
+            evaluate_sql(cur, CLIENT_MESSAGES_TO_LOG)
+            evaluate_sql(cur, DEBUG_MESSAGE_LEVEL)
+
             if self.config.enable_statistics:
                 self.logger.debug("Enable yb_enable_optimizer_statistics flag")
 
@@ -108,6 +116,8 @@ class TaqoTest(AbstractTest):
 
                     self.evaluate_optimizations(cur, original_query)
 
+                    self.plan_heatmap(original_query)
+
                     self.report.add_query(original_query)
                 except psycopg2.Error as pe:
                     # do not raise exception
@@ -123,10 +133,12 @@ class TaqoTest(AbstractTest):
         list_of_optimizations = ListOfOptimizations(
             original_query) \
             .get_all_optimizations(int(self.config.max_optimizations))
+
         progress_bar = tqdm(list_of_optimizations)
         num_skipped = 0
         min_execution_time = original_query.execution_time_ms
         original_query.optimizations = []
+
         for optimization in progress_bar:
             # in case of enable statistics enabled
             # we can get failure here and throw timeout
@@ -142,6 +154,8 @@ class TaqoTest(AbstractTest):
                 self.logger.debug(f"Setting query timeout to {optimizer_query_timeout} seconds")
 
                 evaluate_sql(cur, f"SET statement_timeout = '{optimizer_query_timeout}'")
+
+            self.try_to_get_explain_hints(cur, optimization, original_query)
 
             try:
                 evaluate_sql(cur, optimization.get_explain())
@@ -171,4 +185,34 @@ class TaqoTest(AbstractTest):
                 min_execution_time = optimization.execution_time_ms
 
             progress_bar.set_postfix({'skipped': num_skipped})
+
         return list_of_optimizations
+
+    def plan_heatmap(self, query: Query):
+        plan_heatmap = {line_id: {'weight': 0, 'str': execution_plan_line}
+                        for line_id, execution_plan_line in
+                        enumerate(query.get_clean_plan().split("\n"))}
+
+        best_optimization = query.get_best_optimization()
+        for optimization in query.optimizations:
+            if allowed_diff(self.config, best_optimization.execution_time_ms, optimization.execution_time_ms):
+                for plan_line in plan_heatmap.values():
+                    for optimization_line in optimization.get_clean_plan().split("\n"):
+                        if SequenceMatcher(a=plan_line['str'], b=optimization_line).ratio() > 0.9:
+                            plan_line['weight'] += 1
+
+        query.execution_plan_heatmap = plan_heatmap
+
+    def try_to_get_explain_hints(self, cur, optimization, original_query):
+        if not original_query.explain_hints:
+            if self.config.enable_statistics or optimization.execution_plan is None:
+                evaluate_sql(cur, optimization.get_basic_explain())
+
+                execution_plan = '\n'.join(
+                    str(item[0]) for item in cur.fetchall())
+            else:
+                execution_plan = optimization.execution_plan
+
+            if original_query.compare_plans(execution_plan) and original_query.tips_looks_fair(optimization):
+                # store execution plan hints from optimization
+                original_query.explain_hints = optimization.explain_hints

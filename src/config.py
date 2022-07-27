@@ -67,6 +67,7 @@ class Config(metaclass=Singleton):
 
     num_queries: int = None
     num_retries: int = None
+    num_warmup: int = None
     skip_timeout_delta: int = None
     max_optimizations: int = None
 

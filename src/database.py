@@ -1,7 +1,8 @@
 import dataclasses
 import itertools
+import re
 from enum import Enum
-from typing import List
+from typing import List, Dict
 
 import psycopg2
 
@@ -12,7 +13,12 @@ DEFAULT_USERNAME = 'postgres'
 DEFAULT_PASSWORD = 'postgres'
 
 ENABLE_PLAN_HINTING = "SET pg_hint_plan.enable_hint = ON;"
+ENABLE_DEBUG_HINTING = "SET pg_hint_plan.debug_print = ON;"
+CLIENT_MESSAGES_TO_LOG = "SET client_min_messages TO log;"
+DEBUG_MESSAGE_LEVEL = "SET pg_hint_plan.message_level = debug;"
 ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
+
+PLAN_CLEANUP_REGEX = "\s\(actual time.*\)|\s\(never executed\)|\s\(cost.*\)|\sMemory:.*|Planning Time.*|Execution Time.*|Peak Memory Usage.*"
 
 
 class Connection:
@@ -51,12 +57,12 @@ class Scans(Enum):
 
 
 class Joins(Enum):
-    HASH = "HashJoin"
-    MERGE = "MergeJoin"
-    NESTED_LOOP = "NestLoop"
+    HASH = "HashJoin", "Hash"
+    MERGE = "MergeJoin", "Merge"
+    NESTED_LOOP = "NestLoop", "Nested Loop"
 
     def construct(self, tables: List[str]):
-        return f"{self.value}({' '.join(tables)})"
+        return f"{self.value[0]}({' '.join(tables)})"
 
 
 @dataclasses.dataclass
@@ -113,9 +119,10 @@ class Leading:
 @dataclasses.dataclass
 class Query:
     query: str = None
-    explain_hints: str = None  # TODO parse possible explain hints?
+    explain_hints: str = None
     tables: List[Table] = None
     execution_plan: str = None
+    execution_plan_heatmap: Dict[int, Dict[str, str]] = None
     optimizer_score: float = 1
     optimizer_tips: QueryTips = None
     execution_time_ms: int = 0
@@ -128,6 +135,9 @@ class Query:
     def get_explain(self):
         return f"{get_explain_clause()} {self.query}"
 
+    def get_basic_explain(self):
+        return f"EXPLAIN {self.query}"
+
     def get_best_optimization(self):
         best_optimization = self
         for optimization in best_optimization.optimizations:
@@ -135,6 +145,20 @@ class Query:
                 best_optimization = optimization
 
         return best_optimization
+
+    def get_clean_plan(self):
+        return re.sub(PLAN_CLEANUP_REGEX, '', self.execution_plan).strip()
+
+    def tips_looks_fair(self, optimization):
+        clean_plan = re.sub(PLAN_CLEANUP_REGEX, '', self.execution_plan).strip()
+
+        return not any(
+            join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan for join
+            in Joins)
+
+    def compare_plans(self, execution_plan):
+        return re.sub(PLAN_CLEANUP_REGEX, '', self.execution_plan).strip() == \
+               re.sub(PLAN_CLEANUP_REGEX, '', execution_plan).strip()
 
     def __str__(self):
         return f"Query - \"{self.query}\"\n" \
@@ -151,6 +175,9 @@ class Optimization(Query):
 
     def get_explain(self):
         return f"{get_explain_clause()}  /*+ {self.explain_hints} */ {self.query}"
+
+    def get_basic_explain(self):
+        return f"EXPLAIN /*+ {self.explain_hints} */ {self.query}"
 
 
 class ListOfOptimizations:
@@ -190,7 +217,6 @@ class ListOfOptimizations:
             # case w/o any joins
             for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
                 if len(optimizations) >= max_optimizations:
-                    interrupt = True
                     break
 
                 explain_hints = f"{' '.join(table_scan_hint)}"

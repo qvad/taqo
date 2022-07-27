@@ -7,6 +7,7 @@ from sql_formatter.core import format_sql
 
 from database import Query
 from tests.abstract import Report
+from utils import allowed_diff
 
 
 class TaqoReport(Report):
@@ -66,7 +67,7 @@ class TaqoReport(Report):
     def add_query(self, query: Query):
         best_optimization = query.get_best_optimization()
 
-        if self.allowed_diff(query.execution_time_ms, best_optimization.execution_time_ms):
+        if allowed_diff(self.config, query.execution_time_ms, best_optimization.execution_time_ms):
             self.same_execution_plan.append(query)
         else:
             self.better_plan_found.append(query)
@@ -80,23 +81,41 @@ class TaqoReport(Report):
 
         self.report += "\n[#better]\n== Better plan found queries\n\n"
         for query in self.better_plan_found:
-            self.__report_query(query)
+            self.__report_query(query, True)
 
         self.report += "\n[#found]\n== No better plan found\n\n"
         for query in self.same_execution_plan:
-            self.__report_query(query)
+            self.__report_query(query, False)
 
     def __report_near_queries(self, query: Query):
+        best_optimization = query.get_best_optimization()
         if add_to_report := "".join(
                 f"`{optimization.explain_hints}`\n\n"
                 for optimization in query.optimizations
-                if self.allowed_diff(query.execution_time_ms, optimization.execution_time_ms)):
-            self._start_collapsible("Near best optimization hints")
+                if allowed_diff(self.config, best_optimization.execution_time_ms, optimization.execution_time_ms)):
+            self._start_collapsible("All best optimization hints")
             self.report += add_to_report
             self._end_collapsible()
 
+    def __report_heatmap(self, query: Query):
+        best_decision = max(row['weight'] for row in query.execution_plan_heatmap.values())
+        result = ""
+        for row_id, row in query.execution_plan_heatmap.items():
+            if row['weight'] == best_decision:
+                result += f"+{row['str']}\n"
+            elif row['weight'] == 0:
+                result += f"-{row['str']}\n"
+            else:
+                result += f"{row['str']}\n"
+
+        self._start_collapsible("Plan heatmap")
+        self._start_source(["diff"])
+        self.report += result
+        self._end_source()
+        self._end_collapsible()
+
     # noinspection InsecureHash
-    def __report_query(self, query: Query):
+    def __report_query(self, query: Query, show_best: bool):
         best_optimization = query.get_best_optimization()
 
         self.reported_queries_counter += 1
@@ -112,10 +131,15 @@ class TaqoReport(Report):
         self._end_source()
 
         self._add_double_newline()
-        self.report += f"Better optimization hints - `{best_optimization.explain_hints}`"
+        self.report += f"Default explain hints - `{query.explain_hints}`"
         self._add_double_newline()
 
-        self.__report_near_queries(query)
+        if show_best:
+            self._add_double_newline()
+            self.report += f"Better explain hints - `{best_optimization.explain_hints}`"
+            self._add_double_newline()
+
+            self.__report_near_queries(query)
 
         filename = self.create_plot(best_optimization, query.optimizations, query)
         self.report += f"image::{filename}[\"Query {self.reported_queries_counter}\"]"
@@ -150,9 +174,12 @@ class TaqoReport(Report):
             self._start_source(["diff"])
             # postgres plan should be red
             self.report += self._get_plan_diff(query.postgres_query.execution_plan,
-                                               query.execution_plan,)
+                                               query.execution_plan, )
             self._end_source()
             self._end_collapsible()
+
+        if show_best:
+            self.__report_heatmap(query)
 
         self._start_collapsible("Original plan")
         self._start_source(["diff"])

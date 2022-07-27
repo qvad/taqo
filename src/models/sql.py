@@ -97,16 +97,18 @@ class SQLModel(QTFModel):
     def get_query_hint_tips(self, full_query):
         tips = QueryTips()
 
-        if comments := self.get_comments(full_query).split("\n"):
-            for comment_line in comments:
-                if comment_line.startswith("-- accept: "):
-                    tips.accept = [s.lstrip() for s in
-                                   comment_line.replace("-- accept: ", "").split(",")]
-                if comment_line.startswith("-- reject: "):
-                    tips.reject = [s.lstrip() for s in
-                                   comment_line.replace("-- reject: ", "").split(",")]
-                if comment_line.startswith("-- max_timeout: "):
-                    tips.max_timeout = comment_line.replace("-- max_timeout: ", "").lstrip()
+        query_comments = self.get_comments(full_query)
+        if query_comments is not None:
+            if comments := query_comments.split("\n"):
+                for comment_line in comments:
+                    if comment_line.startswith("-- accept: "):
+                        tips.accept = [s.lstrip() for s in
+                                       comment_line.replace("-- accept: ", "").split(",")]
+                    if comment_line.startswith("-- reject: "):
+                        tips.reject = [s.lstrip() for s in
+                                       comment_line.replace("-- reject: ", "").split(",")]
+                    if comment_line.startswith("-- max_timeout: "):
+                        tips.max_timeout = comment_line.replace("-- max_timeout: ", "").lstrip()
 
         return tips
 

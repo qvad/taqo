@@ -28,13 +28,16 @@ def calculate_avg_execution_time(cur, query, num_retries):
 
     # run at least one iteration
     num_retries = max(num_retries, 2)
+    num_warmup = config.num_warmup
 
-    for _ in range(num_retries):
+    for iteration in range(num_retries + num_warmup):
         # noinspection PyUnresolvedReferences
         try:
             start_time = current_milli_time()
             evaluate_sql(cur, query.get_query())
-            sum_execution_times += current_milli_time() - start_time
+
+            if iteration >= num_warmup:
+                sum_execution_times += current_milli_time() - start_time
         except psycopg2.errors.QueryCanceled as qc:
             # failed by timeout - it's ok just skip optimization
             query.execution_time_ms = 0
@@ -48,7 +51,8 @@ def calculate_avg_execution_time(cur, query, num_retries):
             return False
         # todo add exception when wrong hints used?
         finally:
-            actual_evaluations += 1
+            if iteration >= num_warmup:
+                actual_evaluations += 1
 
     query.execution_time_ms = sum_execution_times / actual_evaluations
 
@@ -84,3 +88,11 @@ def evaluate_sql(cur, sql):
         sql.replace("\n", "")[:120] + "..." if len(sql) > 120 else sql.replace("\n", ""))
 
     cur.execute(sql)
+
+
+def allowed_diff(config, original_execution_time, optimization_execution_time):
+    if optimization_execution_time <= 0:
+        return False
+
+    return (abs(original_execution_time - optimization_execution_time) / optimization_execution_time) < \
+           config.skip_percentage_delta

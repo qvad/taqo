@@ -107,6 +107,7 @@ if __name__ == "__main__":
 
         num_queries=configuration.get("num_queries", -1),
         num_retries=configuration.get("num_retries", 5),
+        num_warmup=configuration.get("num_warmup", 5),
 
         asciidoctor_path=configuration.get("asciidoctor_path", "asciidoc"),
 
