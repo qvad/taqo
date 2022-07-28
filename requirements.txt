@@ -4,3 +4,4 @@ pyhocon
 tqdm
 sqlparse
 sql_metadata
+allpairspy

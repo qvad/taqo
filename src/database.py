@@ -5,6 +5,7 @@ from enum import Enum
 from typing import List, Dict
 
 import psycopg2
+from allpairspy import AllPairs
 
 from config import Config
 from utils import get_explain_clause, evaluate_sql
@@ -52,8 +53,8 @@ class QueryTips:
 class Scans(Enum):
     SEQ = "SeqScan"
     INDEX = "IndexScan"
-    INDEX_ONLY = "IndexOnlyScan"
-    BITMAP = "BitmapScan"
+    # INDEX_ONLY = "IndexOnlyScan"
+    # BITMAP = "BitmapScan"
 
 
 class Joins(Enum):
@@ -81,12 +82,20 @@ class Table:
 class Leading:
     LEADING = "Leading"
 
-    def __init__(self, tables: List[Table]):
+    def __init__(self, config: Config, tables: List[Table]):
+        self.config = config
         self.tables = tables
-        self.joins = {}
+        self.joins = []
         self.table_scan_hints = []
 
     def construct(self):
+        if self.config.use_allpairs:
+            self.fill_joins_with_pairwise()
+        else:
+            self.get_all_combinations()
+
+    def get_all_combinations(self):
+        # algorithm with all possible combinations
         for tables_perm in itertools.permutations(self.tables):
             prev_el = None
             joins = []
@@ -106,14 +115,39 @@ class Leading:
                         for new_join in Joins:
                             joins.append(new_join.construct(joined_tables))
 
-            leading_hint = f"{self.LEADING} ({prev_el})"
-            self.joins[leading_hint] = joins
+            for join in joins:
+                self.joins.append(f"{self.LEADING} ({prev_el}) {join}")
 
         for table in self.tables:
             tables_and_idxs = [f"{Scans.INDEX.value}({table.name})" for field in table.fields if
                                field.is_index]
             tables_and_idxs.append(f"{Scans.SEQ.value}({table.name})")
             self.table_scan_hints.append(tables_and_idxs)
+
+    def fill_joins_with_pairwise(self):
+        table_permutations = list(itertools.permutations(self.tables))
+        join_product = list(itertools.product(Joins, repeat=len(self.tables) - 1))
+        scan_product = list(itertools.product(Scans, repeat=len(self.tables)))
+
+        for tables, joins, scans in AllPairs([table_permutations, join_product, scan_product]):
+            prev_el = None
+            joins = itertools.cycle(joins)
+            query_joins = ""
+            joined_tables = []
+
+            for table in tables:
+                prev_el = f"( {prev_el} {table.name} )" if prev_el else table.name
+                joined_tables.append(table.name)
+
+                if prev_el != table.name:
+                    query_joins += f" {next(joins).construct(joined_tables)}"
+
+            leading_hint = f"{self.LEADING} ({prev_el})"
+            scan_hints = " ".join(
+                f"{scan.value}({self.tables[table_idx].name})" for table_idx, scan in
+                enumerate(scans))
+
+            self.joins.append(f"{leading_hint} {query_joins} {scan_hints}")
 
 
 @dataclasses.dataclass
@@ -181,37 +215,24 @@ class Optimization(Query):
 
 
 class ListOfOptimizations:
-    def __init__(self, query: Query):
+    def __init__(self, config: Config, query: Query):
         self.query = query
-        self.leading = Leading(query.tables)
+        self.leading = Leading(config, query.tables)
         self.leading.construct()
 
     def get_all_optimizations(self, max_optimizations) -> List[Optimization]:
         optimizations = []
-        interrupt = False
-        for leading, joins in self.leading.joins.items():
-            if not interrupt:
-                for join in joins:
+        for leading_join in self.leading.joins:
+            if Config().skip_table_scan_hints or Config().use_allpairs:
+                self.add_optimization(leading_join, optimizations)
+            else:
+                for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
                     if len(optimizations) >= max_optimizations:
-                        interrupt = True
                         break
 
-                    if Config().skip_table_scan_hints:
-                        explain_hints = f"{leading} {join}"
+                    explain_hints = f"{leading_join} {' '.join(table_scan_hint)}"
 
-                        self.add_optimization(explain_hints, optimizations)
-                    else:
-                        for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
-                            if len(optimizations) >= max_optimizations:
-                                interrupt = True
-                                break
-
-                            explain_hints = f"{leading} {join} {' '.join(table_scan_hint)}"
-
-                            self.add_optimization(explain_hints, optimizations)
-
-                    if interrupt:
-                        break
+                    self.add_optimization(explain_hints, optimizations)
 
         if not optimizations:
             # case w/o any joins

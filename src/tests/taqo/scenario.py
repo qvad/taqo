@@ -131,7 +131,7 @@ class TaqoTest(AbstractTest):
     def evaluate_optimizations(self, cur, original_query):
         # build all possible optimizations
         list_of_optimizations = ListOfOptimizations(
-            original_query) \
+            self.config, original_query) \
             .get_all_optimizations(int(self.config.max_optimizations))
 
         progress_bar = tqdm(list_of_optimizations)
@@ -184,7 +184,7 @@ class TaqoTest(AbstractTest):
                     optimization.execution_time_ms < min_execution_time:
                 min_execution_time = optimization.execution_time_ms
 
-            progress_bar.set_postfix({'skipped': num_skipped})
+            progress_bar.set_postfix({'skipped': num_skipped, 'min_execution_time_ms': min_execution_time})
 
         return list_of_optimizations
 

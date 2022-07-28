@@ -28,7 +28,7 @@ def init_logger(level="INFO") -> logging.Logger:
 
 
 @dataclasses.dataclass
-class ConnectionConfig():
+class ConnectionConfig:
     host: str = None
     port: str = None
     username: str = None
@@ -59,11 +59,11 @@ class Config(metaclass=Singleton):
     test: str = None
     model: str = None
 
+    use_allpairs: bool = None
     skip_table_scan_hints: bool = None
     skip_model_creation: bool = None
     skip_percentage_delta: bool = None
     look_near_best_plan: bool = None
-    report_near_queries: bool = None
 
     num_queries: int = None
     num_retries: int = None
