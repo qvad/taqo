@@ -22,7 +22,6 @@ if __name__ == "__main__":
                         default="simple",
                         help='Test model to use - simple (default) or tpch or subqueries')
     parser.add_argument('--revisions',
-                        default="master",
                         help='Comma separated git revisions or paths to release builds')
 
     parser.add_argument('--tserver_flags',
@@ -112,7 +111,7 @@ if __name__ == "__main__":
         asciidoctor_path=configuration.get("asciidoctor_path", "asciidoc"),
 
         # args properties
-        revisions_or_paths=args.revisions.split(","),
+        revisions_or_paths=args.revisions.split(",") if args.revisions else [],
         tserver_flags=args.tserver_flags,
         master_flags=args.master_flags,
 

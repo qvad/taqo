@@ -13,13 +13,12 @@ JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]
 
 
 def factory(config):
-    if config.yugabyte_code_path is not None:
+    if len(config.revisions_or_paths) > 0 and config.yugabyte_code_path:
         return YugabyteLocalRepository(config)
-
-    if not config.revisions_or_paths:
+    elif config.revisions_or_paths:
+        return YugabyteLocalCluster(config)
+    else:
         return Yugabyte(config)
-
-    return YugabyteLocalCluster(config)
 
 
 class Yugabyte(Postgres):
@@ -62,6 +61,10 @@ class Yugabyte(Postgres):
 
 
 class YugabyteLocalCluster(Yugabyte):
+    def __init__(self, config):
+        super().__init__(config)
+        self.path = None
+
     def unpack_release(self, path):
         if not path:
             raise AttributeError("Can't pass empty path into unpack_release method")
@@ -145,6 +148,9 @@ class YugabyteLocalRepository(Yugabyte):
         if revision_or_path:
             self.logger.info(f"Checkout revision '{revision_or_path}' for yugabyte repository")
             try:
+                subprocess.check_output(['git', 'fetch'],
+                                        stderr=subprocess.PIPE,
+                                        cwd=self.path)
                 subprocess.check_output(['git', 'checkout', revision_or_path],
                                         stderr=subprocess.PIPE,
                                         cwd=self.path)

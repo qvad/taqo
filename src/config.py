@@ -93,6 +93,7 @@ class Config(metaclass=Singleton):
                f"    --master_flags: {self.master_flags} {build_param_skipped}\n" + \
                f"    --num_queries: {self.num_queries}\n" + \
                f"    --num_retries: {self.num_retries}\n" + \
+               f"    --use_allpairs: {self.use_allpairs}\n" + \
                f"    --skip_timeout_delta: ±{self.skip_timeout_delta}s\n" + \
                f"    --skip_table_scan_hints: {self.skip_table_scan_hints}\n" + \
                f"    --skip_model_creation: {self.skip_model_creation}\n" + \

@@ -8,7 +8,6 @@ from abc import ABC
 from pathlib import Path
 
 from config import Config
-from database import Query
 from db.yugabyte import factory
 
 
@@ -26,7 +25,9 @@ class AbstractTest(ABC):
         self.logger.info("Starting Yugabyte DB")
 
         self.yugabyte = factory(self.config)
-        self.yugabyte.change_version_and_compile(self.config.revisions_or_paths[0])
+        self.yugabyte.change_version_and_compile(self.config.revisions_or_paths[0]
+                                                 if len(self.config.revisions_or_paths) > 0
+                                                 else None)
         self.yugabyte.stop_database()
         self.yugabyte.destroy()
         self.yugabyte.start_database()
