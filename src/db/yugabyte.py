@@ -147,7 +147,7 @@ class YugabyteLocalRepository(Yugabyte):
     def change_version_and_compile(self, revision_or_path=None):
         if revision_or_path:
             self.logger.info(f"Checkout revision '{revision_or_path}' for yugabyte repository")
-            out = ""
+            out = "EMPTY"
             try:
                 out = str(subprocess.check_output(['git', 'fetch'],
                                                   stderr=subprocess.PIPE,
