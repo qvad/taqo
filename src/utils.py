@@ -1,3 +1,4 @@
+import hashlib
 import re
 import time
 
@@ -19,8 +20,18 @@ def get_optimizer_score_from_plan(execution_plan):
     for matchNum, match in enumerate(matches, start=1):
         return float(match.groups()[0])
 
+def get_result_hashsum(cur):
+    result = cur.fetchall()
 
-def calculate_avg_execution_time(cur, query, num_retries):
+    str_result = ""
+    for row in result:
+        for column_value in row:
+            str_result += f"{str(column_value)}"
+
+    return hashlib.md5(str_result.encode()).hexdigest()
+
+
+def calculate_avg_execution_time(cur, query, num_retries: int):
     config = Config()
 
     sum_execution_times = 0
@@ -35,6 +46,9 @@ def calculate_avg_execution_time(cur, query, num_retries):
         try:
             start_time = current_milli_time()
             evaluate_sql(cur, query.get_query())
+
+            if iteration == 0:
+                query.result_hash = get_result_hashsum(cur)
 
             if iteration >= num_warmup:
                 sum_execution_times += current_milli_time() - start_time

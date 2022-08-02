@@ -59,6 +59,7 @@ class Config(metaclass=Singleton):
     test: str = None
     model: str = None
 
+    random_seed: int = None
     use_allpairs: bool = None
     skip_table_scan_hints: bool = None
     skip_model_creation: bool = None
@@ -94,6 +95,7 @@ class Config(metaclass=Singleton):
                f"    --num_queries: {self.num_queries}\n" + \
                f"    --num_retries: {self.num_retries}\n" + \
                f"    --use_allpairs: {self.use_allpairs}\n" + \
+               f"    --random_seed: ±{self.random_seed}s\n" + \
                f"    --skip_timeout_delta: ±{self.skip_timeout_delta}s\n" + \
                f"    --skip_table_scan_hints: {self.skip_table_scan_hints}\n" + \
                f"    --skip_model_creation: {self.skip_model_creation}\n" + \

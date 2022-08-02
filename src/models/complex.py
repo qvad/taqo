@@ -1,4 +1,6 @@
+import hashlib
 import itertools
+import random
 from enum import Enum
 
 from tqdm import tqdm
@@ -16,10 +18,40 @@ class QueryJoins(Enum):
     # CROSS = "cross"
 
 
-class SimpleModel(QTFModel):
+class ComplexModel(QTFModel):
     TABLES = [
-        Table(f"t{num}", [Field('a', True), Field('md5', False)], num) for num in
-        [1_000_000, 500_000, 50_000, 100]
+        Table(f"t{num}",
+              [
+                  Field('c_int', True),
+                  Field('c_bool', True),
+                  Field('c_text', True),
+                  Field('c_varchar', True),
+                  Field('c_decimal', True),
+                  Field('c_float', True),
+                  Field('c_real', True),
+                  Field('c_money', True)
+              ], num) for num in
+        # [1_000_000, 500_000, 50_000, 100]
+        [50_000, 5_000, 100]
+    ]
+    COLUMNS = [
+        'c_int',
+        'c_bool',
+        'c_text',
+        'c_varchar',
+        'c_decimal',
+        'c_float',
+        'c_real',
+        'c_money',
+    ]
+    INDEXED_AND_SELECTED = [
+        ["c_int"],
+        ["c_int", "c_bool"],
+        ["c_int", "c_text"],
+        ["c_int", "c_varchar"],
+        ["c_float", "c_text", "c_varchar"],
+        ["c_float", "c_decimal", "c_varchar"],
+        ["c_float", "c_real", "c_money"],
     ]
 
     def create_tables(self, conn):
@@ -30,21 +62,39 @@ class SimpleModel(QTFModel):
 
         with conn.cursor() as cur:
             for table in tqdm(self.TABLES):
-                evaluate_sql(cur, f"DROP TABLE IF EXISTS {table.name}")
+                evaluate_sql(cur, f"DROP TABLE IF EXISTS {table.name} CASCADE")
                 evaluate_sql(
                     cur,
-                    f"CREATE TABLE {table.name} AS SELECT a, md5(random()::text) FROM generate_Series(1,{table.size}) a")
-                evaluate_sql(
-                    cur,
-                    f"CREATE INDEX {table.name}_idx ON {table.name}(a)")
+                    f"CREATE TABLE {table.name} AS "
+                    f"SELECT c_int, "
+                    f"(case when c_int % 2 = 0 then true else false end) as c_bool, "
+                    f"(c_int + 0.0001)::text as c_text, "
+                    f"(c_int + 0.0002)::varchar as c_varchar, "
+                    f"(c_int + 0.1)::decimal as c_decimal, "
+                    f"(c_int + 0.2)::float as c_float, "
+                    f"(c_int + 0.3)::real as c_real, "
+                    f"(c_int + 0.4)::money as c_money "
+                    f"FROM generate_Series(1,{table.size}) c_int;")
+
+                for columns_list in self.INDEXED_AND_SELECTED:
+                    joined_columns_list = ', '.join(columns_list)
+                    hex_digest = hashlib.md5(joined_columns_list.encode()).hexdigest()
+
+                    evaluate_sql(
+                        cur,
+                        f"CREATE INDEX {table.name}_{hex_digest}_idx "
+                        f"ON {table.name}({joined_columns_list})")
 
                 evaluate_sql(cur, f"ANALYZE {table.name}")
 
         return self.TABLES
 
     def get_queries(self, tables):
+        random.seed(self.config.random_seed)
         queries = []
 
+        selected_columns = itertools.cycle(self.INDEXED_AND_SELECTED)
+        columns = itertools.cycle(self.COLUMNS)
         where_clauses = itertools.cycle([
             "IN", "<", ">"
         ])
@@ -62,20 +112,24 @@ class SimpleModel(QTFModel):
 
         for perm in itertools.permutations(tables, 3):
             first_table = perm[0]
+            tables_cycle = itertools.cycle(tables)
             for query_join in QueryJoins:
-                query = f"SELECT * FROM {first_table.name} "
+                joined_columns_list = ', '.join(
+                    [f"{next(tables_cycle).name}.{column}" for column in next(selected_columns)])
+                query = f"SELECT {joined_columns_list} FROM {first_table.name} "
+                first_column = next(columns)
 
                 for table in perm[1:]:
                     query += f" {query_join.value} JOIN {table.name}" \
-                             f" ON {first_table.name}.a = {table.name}.a"
+                             f" ON {first_table.name}.{first_column} = {table.name}.{first_column}"
 
                 query += " WHERE"
                 min_size = min(tb.size for tb in perm)
+                max_size = max(tb.size for tb in perm)
 
                 # where clause types
                 next_where_expression_type = next(where_clauses)
                 if next_where_expression_type == "<":
-                    import random
                     query += f" {first_table.name}.c_int {next_where_expression_type} {random.randint(1, min_size)}"
                 elif next_where_expression_type == ">":
                     query += f" {first_table.name}.c_int {next_where_expression_type} {random.randint(1, int(min_size / 2))}"
@@ -85,10 +139,9 @@ class SimpleModel(QTFModel):
                     raise AttributeError(
                         f"Unknown where expression type {next_where_expression_type}")
 
-
                 # group by clauses
                 if next_order_by := next(order_clauses):
-                    query += f" ORDER BY {first_table.name}.a {next_order_by}"
+                    query += f" ORDER BY {first_table.name}.c_int {next_order_by}"
 
                 # limit clause types
                 if limit_clause := next(limit_clauses):

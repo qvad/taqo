@@ -13,6 +13,7 @@ from utils import allowed_diff
 class TaqoReport(Report):
     def __init__(self):
         super().__init__()
+        self.failed_validation = []
         self.same_execution_plan = []
         self.better_plan_found = []
 
@@ -67,6 +68,11 @@ class TaqoReport(Report):
     def add_query(self, query: Query):
         best_optimization = query.get_best_optimization()
 
+        if self.config.compare_with_pg and query.result_hash != query.postgres_query.result_hash:
+            self.failed_validation.append(query)
+        if not self.config.compare_with_pg and query.result_hash != best_optimization.result_hash:
+            self.failed_validation.append(query)
+
         if allowed_diff(self.config, query.execution_time_ms, best_optimization.execution_time_ms):
             self.same_execution_plan.append(query)
         else:
@@ -76,14 +82,19 @@ class TaqoReport(Report):
         # link to top
         self.report += "\n[#top]\n== All results by analysis type\n"
         # different results links
+        self.report += "\n<<result>>\n"
         self.report += "\n<<better>>\n"
         self.report += "\n<<found>>\n"
 
-        self.report += "\n[#better]\n== Better plan found queries\n\n"
+        self.report += f"\n[#result]\n== Result validation failure ({len(self.failed_validation)})\n\n"
+        for query in self.failed_validation:
+            self.__report_query(query, True)
+
+        self.report += f"\n[#better]\n== Better plan found queries ({len(self.better_plan_found)})\n\n"
         for query in self.better_plan_found:
             self.__report_query(query, True)
 
-        self.report += "\n[#found]\n== No better plan found\n\n"
+        self.report += f"\n[#found]\n== No better plan found ({len(self.same_execution_plan)})\n\n"
         for query in self.same_execution_plan:
             self.__report_query(query, False)
 
@@ -149,6 +160,19 @@ class TaqoReport(Report):
         self._start_execution_plan_tables()
 
         self.report += "|Comparison analysis\n"
+
+        self._start_table_row()
+        if self.config.compare_with_pg:
+            self.report += \
+                f"[red]#Result hash#: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best) vs `{query.postgres_query.result_hash}` (pg)" \
+                if query.postgres_query.result_hash != query.result_hash else \
+                f"Result hash: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best) vs `{query.postgres_query.result_hash}` (pg)"
+        elif best_optimization.result_hash != query.result_hash:
+            self.report += f"[red]#Result hash#: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best)"
+        else:
+            self.report += f"Result hash: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best)"
+
+        self._end_table_row()
 
         self._start_table_row()
         self.report += f"Optimizer cost: `{query.optimizer_score}` (default) vs `{best_optimization.optimizer_score}` (best)"

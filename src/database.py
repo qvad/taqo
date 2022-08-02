@@ -162,6 +162,7 @@ class Query:
     execution_time_ms: int = 0
     optimizations: List['Query'] = None
     postgres_query: 'Query' = None
+    result_hash: 'Query' = None
 
     def get_query(self):
         return self.query

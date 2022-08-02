@@ -97,7 +97,9 @@ if __name__ == "__main__":
 
         num_nodes=configuration.get("num_nodes", 1),
 
+        random_seed=configuration.get("random_seed", 2022),
         use_allpairs=configuration.get("use_allpairs", True),
+
         skip_table_scan_hints=configuration.get("skip_table_scan_hints", False),
         skip_percentage_delta=configuration.get("skip_percentage_delta", 0.05),
         skip_timeout_delta=configuration.get("skip_timeout_delta", 1),
