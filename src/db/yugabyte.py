@@ -147,7 +147,6 @@ class YugabyteLocalRepository(Yugabyte):
     def change_version_and_compile(self, revision_or_path=None):
         if revision_or_path:
             self.logger.info(f"Checkout revision '{revision_or_path}' for yugabyte repository")
-            out = "EMPTY"
             try:
                 subprocess.check_output(['git', 'fetch'],
                                         stderr=subprocess.STDOUT,
@@ -166,10 +165,10 @@ class YugabyteLocalRepository(Yugabyte):
                     f"Failed to checkout revision '{revision_or_path}'\n{exc.returncode}, {exc.output}")
 
         self.logger.info(f"Building yugabyte from source code '{self.path}'")
-        subprocess.check_output(['./yb_build.sh',
-                                 'release', '--no-tests', '--skip-java-build'],
-                                stderr=subprocess.PIPE,
-                                cwd=self.path)
+        subprocess.call(['./yb_build.sh',
+                         'release', '--no-tests', '--skip-java-build'],
+                        stderr=subprocess.STDOUT,
+                        cwd=self.path)
 
     def call_upgrade_ysql(self):
         pass
