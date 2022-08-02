@@ -95,7 +95,7 @@ if __name__ == "__main__":
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
 
         # configuration file properties
-        yugabyte_code_path=configuration.get("yugabyte_code_path") or args.yugabyte_code_path,
+        yugabyte_code_path=args.yugabyte_code_path or configuration.get("yugabyte_code_path"),
 
         num_nodes=configuration.get("num_nodes", 1),
 
