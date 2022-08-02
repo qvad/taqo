@@ -147,15 +147,16 @@ class YugabyteLocalRepository(Yugabyte):
     def change_version_and_compile(self, revision_or_path=None):
         if revision_or_path:
             self.logger.info(f"Checkout revision '{revision_or_path}' for yugabyte repository")
+            out = ""
             try:
-                subprocess.check_output(['git', 'fetch'],
-                                        stderr=subprocess.PIPE,
-                                        cwd=self.path)
-                subprocess.check_output(['git', 'checkout', revision_or_path],
-                                        stderr=subprocess.PIPE,
-                                        cwd=self.path)
+                out = str(subprocess.check_output(['git', 'fetch'],
+                                                  stderr=subprocess.PIPE,
+                                                  cwd=self.path))
+                out += str(subprocess.check_output(['git', 'checkout', revision_or_path],
+                                                   stderr=subprocess.PIPE,
+                                                   cwd=self.path))
             except subprocess.CalledProcessError as e:
-                self.logger.error(f"Failed to checkout revision '{revision_or_path}'\n{e}")
+                self.logger.error(f"Failed to checkout revision '{revision_or_path}'\n{out}\n{e}")
 
         self.logger.info(f"Building yugabyte from source code '{self.path}'")
         subprocess.check_output(['./yb_build.sh',
