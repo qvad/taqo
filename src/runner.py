@@ -21,6 +21,8 @@ if __name__ == "__main__":
     parser.add_argument('--model',
                         default="simple",
                         help='Test model to use - simple (default) or tpch or subqueries')
+    parser.add_argument('--yugabyte_code_path',
+                        help='Code path to yugabyte-db repository')
     parser.add_argument('--revisions',
                         help='Comma separated git revisions or paths to release builds')
 
@@ -93,7 +95,7 @@ if __name__ == "__main__":
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
 
         # configuration file properties
-        yugabyte_code_path=configuration.get("yugabyte_code_path"),
+        yugabyte_code_path=configuration.get("yugabyte_code_path") or args.yugabyte_code_path,
 
         num_nodes=configuration.get("num_nodes", 1),
 
