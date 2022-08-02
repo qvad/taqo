@@ -149,14 +149,21 @@ class YugabyteLocalRepository(Yugabyte):
             self.logger.info(f"Checkout revision '{revision_or_path}' for yugabyte repository")
             out = "EMPTY"
             try:
-                out = str(subprocess.check_output(['git', 'fetch'],
-                                                  stderr=subprocess.PIPE,
-                                                  cwd=self.path))
-                out += str(subprocess.check_output(['git', 'checkout', revision_or_path],
-                                                   stderr=subprocess.PIPE,
-                                                   cwd=self.path))
-            except subprocess.CalledProcessError as e:
-                self.logger.error(f"Failed to checkout revision '{revision_or_path}'\n{out}\n{e}")
+                subprocess.check_output(['git', 'fetch'],
+                                        stderr=subprocess.STDOUT,
+                                        cwd=self.path,
+                                        universal_newlines=True)
+            except subprocess.CalledProcessError as exc:
+                self.logger.error(f"Failed to fetch \n{exc.returncode}, {exc.output}")
+
+            try:
+                subprocess.check_output(['git', 'checkout', revision_or_path],
+                                        stderr=subprocess.STDOUT,
+                                        cwd=self.path,
+                                        universal_newlines=True)
+            except subprocess.CalledProcessError as exc:
+                self.logger.error(
+                    f"Failed to checkout revision '{revision_or_path}'\n{exc.returncode}, {exc.output}")
 
         self.logger.info(f"Building yugabyte from source code '{self.path}'")
         subprocess.check_output(['./yb_build.sh',
