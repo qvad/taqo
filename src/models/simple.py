@@ -1,5 +1,6 @@
 import itertools
 from enum import Enum
+import random
 
 from tqdm import tqdm
 
@@ -43,6 +44,7 @@ class SimpleModel(QTFModel):
         return self.TABLES
 
     def get_queries(self, tables):
+        random.seed(self.config.random_seed)
         queries = []
 
         where_clauses = itertools.cycle([
