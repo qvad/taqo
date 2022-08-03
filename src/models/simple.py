@@ -1,20 +1,11 @@
 import itertools
-from enum import Enum
 import random
 
 from tqdm import tqdm
 
 from database import Query, Table, Field
-from models.abstract import QTFModel
+from models.abstract import QTFModel, QueryJoins
 from utils import evaluate_sql
-
-
-class QueryJoins(Enum):
-    INNER = "INNER"
-    RIGHT_OUTER = "RIGHT OUTER"
-    LEFT_OUTER = "LEFT OUTER"
-    FULL_OUTER = "FULL"
-    # CROSS = "cross"
 
 
 class SimpleModel(QTFModel):
@@ -44,7 +35,6 @@ class SimpleModel(QTFModel):
         return self.TABLES
 
     def get_queries(self, tables):
-        random.seed(self.config.random_seed)
         queries = []
 
         where_clauses = itertools.cycle([
@@ -73,11 +63,11 @@ class SimpleModel(QTFModel):
 
                 query += " WHERE"
                 min_size = min(tb.size for tb in perm)
+                max_size = max(tb.size for tb in perm)
 
                 # where clause types
                 next_where_expression_type = next(where_clauses)
                 if next_where_expression_type == "<":
-                    import random
                     query += f" {first_table.name}.c_int {next_where_expression_type} {random.randint(1, min_size)}"
                 elif next_where_expression_type == ">":
                     query += f" {first_table.name}.c_int {next_where_expression_type} {random.randint(1, int(min_size / 2))}"
@@ -86,7 +76,6 @@ class SimpleModel(QTFModel):
                 else:
                     raise AttributeError(
                         f"Unknown where expression type {next_where_expression_type}")
-
 
                 # group by clauses
                 if next_order_by := next(order_clauses):

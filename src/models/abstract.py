@@ -1,8 +1,15 @@
 import abc
-
 from abc import ABC
+from enum import Enum
 
 from config import Config
+
+
+class QueryJoins(Enum):
+    INNER = "INNER"
+    RIGHT_OUTER = "RIGHT OUTER"
+    LEFT_OUTER = "LEFT OUTER"
+    FULL_OUTER = "FULL"
 
 
 class QTFModel(ABC):

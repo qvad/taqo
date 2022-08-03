@@ -1,21 +1,12 @@
 import hashlib
 import itertools
 import random
-from enum import Enum
 
 from tqdm import tqdm
 
 from database import Query, Table, Field
-from models.abstract import QTFModel
+from models.abstract import QTFModel, QueryJoins
 from utils import evaluate_sql
-
-
-class QueryJoins(Enum):
-    INNER = "INNER"
-    RIGHT_OUTER = "RIGHT OUTER"
-    LEFT_OUTER = "LEFT OUTER"
-    FULL_OUTER = "FULL"
-    # CROSS = "cross"
 
 
 class ComplexModel(QTFModel):
