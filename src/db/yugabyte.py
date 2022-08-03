@@ -35,14 +35,12 @@ class Yugabyte(Postgres):
         # parsing jdbc:postgresql://127.0.0.1:5433/yugabyte
         parsing = re.findall(JDBC_STRING_PARSE, out)[0]
 
-        connection_config = ConnectionConfig(host=parsing[0], port=parsing[4],
-                                             username=parsing[7] or DEFAULT_USERNAME,
-                                             password=parsing[8] or DEFAULT_PASSWORD,
-                                             database=parsing[5], )
-        self.connection = Connection(connection_config)
-        self.connection.connect()
+        self.config.yugabyte = ConnectionConfig(host=parsing[0], port=parsing[4],
+                                                username=parsing[7] or DEFAULT_USERNAME,
+                                                password=parsing[8] or DEFAULT_PASSWORD,
+                                                database=parsing[5], )
 
-        self.logger.info(f"Connection - {connection_config}")
+        self.logger.info(f"Connection - {self.config.yugabyte}")
 
     def change_version_and_compile(self, revision_or_path=None):
         pass
