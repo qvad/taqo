@@ -109,37 +109,47 @@ class TaqoReport(Report):
             self._end_collapsible()
 
     def __report_heatmap(self, query: Query):
+        """
+        Here is the deal. In PG plans we can separate each plan tree node by splitting by `->`
+        When constructing heatmap need to add + or - to the beginning of string `\n`.
+        So there is 2 splitters - \n and -> and need to construct correct result.
+
+        :param query:
+        :return:
+        """
         best_decision = max(row['weight'] for row in query.execution_plan_heatmap.values())
+        last_rowid = max(query.execution_plan_heatmap.keys())
         result = ""
         for row_id, row in query.execution_plan_heatmap.items():
             rows = row['str'].split("\n")
 
             if row['weight'] == best_decision:
-                if result:
-                    splitted_result = result.split("\n")
-                    result = "\n".join(splitted_result[:-1])
-                    last_newline = splitted_result[-1]
-                    rows[0] = f"{last_newline}{rows[0]}"
-                    result += "\n"
-
-                result += "\n".join([f"+{line}" for line_id, line in enumerate(rows) if line_id != (len(rows) - 1)]) + f"\n{rows[-1]}->"
+                result = self.fix_last_newline_in_result(result, rows)
+                result += "\n".join([f"+{line}" for line_id, line in enumerate(rows) if line_id != (len(rows) - 1)]) + f"\n{rows[-1]}"
             elif row['weight'] == 0:
-                if result:
-                    splitted_result = result.split("\n")
-                    result = "\n".join(splitted_result[:-1])
-                    last_newline = splitted_result[-1]
-                    rows[0] = f"{last_newline}{rows[0]}"
-                    result += "\n"
-
-                result += "\n".join([f"-{line}" for line_id, line in enumerate(rows) if line_id != (len(rows) - 1)]) + f"\n{rows[-1]}->"
+                result = self.fix_last_newline_in_result(result, rows)
+                result += "\n".join([f"-{line}" for line_id, line in enumerate(rows) if line_id != (len(rows) - 1)]) + f"\n{rows[-1]}"
             else:
-                result += f"{row['str']}->"
+                result += f"{row['str']}"
+
+            # skip adding extra -> to the end of list
+            if row_id != last_rowid:
+                result += "->"
 
         self._start_collapsible("Plan heatmap")
         self._start_source(["diff"])
         self.report += result
         self._end_source()
         self._end_collapsible()
+
+    def fix_last_newline_in_result(self, result, rows):
+        if result:
+            splitted_result = result.split("\n")
+            result = "\n".join(splitted_result[:-1])
+            last_newline = splitted_result[-1]
+            rows[0] = f"{last_newline}{rows[0]}"
+            result += "\n"
+        return result
 
     # noinspection InsecureHash
     def __report_query(self, query: Query, show_best: bool):
