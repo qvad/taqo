@@ -55,7 +55,8 @@ class TaqoTest(AbstractTest):
             self.report.publish_report("taqo")
 
             # close connection
-            conn.close()
+            if conn:
+                conn.close()
 
             # stop yugabyte
             self.stop_db()
@@ -191,14 +192,18 @@ class TaqoTest(AbstractTest):
     def plan_heatmap(self, query: Query):
         plan_heatmap = {line_id: {'weight': 0, 'str': execution_plan_line}
                         for line_id, execution_plan_line in
-                        enumerate(query.get_clean_plan().split("\n"))}
+                        enumerate(query.get_no_cost_plan().split("->"))}
 
         best_optimization = query.get_best_optimization()
         for optimization in query.optimizations:
             if allowed_diff(self.config, best_optimization.execution_time_ms, optimization.execution_time_ms):
+                no_cost_plan = optimization.get_no_cost_plan()
                 for plan_line in plan_heatmap.values():
-                    for optimization_line in optimization.get_clean_plan().split("\n"):
-                        if SequenceMatcher(a=plan_line['str'], b=optimization_line).ratio() > 0.9:
+                    for optimization_line in no_cost_plan.split("->"):
+                        if SequenceMatcher(
+                                a=optimization.get_no_tree_plan(plan_line['str']),
+                                b=optimization.get_no_tree_plan(optimization_line)
+                        ).ratio() > 0.9:
                             plan_line['weight'] += 1
 
         query.execution_plan_heatmap = plan_heatmap

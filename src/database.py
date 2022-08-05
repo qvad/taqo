@@ -19,7 +19,9 @@ CLIENT_MESSAGES_TO_LOG = "SET client_min_messages TO log;"
 DEBUG_MESSAGE_LEVEL = "SET pg_hint_plan.message_level = debug;"
 ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
 
-PLAN_CLEANUP_REGEX = "\s\(actual time.*\)|\s\(never executed\)|\s\(cost.*\)|\sMemory:.*|Planning Time.*|Execution Time.*|Peak Memory Usage.*"
+PLAN_CLEANUP_REGEX = r"\s\(actual time.*\)|\s\(never executed\)|\s\(cost.*\)|" \
+                     r"\sMemory:.*|Planning Time.*|Execution Time.*|Peak Memory Usage.*|"
+PLAN_TREE_CLEANUP = r"\n\s*->\s*|\n\s*"
 
 
 class Connection:
@@ -181,19 +183,24 @@ class Query:
 
         return best_optimization
 
-    def get_clean_plan(self):
-        return re.sub(PLAN_CLEANUP_REGEX, '', self.execution_plan).strip()
+    def get_no_cost_plan(self, execution_plan=None):
+        return re.sub(PLAN_CLEANUP_REGEX, '', execution_plan or self.execution_plan).strip()
+
+    def get_no_tree_plan(self, execution_plan=None):
+        return re.sub(PLAN_TREE_CLEANUP, '\n', execution_plan or self.execution_plan).strip()
+
+    def get_clean_plan(self, execution_plan=None):
+        return self.get_no_tree_plan(self.get_no_cost_plan(execution_plan=execution_plan))
 
     def tips_looks_fair(self, optimization):
-        clean_plan = re.sub(PLAN_CLEANUP_REGEX, '', self.execution_plan).strip()
+        clean_plan = self.get_clean_plan()
 
         return not any(
-            join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan for join
-            in Joins)
+            join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan
+            for join in Joins)
 
     def compare_plans(self, execution_plan):
-        return re.sub(PLAN_CLEANUP_REGEX, '', self.execution_plan).strip() == \
-               re.sub(PLAN_CLEANUP_REGEX, '', execution_plan).strip()
+        return self.get_clean_plan() == self.get_clean_plan(execution_plan).strip()
 
     def __str__(self):
         return f"Query - \"{self.query}\"\n" \

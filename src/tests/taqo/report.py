@@ -112,12 +112,28 @@ class TaqoReport(Report):
         best_decision = max(row['weight'] for row in query.execution_plan_heatmap.values())
         result = ""
         for row_id, row in query.execution_plan_heatmap.items():
+            rows = row['str'].split("\n")
+
             if row['weight'] == best_decision:
-                result += f"+{row['str']}\n"
+                if result:
+                    splitted_result = result.split("\n")
+                    result = "\n".join(splitted_result[:-1])
+                    last_newline = splitted_result[-1]
+                    rows[0] = f"{last_newline}{rows[0]}"
+                    result += "\n"
+
+                result += "\n".join([f"+{line}" for line_id, line in enumerate(rows) if line_id != (len(rows) - 1)]) + f"\n{rows[-1]}->"
             elif row['weight'] == 0:
-                result += f"-{row['str']}\n"
+                if result:
+                    splitted_result = result.split("\n")
+                    result = "\n".join(splitted_result[:-1])
+                    last_newline = splitted_result[-1]
+                    rows[0] = f"{last_newline}{rows[0]}"
+                    result += "\n"
+
+                result += "\n".join([f"-{line}" for line_id, line in enumerate(rows) if line_id != (len(rows) - 1)]) + f"\n{rows[-1]}->"
             else:
-                result += f"{row['str']}\n"
+                result += f"{row['str']}->"
 
         self._start_collapsible("Plan heatmap")
         self._start_source(["diff"])
