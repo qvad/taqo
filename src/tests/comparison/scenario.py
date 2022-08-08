@@ -15,6 +15,8 @@ class ComparisonTest(AbstractTest):
     def evaluate_queries_for_version(self, conn, queries):
         version_queries = []
         with conn.cursor() as cur:
+            evaluate_sql(cur, "SET statement_timeout = '2400s'")
+
             counter = 1
             for first_version_query in queries:
                 try:
