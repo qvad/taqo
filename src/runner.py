@@ -111,7 +111,7 @@ if __name__ == "__main__":
         look_near_best_plan=configuration.get("look_near_best_plan", True),
         max_optimizations=configuration.get("max_optimizations", 1000),
 
-        num_queries=args.num_queries or configuration.get("num_queries", -1),
+        num_queries=int(args.num_queries) or configuration.get("num_queries", -1),
         num_retries=configuration.get("num_retries", 5),
         num_warmup=configuration.get("num_warmup", 5),
 
