@@ -37,9 +37,6 @@ class SimpleModel(QTFModel):
     def get_queries(self, tables):
         queries = []
 
-        distinct = itertools.cycle([
-            "", "DISTINCT"
-        ])
         where_clauses = itertools.cycle([
             "IN", "<", ">"
         ])
@@ -58,7 +55,7 @@ class SimpleModel(QTFModel):
         for perm in itertools.permutations(tables, 3):
             first_table = perm[0]
             for query_join in QueryJoins:
-                query = f"SELECT {next(distinct)} * FROM {first_table.name} "
+                query = f"SELECT * FROM {first_table.name} "
 
                 for table in perm[1:]:
                     query += f" {query_join.value} JOIN {table.name}" \
