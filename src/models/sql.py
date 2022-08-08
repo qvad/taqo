@@ -125,6 +125,7 @@ class SQLModel(QTFModel):
                     if cleaned := sqlparse.format(file_query.lstrip(), strip_comments=True).strip():
                         tables_list = get_alias_table_names(cleaned, table_names)
                         queries.append(Query(
+                            tag=query.replace(".sql", ""),
                             query=cleaned,
                             tables=[table for table in tables if
                                     table.name in tables_list.values()],

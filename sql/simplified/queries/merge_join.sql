@@ -1,0 +1,4 @@
+SELECT * FROM t1 JOIN t2 on t1.k1 = t2.k1 WHERE t1.k1 >= 250000 AND t1.k1 < 251000 AND t2.k1 >= 250000 AND t2.k1 < 251000;
+SELECT * FROM t1 JOIN t2 on t1.k1 = t2.k1 WHERE t1.k1 >= 248000 AND t1.k1 < 251000 AND t2.k1 >= 250000 AND t2.k1 < 253000;
+SELECT * FROM ts2 JOIN ts3 on ts2.k1 = ts3.k1 WHERE ts2.k1 >= 30000 AND ts2.k1 < 31000 AND ts3.k1 >= 30000 AND ts3.k1 < 31000;
+SELECT * FROM ts2 JOIN ts3 on ts2.k1 = ts3.k1 WHERE ts2.k1 >= 28000 AND ts2.k1 < 31000 AND ts3.k1 >= 30000 AND ts3.k1 < 33000;

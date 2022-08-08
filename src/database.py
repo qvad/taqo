@@ -154,6 +154,7 @@ class Leading:
 
 @dataclasses.dataclass
 class Query:
+    tag: str = None
     query: str = None
     explain_hints: str = None
     tables: List[Table] = None

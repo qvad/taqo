@@ -4,6 +4,7 @@ from pyhocon import ConfigFactory
 
 from config import Config, init_logger, ConnectionConfig
 from database import DEFAULT_USERNAME, DEFAULT_PASSWORD
+from tests.comparison.scenario import ComparisonTest
 from tests.regression.scenario import RegressionTest
 from tests.taqo.scenario import TaqoTest
 
@@ -81,7 +82,7 @@ if __name__ == "__main__":
     configuration = ConfigFactory.parse_file(args.config)
 
     pg_connection = None
-    if args.compare_with_pg:
+    if args.compare_with_pg or args.test == "comparison":
         if not configuration.get("postgres"):
             print("Compare with PG is enabled, but no postgres connection parameters specified")
             exit(1)
@@ -159,6 +160,12 @@ if __name__ == "__main__":
             config.revisions_or_paths) == 2, "Exactly 2 revisions must be defined for regression test"
 
         test = RegressionTest()
+    elif config.test == "comparison":
+        # noinspection Assert
+        assert len(config.revisions_or_paths) in {0,
+                                                  1}, "One or zero revisions must be defined for TAQO test"
+
+        test = ComparisonTest()
     else:
         raise AttributeError(f"Unknown test type defined {config.test}")
 
