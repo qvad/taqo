@@ -110,7 +110,7 @@ class ComplexModel(QTFModel):
             for query_join in QueryJoins:
                 joined_columns_list = ', '.join(
                     [f"{next(tables_cycle).name}.{column}" for column in next(selected_columns)])
-                query = f"SELECT {distinct} {joined_columns_list} FROM {first_table.name} "
+                query = f"SELECT {next(distinct)} {joined_columns_list} FROM {first_table.name} "
                 first_column = next(columns)
 
                 for table in perm[1:]:
