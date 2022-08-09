@@ -164,7 +164,7 @@ class TaqoReport(Report):
         self._add_double_newline()
 
         self._start_source(["sql"])
-        self.report += format_sql(query.query)
+        self.report += format_sql(query.query.replace("|", "\|"))
         self._end_source()
 
         self._add_double_newline()
@@ -183,7 +183,7 @@ class TaqoReport(Report):
 
         self._add_double_newline()
 
-        self._start_execution_plan_tables()
+        self._start_table()
 
         self.report += "|Comparison analysis\n"
 
@@ -255,6 +255,6 @@ class TaqoReport(Report):
 
         self.report += "\n"
 
-        self._end_execution_plan_tables()
+        self._end_table()
 
         self._add_double_newline()

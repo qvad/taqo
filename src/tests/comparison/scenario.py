@@ -15,8 +15,6 @@ class ComparisonTest(AbstractTest):
     def evaluate_queries_for_version(self, conn, queries):
         version_queries = []
         with conn.cursor() as cur:
-            evaluate_sql(cur, "SET statement_timeout = '2400s'")
-
             counter = 1
             for first_version_query in queries:
                 try:
@@ -67,7 +65,7 @@ class ComparisonTest(AbstractTest):
             self.logger.info("Running queries against postgres")
             self.postgres.establish_connection()
             conn = self.postgres.connection.conn
-            pg_created_tables = model.create_tables(conn)
+            pg_created_tables = model.create_tables(conn, "postgres")
             pg_queries = model.get_queries(pg_created_tables)
 
             with conn.cursor() as cur:

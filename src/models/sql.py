@@ -1,4 +1,8 @@
 import glob
+import os
+import random
+import string
+from os.path import exists
 from typing import List
 
 import sqlparse
@@ -12,13 +16,20 @@ from utils import get_alias_table_names, evaluate_sql
 
 class SQLModel(QTFModel):
 
-    def create_tables(self, conn):
+    def create_tables(self, conn, db_prefix=None):
         created_tables: List[Table] = []
+
+        if db_prefix and exists(f"sql/{self.config.model}/{db_prefix}.create.sql"):
+            file_name = f"{db_prefix}.create"
+        else:
+            file_name = "create"
+
+        self.generate_data()
 
         with conn.cursor() as cur:
             if not self.config.skip_model_creation:
-                with open(f"sql/{self.config.model}/create.sql", "r") as create_sql:
-                    full_queries = '\n'.join(create_sql.readlines())
+                with open(f"sql/{self.config.model}/{file_name}.sql", "r") as create_sql:
+                    full_queries = self.apply_variables('\n'.join(create_sql.readlines()))
                     for query in tqdm(full_queries.split(";")):
                         if cleaned := query.lstrip():
                             evaluate_sql(cur, cleaned)
@@ -119,7 +130,7 @@ class SQLModel(QTFModel):
         query_file_lists = sorted(list(glob.glob(f"sql/{self.config.model}/queries/*.sql")))
         for query in query_file_lists:
             with open(query, "r") as query_file:
-                full_queries = ''.join(query_file.readlines())
+                full_queries = self.apply_variables(''.join(query_file.readlines()))
                 query_tips = self.get_query_hint_tips(full_queries)
                 for file_query in full_queries.split(";"):
                     if cleaned := sqlparse.format(file_query.lstrip(), strip_comments=True).strip():
@@ -135,3 +146,34 @@ class SQLModel(QTFModel):
             queries = queries[:int(self.config.num_queries)]
 
         return queries
+
+    def apply_variables(self, queries_str):
+        return queries_str.replace("$DATA_PATH",
+                                   f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}")
+
+
+class BasicOpsModel(SQLModel):
+
+    def generate_data(self):
+        self.logger.info("Generating data files for simplified model")
+
+        with open(f"sql/{self.config.model}/data/t1.csv", "w") as t1_file:
+            for i in tqdm(range(50_000 * self.config.simplified_multiplier)):
+                ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+                t1_file.write(f"{i},k2-{i},{i},{ng_string}\n")
+        with open(f"sql/{self.config.model}/data/t2.csv", "w") as t2_file:
+            for i in tqdm(range(50_000 * self.config.simplified_multiplier)):
+                ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=128))
+                t2_file.write(f"{i},k2-{i},{i},{ng_string}\n")
+        with open(f"sql/{self.config.model}/data/t3.csv", "w") as t3_file:
+            for i in tqdm(range(50_000 * self.config.simplified_multiplier)):
+                ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=512))
+                t3_file.write(f"{i},k2-{i},{i},{ng_string}\n")
+        with open(f"sql/{self.config.model}/data/ts2.csv", "w") as ts2_file:
+            for i in tqdm(range(20_000 * self.config.simplified_multiplier)):
+                ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+                ts2_file.write(f"{i},k2-{i},{i},{ng_string}\n")
+        with open(f"sql/{self.config.model}/data/ts3.csv", "w") as ts3_file:
+            for i in tqdm(range(5_000 * self.config.simplified_multiplier)):
+                ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+                ts3_file.write(f"{i},k2-{i},{i},{ng_string}\n")

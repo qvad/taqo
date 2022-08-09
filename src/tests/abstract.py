@@ -69,8 +69,9 @@ class Report:
     def _add_double_newline(self):
         self.report += "\n\n"
 
-    def _start_execution_plan_tables(self):
-        self.report += "[cols=\"1\"]\n|===\n"
+    def _start_table(self, columns=1):
+        self.report += f"[cols=\"{columns}\"]\n" \
+                       "|===\n"
 
     def _start_table_row(self):
         self.report += "a|"
@@ -78,7 +79,7 @@ class Report:
     def _end_table_row(self):
         self.report += "\n"
 
-    def _end_execution_plan_tables(self):
+    def _end_table(self):
         self.report += "|===\n"
 
     def _start_source(self, additional_tags=None):

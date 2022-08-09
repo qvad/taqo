@@ -1,7 +1,7 @@
 from config import Config
 from models.complex import ComplexModel
 from models.simple import SimpleModel
-from models.sql import SQLModel
+from models.sql import SQLModel, BasicOpsModel
 
 
 def get_test_model():
@@ -9,5 +9,7 @@ def get_test_model():
         return SimpleModel()
     elif Config().model == "complex":
         return ComplexModel()
+    elif Config().model == "basic":
+        return BasicOpsModel()
     else:
         return SQLModel()

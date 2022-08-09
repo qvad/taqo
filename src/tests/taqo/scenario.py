@@ -44,7 +44,7 @@ class TaqoTest(AbstractTest):
                 postgres.establish_connection()
                 pg_conn = postgres.connection.conn
 
-                model.create_tables(pg_conn)
+                model.create_tables(pg_conn, "postgres")
 
                 self.evaluate_queries_against_postgres(pg_conn, queries)
 

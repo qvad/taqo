@@ -23,7 +23,25 @@ class ComparisonReport(Report):
 
     def build_report(self):
         # link to top
-        self.report += "\n[#top]\n== All results for files\n"
+        self.report += "\n[#top]\n== Summary\n"
+
+        self._start_table(3)
+        self.report += "|Yugabyte|Postgres x3|Postgres|Ratio vs Postgres|Query\n"
+        for tag, queries in self.queries.items():
+            self.report += f"3+m|{tag}.sql\n"
+            for query in queries:
+                self.report += f"|{query[0].execution_time_ms}\n" \
+                               f"|{query[1].execution_time_ms * 3}\n" \
+                               f"|{query[1].execution_time_ms}\n" \
+                               f"|{query[1].execution_time_ms / query[0].execution_time_ms}\n"
+                self.report += f"a|Hash: {hashlib.md5(query[0].query.encode('utf-8')).hexdigest()}\n"
+                self._start_source(["sql"])
+                self.report += format_sql(query[1].query.replace("|", "\|"))
+                self._end_source()
+                self.report += "\n"
+                self._end_table_row()
+        self._end_table()
+
         # different results links
         for tag in self.queries.keys():
             self.report += f"\n<<{tag}>>\n"
@@ -43,12 +61,12 @@ class ComparisonReport(Report):
         self._add_double_newline()
 
         self._start_source(["sql"])
-        self.report += format_sql(yb_query.query)
+        self.report += format_sql(yb_query.query.replace("|", "\|"))
         self._end_source()
 
         self._add_double_newline()
 
-        self._start_execution_plan_tables()
+        self._start_table()
 
         self.report += "|Comparison analysis\n"
 
@@ -88,6 +106,6 @@ class ComparisonReport(Report):
 
         self.report += "\n"
 
-        self._end_execution_plan_tables()
+        self._end_table()
 
         self._add_double_newline()

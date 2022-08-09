@@ -162,7 +162,7 @@ class Query:
     execution_plan_heatmap: Dict[int, Dict[str, str]] = None
     optimizer_score: float = 1
     optimizer_tips: QueryTips = None
-    execution_time_ms: int = 0
+    execution_time_ms: float = 0
     optimizations: List['Query'] = None
     postgres_query: 'Query' = None
     result_hash: 'Query' = None
