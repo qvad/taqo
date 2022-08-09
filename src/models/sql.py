@@ -1,6 +1,7 @@
 import glob
 import os
 import random
+import shutil
 import string
 from os.path import exists
 from typing import List
@@ -156,6 +157,9 @@ class BasicOpsModel(SQLModel):
 
     def generate_data(self):
         self.logger.info("Generating data files for simplified model")
+
+        shutil.rmtree(f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data", ignore_errors=True)
+        os.mkdir(f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data")
 
         if exists(f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data/t1.csv"):
             self.logger.warn("Model files already presented, skipping t1.csv")
