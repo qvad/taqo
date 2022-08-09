@@ -25,15 +25,18 @@ class ComparisonReport(Report):
         # link to top
         self.report += "\n[#top]\n== Summary\n"
 
-        self._start_table(3)
+        columns = 5
+        self._start_table(columns)
         self.report += "|Yugabyte|Postgres x3|Postgres|Ratio vs Postgres|Query\n"
         for tag, queries in self.queries.items():
-            self.report += f"3+m|{tag}.sql\n"
+            self.report += f"{columns}+m|{tag}.sql\n"
             for query in queries:
+                pg_x3 = "{:.2f}".format(query[1].execution_time_ms * 3)
+                ratio = "{:.2f}".format(query[0].execution_time_ms / query[1].execution_time_ms if query[1].execution_time_ms != 0 else 0)
                 self.report += f"|{query[0].execution_time_ms}\n" \
-                               f"|{query[1].execution_time_ms * 3}\n" \
+                               f"|{pg_x3}\n" \
                                f"|{query[1].execution_time_ms}\n" \
-                               f"|{query[1].execution_time_ms / query[0].execution_time_ms}\n"
+                               f"|{ratio}\n"
                 self.report += f"a|Hash: {hashlib.md5(query[0].query.encode('utf-8')).hexdigest()}\n"
                 self._start_source(["sql"])
                 self.report += format_sql(query[1].query.replace("|", "\|"))

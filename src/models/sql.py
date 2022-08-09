@@ -157,23 +157,42 @@ class BasicOpsModel(SQLModel):
     def generate_data(self):
         self.logger.info("Generating data files for simplified model")
 
-        with open(f"sql/{self.config.model}/data/t1.csv", "w") as t1_file:
-            for i in tqdm(range(50_000 * self.config.simplified_multiplier)):
-                ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
-                t1_file.write(f"{i},k2-{i},{i},{ng_string}\n")
-        with open(f"sql/{self.config.model}/data/t2.csv", "w") as t2_file:
-            for i in tqdm(range(50_000 * self.config.simplified_multiplier)):
-                ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=128))
-                t2_file.write(f"{i},k2-{i},{i},{ng_string}\n")
-        with open(f"sql/{self.config.model}/data/t3.csv", "w") as t3_file:
-            for i in tqdm(range(50_000 * self.config.simplified_multiplier)):
-                ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=512))
-                t3_file.write(f"{i},k2-{i},{i},{ng_string}\n")
-        with open(f"sql/{self.config.model}/data/ts2.csv", "w") as ts2_file:
-            for i in tqdm(range(20_000 * self.config.simplified_multiplier)):
-                ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
-                ts2_file.write(f"{i},k2-{i},{i},{ng_string}\n")
-        with open(f"sql/{self.config.model}/data/ts3.csv", "w") as ts3_file:
-            for i in tqdm(range(5_000 * self.config.simplified_multiplier)):
-                ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
-                ts3_file.write(f"{i},k2-{i},{i},{ng_string}\n")
+        if exists(f"sql/{self.config.model}/data/t1.csv"):
+            self.logger.warn("Model files already presented, skipping t1.csv")
+        else:
+            with open(f"sql/{self.config.model}/data/t1.csv", "w") as t1_file:
+                for i in tqdm(range(50_000 * self.config.simplified_multiplier)):
+                    ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+                    t1_file.write(f"{i},k2-{i},{i},{ng_string}\n")
+
+        if exists(f"sql/{self.config.model}/data/t2.csv"):
+            self.logger.warn("Model files already presented, skipping t2.csv")
+        else:
+            with open(f"sql/{self.config.model}/data/t2.csv", "w") as t2_file:
+                for i in tqdm(range(50_000 * self.config.simplified_multiplier)):
+                    ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=128))
+                    t2_file.write(f"{i},k2-{i},{i},{ng_string}\n")
+
+        if exists(f"sql/{self.config.model}/data/t3.csv"):
+            self.logger.warn("Model files already presented, skipping t3.csv")
+        else:
+            with open(f"sql/{self.config.model}/data/t3.csv", "w") as t3_file:
+                for i in tqdm(range(50_000 * self.config.simplified_multiplier)):
+                    ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=512))
+                    t3_file.write(f"{i},k2-{i},{i},{ng_string}\n")
+
+        if exists(f"sql/{self.config.model}/data/ts2.csv"):
+            self.logger.warn("Model files already presented, skipping ts2.csv")
+        else:
+            with open(f"sql/{self.config.model}/data/ts2.csv", "w") as ts2_file:
+                for i in tqdm(range(20_000 * self.config.simplified_multiplier)):
+                    ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+                    ts2_file.write(f"{i},k2-{i},{i},{ng_string}\n")
+
+        if exists(f"sql/{self.config.model}/data/ts3.csv"):
+            self.logger.warn("Model files already presented, skipping ts3.csv")
+        else:
+            with open(f"sql/{self.config.model}/data/ts3.csv", "w") as ts3_file:
+                for i in tqdm(range(5_000 * self.config.simplified_multiplier)):
+                    ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+                    ts3_file.write(f"{i},k2-{i},{i},{ng_string}\n")
