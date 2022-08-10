@@ -27,17 +27,20 @@ class ComparisonReport(Report):
 
         columns = 5
         self._start_table(columns)
-        self.report += "|Yugabyte|Postgres x3|Postgres|Ratio vs Postgres|Query\n"
+        self.report += "|Yugabyte|Postgres|Ratio vs Postgres|Ratio vs Postgres x3|Query\n"
         for tag, queries in self.queries.items():
             self.report += f"{columns}+m|{tag}.sql\n"
             for query in queries:
-                pg_x3 = "{:.2f}".format(query[1].execution_time_ms * 3)
                 ratio = "{:.2f}".format(query[0].execution_time_ms / query[1].execution_time_ms if query[1].execution_time_ms != 0 else 0)
+                ratio_x3 = query[0].execution_time_ms / (3 * query[1].execution_time_ms) if query[1].execution_time_ms != 0 else 0
+                ratio_x3_str = "{:.2f}".format(query[0].execution_time_ms / (3 * query[1].execution_time_ms) if query[1].execution_time_ms != 0 else 0)
+                color = "[green]" if ratio_x3 <= 3.0 else "[red]"
                 self.report += f"|{query[0].execution_time_ms}\n" \
-                               f"|{pg_x3}\n" \
                                f"|{query[1].execution_time_ms}\n" \
-                               f"|{ratio}\n"
-                self.report += f"a|Hash: {hashlib.md5(query[0].query.encode('utf-8')).hexdigest()}\n"
+                               f"a|*{ratio}*\n" \
+                               f"a|{color}#*{ratio_x3_str}*#\n"
+                hexdigest = hashlib.md5(query[0].query.encode('utf-8')).hexdigest()
+                self.report += f"a|[#{hexdigest}_top]\n<<{hexdigest}>>\n"
                 self._start_source(["sql"])
                 self.report += format_sql(query[1].query.replace("|", "\|"))
                 self._end_source()
@@ -59,8 +62,10 @@ class ComparisonReport(Report):
         self.reported_queries_counter += 1
         query_hash = hashlib.md5(yb_query.query.encode('utf-8')).hexdigest()
 
+        self.report += f"\n[#{query_hash}]\n"
         self.report += f"=== Query {query_hash}"
         self.report += "\n<<top,Go to top>>\n"
+        self.report += f"\n<<{query_hash}_top,Show in summary>>\n"
         self._add_double_newline()
 
         self._start_source(["sql"])
