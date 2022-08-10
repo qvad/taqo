@@ -30,6 +30,10 @@ if __name__ == "__main__":
     parser.add_argument('--revisions',
                         help='Comma separated git revisions or paths to release builds')
 
+    parser.add_argument('--num_nodes',
+                        default=0,
+                        help='Number of nodes')
+
     parser.add_argument('--tserver_flags',
                         default=None,
                         help='Comma separated tserver flags')
@@ -104,7 +108,7 @@ if __name__ == "__main__":
         # configuration file properties
         yugabyte_code_path=args.yugabyte_code_path or configuration.get("yugabyte_code_path"),
 
-        num_nodes=configuration.get("num_nodes", 1),
+        num_nodes=int(args.num_nodes) or configuration.get("num_nodes", 3),
 
         random_seed=configuration.get("random_seed", 2022),
         use_allpairs=configuration.get("use_allpairs", True),
