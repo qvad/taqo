@@ -58,7 +58,7 @@ class Config(metaclass=Singleton):
 
     test: str = None
     model: str = None
-    simplified_multiplier: int = None
+    basic_multiplier: int = None
 
     random_seed: int = None
     use_allpairs: bool = None
