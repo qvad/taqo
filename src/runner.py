@@ -23,9 +23,9 @@ if __name__ == "__main__":
     parser.add_argument('--model',
                         default="simple",
                         help='Test model to use - simple (default) or tpch or subqueries')
-    parser.add_argument('--simplified_multiplier',
+    parser.add_argument('--basic_multiplier',
                         default=10,
-                        help='Simplified model multiplier')
+                        help='Basic model data multiplier (Default 10)')
     parser.add_argument('--yugabyte_code_path',
                         help='Code path to yugabyte-db repository')
     parser.add_argument('--revisions',
