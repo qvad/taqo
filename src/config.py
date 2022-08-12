@@ -97,7 +97,7 @@ class Config(metaclass=Singleton):
                f"    --num_retries: {self.num_retries}\n" + \
                f"    --use_allpairs: {self.use_allpairs}\n" + \
                f"    --random_seed: ±{self.random_seed}s\n" + \
-               f"    --simplified_multiplier: x{self.simplified_multiplier}\n" + \
+               f"    --basic_multiplier: x{self.basic_multiplier}\n" + \
                f"    --skip_timeout_delta: ±{self.skip_timeout_delta}s\n" + \
                f"    --skip_table_scan_hints: {self.skip_table_scan_hints}\n" + \
                f"    --skip_model_creation: {self.skip_model_creation}\n" + \
