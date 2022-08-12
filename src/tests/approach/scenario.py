@@ -24,8 +24,8 @@ class ApproachTest(AbstractTest):
                     query.optimizer_score = \
                         get_optimizer_score_from_plan(query.execution_plan)
 
-                    calculate_avg_execution_time(cur, query.get_explain_analyze(),
-                                                 int(self.config.num_retries))
+                    calculate_avg_execution_time(cur, query, query_str=query.get_explain_analyze(),
+                                                 num_retries=int(self.config.num_retries))
 
                     version_queries.append(query)
                 except Exception as e:

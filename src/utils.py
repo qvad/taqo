@@ -31,7 +31,7 @@ def get_result_hashsum(cur):
     return hashlib.md5(str_result.encode()).hexdigest()
 
 
-def calculate_avg_execution_time(cur, query, num_retries: int):
+def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int):
     config = Config()
 
     sum_execution_times = 0
@@ -45,7 +45,7 @@ def calculate_avg_execution_time(cur, query, num_retries: int):
         # noinspection PyUnresolvedReferences
         try:
             start_time = current_milli_time()
-            evaluate_sql(cur, query.get_query())
+            evaluate_sql(cur, query_str is query else query.get_query())
 
             if iteration == 0:
                 query.result_hash = get_result_hashsum(cur)
