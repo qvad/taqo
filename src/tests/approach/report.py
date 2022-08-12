@@ -31,15 +31,15 @@ class ApproachReport(Report):
         self.report += "\n[#top]\n== All results by analysis type\n"
         # different results links
         self.report += "\n<<worse>>\n"
-        self.report += "\n<<same>>\n"
+        self.report += "\n<<same_time>>\n"
         self.report += "\n<<improved>>\n"
-        self.report += "\n<<same>>\n"
+        self.report += "\n<<same_plan>>\n"
 
         self.report += f"\n[#worse]\n== Worse execution time queries ({len(self.worse_execution_time)})\n\n"
         for query in self.worse_execution_time:
             self.__report_query(query[0], query[1], query[2])
 
-        self.report += f"\n[#same]\n== Almost same execution time queries ({len(self.almost_same_execution_time)})\n\n"
+        self.report += f"\n[#same_time]\n== Almost same execution time queries ({len(self.almost_same_execution_time)})\n\n"
         for query in self.almost_same_execution_time:
             self.__report_query(query[0], query[1], query[2])
 
@@ -47,7 +47,7 @@ class ApproachReport(Report):
         for query in self.improved_execution_time:
             self.__report_query(query[0], query[1], query[2])
 
-        self.report += f"\n[#same]\n\n== Same execution plan ({len(self.same_execution_plan)})\n\n"
+        self.report += f"\n[#same_plan]\n\n== Same execution plan ({len(self.same_execution_plan)})\n\n"
         for query in self.same_execution_plan:
             self.__report_query(query[0], query[1], query[2])
 
