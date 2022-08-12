@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
         test=args.test,
         model=args.model,
-        simplified_multiplier=int(args.simplified_multiplier),
+        basic_multiplier=int(args.basic_multiplier),
 
         clear=args.clear,
     )
