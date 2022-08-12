@@ -45,7 +45,7 @@ class ComplexModel(QTFModel):
         ["c_float", "c_real", "c_money"],
     ]
 
-    def create_tables(self, conn):
+    def create_tables(self, conn, skip_analyze=False, db_prefix=None):
         if self.config.skip_model_creation:
             return self.TABLES
 
@@ -76,7 +76,8 @@ class ComplexModel(QTFModel):
                         f"CREATE INDEX {table.name}_{hex_digest}_idx "
                         f"ON {table.name}({joined_columns_list})")
 
-                evaluate_sql(cur, f"ANALYZE {table.name}")
+                if not skip_analyze:
+                    evaluate_sql(cur, f"ANALYZE {table.name}")
 
         return self.TABLES
 

@@ -1,14 +1,15 @@
+from database import ENABLE_STATISTICS_HINT
 from models.factory import get_test_model
-from tests.regression.report import RegressionReport
 from tests.abstract import AbstractTest
+from tests.approach.report import ApproachReport
 from utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
 
 
-class RegressionTest(AbstractTest):
+class ApproachTest(AbstractTest):
 
     def __init__(self):
         super().__init__()
-        self.report = RegressionReport()
+        self.report = ApproachReport()
 
     def evaluate_queries_for_version(self, conn, queries):
         version_queries = []
@@ -35,15 +36,6 @@ class RegressionTest(AbstractTest):
 
         return version_queries
 
-    def switch_version(self):
-        self.logger.info(f"Switching Yugabyte version to {self.config.revisions_or_paths[1]}")
-
-        self.yugabyte.stop_database()
-        self.yugabyte.change_version_and_compile(self.config.revisions_or_paths[1])
-        # todo is this correct upgrade path?
-        self.yugabyte.start_database()
-        self.yugabyte.call_upgrade_ysql()
-
     def evaluate(self):
         self.start_db()
 
@@ -60,37 +52,33 @@ class RegressionTest(AbstractTest):
 
             # evaluate original query
             model = get_test_model()
-            created_tables = model.create_tables(conn)
-            first_queries = model.get_queries(created_tables)
+            created_tables = model.create_tables(conn, skip_analyze=True)
+            queries_default = model.get_queries(created_tables)
 
-            first_version_queries = self.evaluate_queries_for_version(conn, first_queries)
+            queries_default_plans = self.evaluate_queries_for_version(conn, queries_default)
 
-            conn.close()
-
-            self.switch_version()
-
-            # reconnect
-            self.logger.info("Reconnecting to DB after upgrade")
-            conn = self.yugabyte.connection.connect()
-
-            second_queries = model.get_queries(created_tables)
+            self.logger.info("Evaluating with ANALYZE")
 
             with conn.cursor() as cur:
-                evaluate_sql(cur, 'SELECT VERSION();')
-                second_version = cur.fetchone()[0]
-                self.logger.info(f"Running regression test against {second_version}")
+                for table in created_tables:
+                    evaluate_sql(cur, f'ANALYZE {table.name};')
 
-            self.report.define_version(first_version, second_version)
+            queries_analyze = model.get_queries(created_tables)
+            queries_analyze_plans = self.evaluate_queries_for_version(conn, queries_analyze)
 
-            second_version_queries = self.evaluate_queries_for_version(conn, second_queries)
+            self.logger.info("Evaluating with statistics and ANALYZE")
+            with conn.cursor() as cur:
+                evaluate_sql(cur, ENABLE_STATISTICS_HINT)
 
-            for first_version_query, second_version_query in zip(first_version_queries,
-                                                                 second_version_queries):
-                self.report.add_query(first_version_query, second_version_query)
+            queries_all = model.get_queries(created_tables)
+            queries_all_plans = self.evaluate_queries_for_version(conn, queries_all)
+
+            for query_id in range(len(queries_default_plans)):
+                self.report.add_query(queries_default_plans[query_id], queries_analyze_plans[query_id], queries_all_plans[query_id])
         finally:
             # publish current report
             self.report.build_report()
-            self.report.publish_report("regression")
+            self.report.publish_report("analyze")
 
             # close connection
             conn.close()

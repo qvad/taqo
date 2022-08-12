@@ -21,7 +21,7 @@ class QTFModel(ABC):
         pass
 
     @abc.abstractmethod
-    def create_tables(self, conn):
+    def create_tables(self, conn, skip_analyze=False, db_prefix=None):
         pass
 
     @abc.abstractmethod

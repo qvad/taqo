@@ -4,6 +4,7 @@ from pyhocon import ConfigFactory
 
 from config import Config, init_logger, ConnectionConfig
 from database import DEFAULT_USERNAME, DEFAULT_PASSWORD
+from tests.approach.scenario import ApproachTest
 from tests.comparison.scenario import ComparisonTest
 from tests.regression.scenario import RegressionTest
 from tests.taqo.scenario import TaqoTest
@@ -171,9 +172,15 @@ if __name__ == "__main__":
     elif config.test == "comparison":
         # noinspection Assert
         assert len(config.revisions_or_paths) in {0,
-                                                  1}, "One or zero revisions must be defined for TAQO test"
+                                                  1}, "One or zero revisions must be defined for comparison test"
 
         test = ComparisonTest()
+    elif config.test == "approach":
+        # noinspection Assert
+        assert len(config.revisions_or_paths) in {0,
+                                                  1}, "One or zero revisions must be defined for approach test"
+
+        test = ApproachTest()
     else:
         raise AttributeError(f"Unknown test type defined {config.test}")
 

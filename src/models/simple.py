@@ -14,7 +14,7 @@ class SimpleModel(QTFModel):
         [1_000_000, 500_000, 50_000, 100]
     ]
 
-    def create_tables(self, conn):
+    def create_tables(self, conn, skip_analyze=False, db_prefix=None):
         if self.config.skip_model_creation:
             return self.TABLES
 
@@ -30,7 +30,8 @@ class SimpleModel(QTFModel):
                     cur,
                     f"CREATE INDEX {table.name}_idx ON {table.name}(a)")
 
-                evaluate_sql(cur, f"ANALYZE {table.name}")
+                if not skip_analyze:
+                    evaluate_sql(cur, f"ANALYZE {table.name}")
 
         return self.TABLES
 

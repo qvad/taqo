@@ -17,7 +17,7 @@ from utils import get_alias_table_names, evaluate_sql
 
 class SQLModel(QTFModel):
 
-    def create_tables(self, conn, db_prefix=None):
+    def create_tables(self, conn, skip_analyze=False, db_prefix=None):
         created_tables: List[Table] = []
 
         if db_prefix and exists(f"sql/{self.config.model}/{db_prefix}.create.sql"):
@@ -33,6 +33,9 @@ class SQLModel(QTFModel):
                     full_queries = self.apply_variables('\n'.join(create_sql.readlines()))
                     for query in tqdm(full_queries.split(";")):
                         if cleaned := query.lstrip():
+                            if skip_analyze and 'analyze' in cleaned.lower():
+                                continue
+
                             evaluate_sql(cur, cleaned)
 
             self.load_tables_from_public(created_tables, cur)
