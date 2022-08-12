@@ -173,8 +173,11 @@ class Query:
     def get_explain(self):
         return f"{get_explain_clause()} {self.query}"
 
-    def get_basic_explain(self):
+    def get_heuristic_explain(self):
         return f"EXPLAIN {self.query}"
+
+    def get_explain_analyze(self):
+        return f"EXPLAIN ANALYZE {self.query}"
 
     def get_best_optimization(self):
         best_optimization = self
@@ -219,7 +222,7 @@ class Optimization(Query):
     def get_explain(self):
         return f"{get_explain_clause()}  /*+ {self.explain_hints} */ {self.query}"
 
-    def get_basic_explain(self):
+    def get_heuristic_explain(self):
         return f"EXPLAIN /*+ {self.explain_hints} */ {self.query}"
 
 

@@ -211,7 +211,7 @@ class TaqoTest(AbstractTest):
     def try_to_get_explain_hints(self, cur, optimization, original_query):
         if not original_query.explain_hints:
             if self.config.enable_statistics or optimization.execution_plan is None:
-                evaluate_sql(cur, optimization.get_basic_explain())
+                evaluate_sql(cur, optimization.get_heuristic_explain())
 
                 execution_plan = '\n'.join(
                     str(item[0]) for item in cur.fetchall())

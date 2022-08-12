@@ -15,20 +15,19 @@ class ApproachTest(AbstractTest):
         version_queries = []
         with conn.cursor() as cur:
             counter = 1
-            for first_version_query in queries:
+            for query in queries:
                 try:
                     self.logger.info(
-                        f"Evaluating query {first_version_query.query[:40]}... [{counter}/{len(queries)}]")
-                    evaluate_sql(cur, first_version_query.get_explain())
-                    first_version_query.execution_plan = '\n'.join(
-                        str(item[0]) for item in cur.fetchall())
-                    first_version_query.optimizer_score = get_optimizer_score_from_plan(
-                        first_version_query.execution_plan)
+                        f"Evaluating query {query.query[:40]}... [{counter}/{len(queries)}]")
+                    evaluate_sql(cur, query.get_explain_analyze())
+                    query.execution_plan = '\n'.join(str(item[0]) for item in cur.fetchall())
+                    query.optimizer_score = \
+                        get_optimizer_score_from_plan(query.execution_plan)
 
-                    calculate_avg_execution_time(cur, first_version_query,
+                    calculate_avg_execution_time(cur, query.get_explain_analyze(),
                                                  int(self.config.num_retries))
 
-                    version_queries.append(first_version_query)
+                    version_queries.append(query)
                 except Exception as e:
                     raise e
                 finally:

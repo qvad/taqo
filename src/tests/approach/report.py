@@ -47,7 +47,7 @@ class ApproachReport(Report):
         for query in self.improved_execution_time:
             self.__report_query(query[0], query[1], query[2])
 
-        self.report += f"\n[#same]\n\n== Same execution time ({len(self.same_execution_plan)})\n\n"
+        self.report += f"\n[#same]\n\n== Same execution plan ({len(self.same_execution_plan)})\n\n"
         for query in self.same_execution_plan:
             self.__report_query(query[0], query[1], query[2])
 
