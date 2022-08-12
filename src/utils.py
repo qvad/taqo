@@ -20,6 +20,7 @@ def get_optimizer_score_from_plan(execution_plan):
     for matchNum, match in enumerate(matches, start=1):
         return float(match.groups()[0])
 
+
 def get_result_hashsum(cur):
     result = cur.fetchall()
 
@@ -31,7 +32,7 @@ def get_result_hashsum(cur):
     return hashlib.md5(str_result.encode()).hexdigest()
 
 
-def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int=0):
+def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 0):
     config = Config()
 
     sum_execution_times = 0
@@ -108,5 +109,6 @@ def allowed_diff(config, original_execution_time, optimization_execution_time):
     if optimization_execution_time <= 0:
         return False
 
-    return (abs(original_execution_time - optimization_execution_time) / optimization_execution_time) < \
+    return (
+                       abs(original_execution_time - optimization_execution_time) / optimization_execution_time) < \
            config.skip_percentage_delta
