@@ -17,7 +17,7 @@ class ApproachReport(Report):
         self.worse_execution_time = []
 
     def add_query(self, default: Query, analyze: Query, all: Query):
-        if default.execution_plan == all.execution_plan:
+        if default.compare_plans(all.execution_plan):
             self.same_execution_plan.append([default, analyze, all])
         elif allowed_diff(self.config, default.execution_time_ms, all.execution_time_ms):
             self.almost_same_execution_time.append([default, analyze, all])

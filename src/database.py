@@ -204,7 +204,7 @@ class Query:
             for join in Joins)
 
     def compare_plans(self, execution_plan):
-        return self.get_clean_plan() == self.get_clean_plan(execution_plan).strip()
+        return self.get_clean_plan() == self.get_clean_plan(execution_plan)
 
     def __str__(self):
         return f"Query - \"{self.query}\"\n" \
