@@ -109,9 +109,10 @@ class ComplexModel(QTFModel):
             first_table = perm[0]
             tables_cycle = itertools.cycle(tables)
             for query_join in QueryJoins:
+                next_distinct = next(distinct)
                 joined_columns_list = ', '.join(
                     [f"{next(tables_cycle).name}.{column}" for column in next(selected_columns)])
-                query = f"SELECT {next(distinct)} {joined_columns_list} FROM {first_table.name} "
+                query = f"SELECT {next_distinct} {joined_columns_list} FROM {first_table.name} "
                 first_column = next(columns)
 
                 for table in perm[1:]:
@@ -136,7 +137,8 @@ class ComplexModel(QTFModel):
 
                 # group by clauses
                 if next_order_by := next(order_clauses):
-                    query += f" ORDER BY {first_table.name}.c_int {next_order_by}"
+                    order_cols = joined_columns_list if next_distinct else f"{first_table.name}.c_int"
+                    query += f" ORDER BY {order_cols} {next_order_by}"
 
                 # limit clause types
                 if limit_clause := next(limit_clauses):
