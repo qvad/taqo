@@ -27,7 +27,6 @@ class ComplexModel(QTFModel):
     ]
     COLUMNS = [
         'c_int',
-        'c_bool',
         'c_text',
         'c_varchar',
         'c_decimal',
