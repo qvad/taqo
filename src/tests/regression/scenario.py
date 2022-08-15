@@ -71,7 +71,8 @@ class RegressionTest(AbstractTest):
 
             # reconnect
             self.logger.info("Reconnecting to DB after upgrade")
-            conn = self.yugabyte.connection.connect()
+            self.yugabyte.establish_connection()
+            conn = self.yugabyte.connection.conn
 
             second_queries = model.get_queries(created_tables)
 
