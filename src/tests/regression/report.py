@@ -18,7 +18,7 @@ class RegressionReport(Report):
         self.report += f"[VERSION]\n====\nFirst:\n{first_version}\n\nSecond:\n{second_version}\n====\n\n"
 
     def add_query(self, first_query: Query, second_query: Query):
-        if first_query.execution_plan == second_query.execution_plan:
+        if first_query.compare_plans(second_query.execution_plan):
             self.same_execution_plan.append([first_query, second_query])
         elif first_query.execution_time_ms > second_query.execution_time_ms:
             self.improved_execution_time.append([first_query, second_query])
