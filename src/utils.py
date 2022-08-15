@@ -46,7 +46,7 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
         # noinspection PyUnresolvedReferences
         try:
             start_time = current_milli_time()
-            evaluate_sql(cur, query_str if query else query.get_query())
+            evaluate_sql(cur, query_str or query.get_query())
 
             if iteration == 0:
                 query.result_hash = get_result_hashsum(cur)
@@ -64,7 +64,6 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
             query.execution_time_ms = 0
             config.logger.error(f"INTERNAL ERROR {ie}\nSQL query:{query.get_query()}")
             return False
-        # todo add exception when wrong hints used?
         finally:
             if iteration >= num_warmup:
                 actual_evaluations += 1

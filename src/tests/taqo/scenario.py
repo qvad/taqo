@@ -82,7 +82,7 @@ class TaqoTest(AbstractTest):
                     pg_query.execution_plan)
 
                 calculate_avg_execution_time(cur, pg_query,
-                                             int(self.config.num_retries))
+                                             num_retries=int(self.config.num_retries))
 
     def evaluate_queries_against_yugabyte(self, conn, queries):
         with conn.cursor() as cur:
@@ -113,7 +113,7 @@ class TaqoTest(AbstractTest):
                         original_query.execution_plan)
 
                     calculate_avg_execution_time(cur, original_query,
-                                                 int(self.config.num_retries))
+                                                 num_retries=int(self.config.num_retries))
 
                     self.evaluate_optimizations(cur, original_query)
 
@@ -177,7 +177,7 @@ class TaqoTest(AbstractTest):
                 optimization.execution_plan)
 
             if not calculate_avg_execution_time(cur, optimization,
-                                                int(self.config.num_retries)):
+                                                num_retries=int(self.config.num_retries)):
                 num_skipped += 1
 
             # get new minimum execution time

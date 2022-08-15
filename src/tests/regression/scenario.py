@@ -25,7 +25,7 @@ class RegressionTest(AbstractTest):
                         first_version_query.execution_plan)
 
                     calculate_avg_execution_time(cur, first_version_query,
-                                                 int(self.config.num_retries))
+                                                 num_retries=int(self.config.num_retries))
 
                     version_queries.append(first_version_query)
                 except Exception as e:
