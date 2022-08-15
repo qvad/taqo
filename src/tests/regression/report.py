@@ -33,15 +33,15 @@ class RegressionReport(Report):
         self.report += "\n<<improved>>\n"
         self.report += "\n<<same>>\n"
 
-        self.report += "\n[#worse]\n== Worse execution time queries\n\n"
+        self.report += f"\n[#worse]\n== Worse execution time queries ({self.worse_execution_time})\n\n"
         for query in self.worse_execution_time:
             self.__report_query(query[0], query[1])
 
-        self.report += "\n[#improved]\n== Improved execution time\n\n"
+        self.report += f"\n[#improved]\n== Improved execution time ({self.improved_execution_time})\n\n"
         for query in self.improved_execution_time:
             self.__report_query(query[0], query[1])
 
-        self.report += "\n[#same]\n\n== Same execution time\n\n"
+        self.report += f"\n[#same]\n\n== Same execution plan ({self.same_execution_plan})\n\n"
         for query in self.same_execution_plan:
             self.__report_query(query[0], query[1])
 
