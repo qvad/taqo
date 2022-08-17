@@ -6,7 +6,7 @@ import subprocess
 import time
 from abc import ABC
 from pathlib import Path
-from sql_formatter.core import format_sql
+
 from config import Config
 from db.yugabyte import factory
 
@@ -41,7 +41,7 @@ class Report:
         self.config = Config()
         self.logger = self.config.logger
 
-        self.report = f"= Query Optimizer Test report \n" \
+        self.report = f"= Optimizer Test Report \n" \
                       f":source-highlighter: coderay\n" \
                       f":coderay-linenums-mode: inline\n\n"
 
@@ -68,15 +68,16 @@ class Report:
 
     def report_model(self, model_queries):
         self._start_collapsible("Model queries")
-        self._start_source("sql")
-        self.report += "\n".join(f"{format_sql(model_queries)};")
+        self._start_source(["sql"])
+        self.report += "\n".join(
+            [query if query.endswith(";") else f"{query};" for query in model_queries])
         self._end_source()
         self._end_collapsible()
 
     def _add_double_newline(self):
         self.report += "\n\n"
 
-    def _start_table(self, columns=1):
+    def _start_table(self, columns: str = "1"):
         self.report += f"[cols=\"{columns}\"]\n" \
                        "|===\n"
 

@@ -57,6 +57,7 @@ class ApproachReport(Report):
         query_hash = hashlib.md5(default.query.encode('utf-8')).hexdigest()
 
         self.report += f"=== Query {query_hash}"
+        self.report += f"\n{default.tag}\n"
         self.report += "\n<<top,Go to top>>\n"
         self._add_double_newline()
 

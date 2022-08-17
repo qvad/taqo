@@ -62,7 +62,7 @@ class RegressionTest(AbstractTest):
             model = get_test_model()
             created_tables, model_queries = model.create_tables(conn)
             first_queries = model.get_queries(created_tables)
-            self.report_model(model_queries)
+            self.report.report_model(model_queries)
 
             first_version_queries = self.evaluate_queries_for_version(conn, first_queries)
 
