@@ -43,6 +43,7 @@ class ComplexModel(QTFModel):
         ["c_float", "c_decimal", "c_varchar"],
         ["c_float", "c_real", "c_money"],
     ]
+    # IS NOT NULL
 
     def create_tables(self, conn, skip_analyze=False, db_prefix=None):
         if self.config.skip_model_creation:

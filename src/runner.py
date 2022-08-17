@@ -22,7 +22,7 @@ if __name__ == "__main__":
                         help='Type of test to evaluate - taqo (default) or regression')
     parser.add_argument('--model',
                         default="simple",
-                        help='Test model to use - simple (default) or tpch or subqueries')
+                        help='Test model to use - complex, tpch, subqueries, any other custom model')
     parser.add_argument('--basic_multiplier',
                         default=10,
                         help='Basic model data multiplier (Default 10)')
