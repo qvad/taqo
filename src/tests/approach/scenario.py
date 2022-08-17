@@ -51,8 +51,10 @@ class ApproachTest(AbstractTest):
 
             # evaluate original query
             model = get_test_model()
-            created_tables = model.create_tables(conn, skip_analyze=True)
+            created_tables, model_queries = model.create_tables(conn, skip_analyze=True)
             queries_default = model.get_queries(created_tables)
+
+            self.report.report_model(model_queries)
 
             queries_default_plans = self.evaluate_queries_for_version(conn, queries_default)
 

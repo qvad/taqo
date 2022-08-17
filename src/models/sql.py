@@ -27,6 +27,7 @@ class SQLModel(QTFModel):
 
         self.generate_data()
 
+        model_queries = []
         with conn.cursor() as cur:
             if not self.config.skip_model_creation:
                 with open(f"sql/{self.config.model}/{file_name}.sql", "r") as create_sql:
@@ -36,11 +37,12 @@ class SQLModel(QTFModel):
                             if skip_analyze and 'analyze' in cleaned.lower():
                                 continue
 
+                            model_queries.append(cleaned)
                             evaluate_sql(cur, cleaned)
 
             self.load_tables_from_public(created_tables, cur)
 
-        return created_tables
+        return created_tables, model_queries
 
     def load_tables_from_public(self, created_tables, cur):
         self.logger.info("Loading tables...")

@@ -32,8 +32,9 @@ class TaqoTest(AbstractTest):
 
             # evaluate original query
             model = get_test_model()
-            created_tables = model.create_tables(conn)
+            created_tables, model_queries = model.create_tables(conn)
             queries = model.get_queries(created_tables)
+            self.report.report_model(model_queries)
 
             time.sleep(10)
 

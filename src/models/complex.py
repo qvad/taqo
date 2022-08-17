@@ -43,6 +43,7 @@ class ComplexModel(QTFModel):
         ["c_float", "c_decimal", "c_varchar"],
         ["c_float", "c_real", "c_money"],
     ]
+
     # IS NOT NULL
 
     def create_tables(self, conn, skip_analyze=False, db_prefix=None):
@@ -51,35 +52,36 @@ class ComplexModel(QTFModel):
 
         self.logger.info("Creating simple model tables and run analyze")
 
+        model_queries = []
         with conn.cursor() as cur:
             for table in tqdm(self.TABLES):
                 evaluate_sql(cur, f"DROP TABLE IF EXISTS {table.name} CASCADE")
-                evaluate_sql(
-                    cur,
-                    f"CREATE TABLE {table.name} AS "
-                    f"SELECT c_int, "
-                    f"(case when c_int % 2 = 0 then true else false end) as c_bool, "
-                    f"(c_int + 0.0001)::text as c_text, "
-                    f"(c_int + 0.0002)::varchar as c_varchar, "
-                    f"(c_int + 0.1)::decimal as c_decimal, "
-                    f"(c_int + 0.2)::float as c_float, "
-                    f"(c_int + 0.3)::real as c_real, "
-                    f"(c_int + 0.4)::money as c_money "
-                    f"FROM generate_Series(1,{table.size}) c_int;")
+                create_table = f"CREATE TABLE {table.name} AS " \
+                               f"SELECT c_int, " \
+                               f"(case when c_int % 2 = 0 then true else false end) as c_bool, " \
+                               f"(c_int + 0.0001)::text as c_text, " \
+                               f"(c_int + 0.0002)::varchar as c_varchar, " \
+                               f"(c_int + 0.1)::decimal as c_decimal, " \
+                               f"(c_int + 0.2)::float as c_float, " \
+                               f"(c_int + 0.3)::real as c_real, " \
+                               f"(c_int + 0.4)::money as c_money " \
+                               f"FROM generate_Series(1,{table.size}) c_int;"
+                evaluate_sql(cur, create_table)
 
+                model_queries.append(create_table)
                 for columns_list in self.INDEXED_AND_SELECTED:
                     joined_columns_list = ', '.join(columns_list)
                     hex_digest = hashlib.md5(joined_columns_list.encode()).hexdigest()
 
-                    evaluate_sql(
-                        cur,
-                        f"CREATE INDEX {table.name}_{hex_digest}_idx "
-                        f"ON {table.name}({joined_columns_list})")
+                    create_index = f"CREATE INDEX {table.name}_{hex_digest}_idx " \
+                                   f"ON {table.name}({joined_columns_list})"
+                    evaluate_sql(cur, create_index)
+                    model_queries.append(create_index)
 
                 if not skip_analyze:
                     evaluate_sql(cur, f"ANALYZE {table.name}")
 
-        return self.TABLES
+        return self.TABLES, model_queries
 
     def get_queries(self, tables):
         random.seed(self.config.random_seed)

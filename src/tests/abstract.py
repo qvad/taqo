@@ -6,7 +6,7 @@ import subprocess
 import time
 from abc import ABC
 from pathlib import Path
-
+from sql_formatter.core import format_sql
 from config import Config
 from db.yugabyte import factory
 
@@ -65,6 +65,13 @@ class Report:
         os.mkdir(f"report/{self.start_date}/imgs")
 
         self.logger.info(f"Created report folder for this run at 'report/{self.start_date}'")
+
+    def report_model(self, model_queries):
+        self._start_collapsible("Model queries")
+        self._start_source("sql")
+        self.report += "\n".join(f"{format_sql(model_queries)};")
+        self._end_source()
+        self._end_collapsible()
 
     def _add_double_newline(self):
         self.report += "\n\n"
