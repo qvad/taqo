@@ -34,7 +34,7 @@ class ComparisonReport(Report):
                 ratio = "{:.2f}".format(query[0].execution_time_ms / query[1].execution_time_ms if query[1].execution_time_ms != 0 else 0)
                 ratio_x3 = query[0].execution_time_ms / (3 * query[1].execution_time_ms) if query[1].execution_time_ms != 0 else 0
                 ratio_x3_str = "{:.2f}".format(query[0].execution_time_ms / (3 * query[1].execution_time_ms) if query[1].execution_time_ms != 0 else 0)
-                color = "[green]" if ratio_x3 <= 3.0 else "[red]"
+                color = "[green]" if ratio_x3 <= 1.0 else "[red]"
                 self.report += f"|{query[0].execution_time_ms}\n" \
                                f"|{query[1].execution_time_ms}\n" \
                                f"a|*{ratio}*\n" \
