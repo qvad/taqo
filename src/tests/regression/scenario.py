@@ -1,6 +1,7 @@
+from database import ListOfQueries, get_queries_from_previous_result, store_queries_to_file
 from models.factory import get_test_model
-from tests.regression.report import RegressionReport
 from tests.abstract import AbstractTest
+from tests.regression.report import RegressionReport
 from utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
 
 
@@ -11,7 +12,7 @@ class RegressionTest(AbstractTest):
         self.report = RegressionReport()
 
     def evaluate_queries_for_version(self, conn, queries):
-        version_queries = []
+        version_queries = ListOfQueries()
         with conn.cursor() as cur:
             counter = 1
             for first_version_query in queries:
@@ -53,42 +54,38 @@ class RegressionTest(AbstractTest):
             self.yugabyte.establish_connection()
             conn = self.yugabyte.connection.conn
 
-            with conn.cursor() as cur:
-                evaluate_sql(cur, 'SELECT VERSION();')
-                first_version = cur.fetchone()[0]
-                self.logger.info(f"Running regression test against {first_version}")
-
-            # evaluate original query
             model = get_test_model()
             created_tables, model_queries = model.create_tables(conn)
-            first_queries = model.get_queries(created_tables)
             self.report.report_model(model_queries)
+            if not self.config.previous_results_path:
+                with conn.cursor() as cur:
+                    evaluate_sql(cur, 'SELECT VERSION();')
+                    first_version = cur.fetchone()[0]
+                    self.logger.info(f"Running regression test against {first_version}")
 
-            first_version_queries = self.evaluate_queries_for_version(conn, first_queries)
+                first_queries = model.get_queries(created_tables)
+                first_version_queries = self.evaluate_queries_for_version(conn, first_queries)
+                first_version_queries.db_version = first_version
 
-            conn.close()
+                conn.close()
+            else:
+                first_version_queries = get_queries_from_previous_result(
+                    self.config.previous_results_path)
 
-            self.switch_version()
+                # reconnect
+                conn = self.evaluate_and_compare_with_second_version(created_tables,
+                                                                     first_version_queries,
+                                                                     model)
 
-            # reconnect
-            self.logger.info("Reconnecting to DB after upgrade")
-            self.yugabyte.establish_connection()
-            conn = self.yugabyte.connection.conn
+            if len(self.config.revisions_or_paths) == 2 and self.config.revisions_or_paths[1]:
+                self.switch_version()
 
-            second_queries = model.get_queries(created_tables)
-
-            with conn.cursor() as cur:
-                evaluate_sql(cur, 'SELECT VERSION();')
-                second_version = cur.fetchone()[0]
-                self.logger.info(f"Running regression test against {second_version}")
-
-            self.report.define_version(first_version, second_version)
-
-            second_version_queries = self.evaluate_queries_for_version(conn, second_queries)
-
-            for first_version_query, second_version_query in zip(first_version_queries,
-                                                                 second_version_queries):
-                self.report.add_query(first_version_query, second_version_query)
+                # reconnect
+                conn = self.evaluate_and_compare_with_second_version(created_tables,
+                                                                     first_version_queries,
+                                                                     model)
+            else:
+                store_queries_to_file(first_version_queries)
         finally:
             # publish current report
             self.report.build_report()
@@ -99,3 +96,24 @@ class RegressionTest(AbstractTest):
 
             # stop yugabyte
             self.stop_db()
+
+    def evaluate_and_compare_with_second_version(self, created_tables, first_version_queries,
+                                                 model):
+        self.logger.info("Reconnecting to DB after upgrade")
+        self.yugabyte.establish_connection()
+        conn = self.yugabyte.connection.conn
+
+        second_queries = model.get_queries(created_tables)
+        with conn.cursor() as cur:
+            evaluate_sql(cur, 'SELECT VERSION();')
+            second_version = cur.fetchone()[0]
+            self.logger.info(f"Running regression test against {second_version}")
+
+        self.report.define_version(first_version_queries.db_version, second_version)
+        second_version_queries = self.evaluate_queries_for_version(conn, second_queries)
+
+        for first_version_query, second_version_query in zip(first_version_queries.queries,
+                                                             second_version_queries.queries):
+            self.report.add_query(first_version_query, second_version_query)
+
+        return conn

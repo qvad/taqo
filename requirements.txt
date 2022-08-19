@@ -2,6 +2,7 @@ matplotlib
 psycopg2
 pyhocon
 tqdm
+dacite
 sqlparse
 sql_metadata
 sql_formatter

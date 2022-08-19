@@ -108,6 +108,5 @@ def allowed_diff(config, original_execution_time, optimization_execution_time):
     if optimization_execution_time <= 0:
         return False
 
-    return (
-                       abs(original_execution_time - optimization_execution_time) / optimization_execution_time) < \
+    return (abs(original_execution_time - optimization_execution_time) / optimization_execution_time) < \
            config.skip_percentage_delta

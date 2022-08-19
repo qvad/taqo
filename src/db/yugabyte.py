@@ -49,7 +49,7 @@ class Yugabyte(Postgres):
         pass
 
     def start_database(self):
-        pass
+        input("Upgrade target DB and press Enter to continue test...")
 
     def stop_database(self):
         pass

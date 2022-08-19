@@ -44,6 +44,7 @@ class Config(metaclass=Singleton):
     logger: logging.Logger = None
 
     yugabyte_code_path: str = None
+    previous_results_path: str = None
     revisions_or_paths: List[str] = None
 
     num_nodes: int = None
@@ -90,6 +91,7 @@ class Config(metaclass=Singleton):
                f"  Running '{self.test}' test on model '{self.model}'\n" + \
                f"  Repository code path '{self.yugabyte_code_path}', revisions to test {self.revisions_or_paths}\n" + \
                f"  Additional properties defined:\n" + \
+               f"    --previous_results_path: {self.previous_results_path}\n" + \
                f"    --num_nodes: {self.num_nodes} {build_param_skipped}\n" + \
                f"    --tserver_flags: {self.tserver_flags} {build_param_skipped}\n" + \
                f"    --master_flags: {self.master_flags} {build_param_skipped}\n" + \

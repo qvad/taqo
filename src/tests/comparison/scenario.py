@@ -1,3 +1,4 @@
+from database import ListOfQueries
 from db.postgres import Postgres
 from models.factory import get_test_model
 from tests.abstract import AbstractTest
@@ -13,7 +14,7 @@ class ComparisonTest(AbstractTest):
         self.postgres = Postgres(self.config)
 
     def evaluate_queries_for_version(self, conn, queries):
-        version_queries = []
+        version_queries = ListOfQueries()
         with conn.cursor() as cur:
             counter = 1
             for first_version_query in queries:
@@ -78,8 +79,8 @@ class ComparisonTest(AbstractTest):
 
             postgres_version_queries = self.evaluate_queries_for_version(conn, pg_queries)
 
-            for yb_version_query, pg_version_query in zip(yb_version_queries,
-                                                          postgres_version_queries):
+            for yb_version_query, pg_version_query in zip(yb_version_queries.queries,
+                                                          postgres_version_queries.queries):
                 self.report.add_query(yb_version_query, pg_version_query)
         finally:
             # publish current report

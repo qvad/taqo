@@ -23,6 +23,8 @@ if __name__ == "__main__":
     parser.add_argument('--model',
                         default="simple",
                         help='Test model to use - complex, tpch, subqueries, any other custom model')
+    parser.add_argument('--previous_results_path',
+                        help='Path to previous execution results. May be used in regression and comparison reports')
     parser.add_argument('--basic_multiplier',
                         default=10,
                         help='Basic model data multiplier (Default 10)')
@@ -108,6 +110,7 @@ if __name__ == "__main__":
 
         # configuration file properties
         yugabyte_code_path=args.yugabyte_code_path or configuration.get("yugabyte_code_path"),
+        previous_results_path=args.previous_results_path,
 
         num_nodes=int(args.num_nodes) or configuration.get("num_nodes", 3),
 
@@ -158,28 +161,12 @@ if __name__ == "__main__":
     config.logger.info("------------------------------------------------------------")
 
     if config.test == "taqo":
-        # noinspection Assert
-        assert len(config.revisions_or_paths) in {0,
-                                                  1}, "One or zero revisions must be defined for TAQO test"
-
         test = TaqoTest()
     elif config.test == "regression":
-        # noinspection Assert
-        assert len(
-            config.revisions_or_paths) == 2, "Exactly 2 revisions must be defined for regression test"
-
         test = RegressionTest()
     elif config.test == "comparison":
-        # noinspection Assert
-        assert len(config.revisions_or_paths) in {0,
-                                                  1}, "One or zero revisions must be defined for comparison test"
-
         test = ComparisonTest()
     elif config.test == "approach":
-        # noinspection Assert
-        assert len(config.revisions_or_paths) in {0,
-                                                  1}, "One or zero revisions must be defined for approach test"
-
         test = ApproachTest()
     else:
         raise AttributeError(f"Unknown test type defined {config.test}")

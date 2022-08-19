@@ -1,11 +1,14 @@
 import dataclasses
 import itertools
+import json
 import re
 from enum import Enum
 from typing import List, Dict
 
 import psycopg2
 from allpairspy import AllPairs
+from dacite import Config as DaciteConfig
+from dacite import from_dict
 
 from config import Config
 from utils import get_explain_clause, evaluate_sql
@@ -154,11 +157,11 @@ class Leading:
 
 @dataclasses.dataclass
 class Query:
-    tag: str = None
-    query: str = None
-    explain_hints: str = None
+    tag: str = ""
+    query: str = ""
+    explain_hints: str = ""
     tables: List[Table] = None
-    execution_plan: str = None
+    execution_plan: str = ""
     execution_plan_heatmap: Dict[int, Dict[str, str]] = None
     optimizer_score: float = 1
     optimizer_tips: QueryTips = None
@@ -226,6 +229,18 @@ class Optimization(Query):
         return f"EXPLAIN /*+ {self.explain_hints} */ {self.query}"
 
 
+@dataclasses.dataclass
+class ListOfQueries:
+    db_version: str = ""
+    queries: List[Query] = None
+
+    def append(self, new_element):
+        if not self.queries:
+            self.queries = [new_element, ]
+        else:
+            self.queries.append(new_element)
+
+
 class ListOfOptimizations:
     def __init__(self, config: Config, query: Query):
         self.query = query
@@ -282,3 +297,20 @@ class ListOfOptimizations:
                         break
 
         return skip_optimization
+
+
+class EnhancedJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if dataclasses.is_dataclass(o):
+            return dataclasses.asdict(o)
+        return super().default(o)
+
+
+def get_queries_from_previous_result(previous_execution_path):
+    with open(previous_execution_path, "r") as prev_result:
+        return from_dict(ListOfQueries, json.load(prev_result), DaciteConfig(check_types=False))
+
+
+def store_queries_to_file(queries):
+    with open("report/output.json", "w") as result_file:
+        result_file.write(json.dumps(queries, cls=EnhancedJSONEncoder))

@@ -1,4 +1,4 @@
-from database import ENABLE_STATISTICS_HINT
+from database import ENABLE_STATISTICS_HINT, ListOfQueries
 from models.factory import get_test_model
 from tests.abstract import AbstractTest
 from tests.approach.report import ApproachReport
@@ -12,7 +12,7 @@ class ApproachTest(AbstractTest):
         self.report = ApproachReport()
 
     def evaluate_queries_for_version(self, conn, queries):
-        version_queries = []
+        version_queries = ListOfQueries()
         with conn.cursor() as cur:
             counter = 1
             for query in queries:
@@ -74,8 +74,10 @@ class ApproachTest(AbstractTest):
             queries_all = model.get_queries(created_tables)
             queries_all_plans = self.evaluate_queries_for_version(conn, queries_all)
 
-            for query_id in range(len(queries_default_plans)):
-                self.report.add_query(queries_default_plans[query_id], queries_analyze_plans[query_id], queries_all_plans[query_id])
+            for query_id in range(len(queries_default_plans.queries)):
+                self.report.add_query(queries_default_plans.queries[query_id],
+                                      queries_analyze_plans.queries[query_id],
+                                      queries_all_plans.queries[query_id])
         finally:
             # publish current report
             self.report.build_report()
