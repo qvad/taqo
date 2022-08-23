@@ -1,5 +1,4 @@
 import hashlib
-import itertools
 import math
 
 from matplotlib import pyplot as plt
@@ -25,26 +24,36 @@ class TaqoReport(Report):
                          if q and
                          q.optimizer_score is not None
                          and q.execution_time_ms != 0]
+        optimizations.sort(key=lambda q: q.execution_time_ms)
 
         try:
-            a_best = max(op.execution_time_ms for op in optimizations)
-            e_best = max(op.optimizer_score for op in optimizations)
+            e_max = max(op.optimizer_score for op in optimizations)
+            e_diff = e_max - min(op.optimizer_score for op in optimizations)
 
-            a_diff = a_best - min(op.execution_time_ms for op in optimizations)
-            e_diff = e_best - min(op.optimizer_score for op in optimizations)
+            if e_diff == 0:
+                e_diff = 0.01
 
-            score = sum(
-                (pi.execution_time_ms / a_best) *
-                (pj.execution_time_ms / a_best) *
-                math.sqrt(((pj.execution_time_ms - pi.execution_time_ms) / a_diff) ** 2 +
-                          ((pj.optimizer_score - pi.optimizer_score) / e_diff) ** 2) *
-                math.copysign(1, (pj.optimizer_score - pi.optimizer_score))
-                for pi, pj in list(itertools.combinations(optimizations, 2)))
+            a_max = max(op.execution_time_ms for op in optimizations)
+            a_best = min(op.execution_time_ms for op in optimizations)
+            a_diff = a_max - a_best
+
+            score = 0
+            for i in range(2, len(optimizations) - 1):
+                for j in range(1, i):
+                    pi = optimizations[j]
+                    pj = optimizations[i]
+                    score += (a_best / pi.execution_time_ms) * \
+                             (a_best/ pj.execution_time_ms) * \
+                             math.sqrt(
+                                 ((pj.execution_time_ms - pi.execution_time_ms) / a_diff) ** 2 + \
+                                 ((pj.optimizer_score - pi.optimizer_score) / e_diff) ** 2) * \
+                             math.copysign(1, (pj.optimizer_score - pi.optimizer_score))
         except InterruptedError as ie:
             raise ie
         except Exception:
             self.logger.debug("Failed to calculate score, setting TAQO score as 0.0")
             return 0.0
+        print("{:.2f}".format(score))
 
         return "{:.2f}".format(score)
 
@@ -103,7 +112,8 @@ class TaqoReport(Report):
         if add_to_report := "".join(
                 f"`{optimization.explain_hints}`\n\n"
                 for optimization in query.optimizations
-                if allowed_diff(self.config, best_optimization.execution_time_ms, optimization.execution_time_ms)):
+                if allowed_diff(self.config, best_optimization.execution_time_ms,
+                                optimization.execution_time_ms)):
             self._start_collapsible("All best optimization hints")
             self.report += add_to_report
             self._end_collapsible()
@@ -125,10 +135,12 @@ class TaqoReport(Report):
 
             if row['weight'] == best_decision:
                 result = self.fix_last_newline_in_result(result, rows)
-                result += "\n".join([f"+{line}" for line_id, line in enumerate(rows) if line_id != (len(rows) - 1)]) + f"\n{rows[-1]}"
+                result += "\n".join([f"+{line}" for line_id, line in enumerate(rows) if
+                                     line_id != (len(rows) - 1)]) + f"\n{rows[-1]}"
             elif row['weight'] == 0:
                 result = self.fix_last_newline_in_result(result, rows)
-                result += "\n".join([f"-{line}" for line_id, line in enumerate(rows) if line_id != (len(rows) - 1)]) + f"\n{rows[-1]}"
+                result += "\n".join([f"-{line}" for line_id, line in enumerate(rows) if
+                                     line_id != (len(rows) - 1)]) + f"\n{rows[-1]}"
             else:
                 result += f"{row['str']}"
 
@@ -191,8 +203,8 @@ class TaqoReport(Report):
         if self.config.compare_with_pg:
             self.report += \
                 f"[red]#Result hash#: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best) vs `{query.postgres_query.result_hash}` (pg)" \
-                if query.postgres_query.result_hash != query.result_hash else \
-                f"Result hash: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best) vs `{query.postgres_query.result_hash}` (pg)"
+                    if query.postgres_query.result_hash != query.result_hash else \
+                    f"Result hash: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best) vs `{query.postgres_query.result_hash}` (pg)"
         elif best_optimization.result_hash != query.result_hash:
             self.report += f"[red]#Result hash#: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best)"
         else:
