@@ -10,7 +10,7 @@ CREATE TABLE t1(k1 int,
                 v2 text,
                 PRIMARY KEY(k1, k2));
 CREATE INDEX ON t1(v1, k2);
-COPY t1 FROM '$DATA_PATH/data/t1.csv' DELIMITER ',';
+COPY t1 FROM '$DATA_PATH/data/t1.csv' with (delimiter ',', FORMAT csv, NULL 'NULL');
 
 CREATE TABLE t2(k1 int,
                 k2 text,
@@ -18,7 +18,7 @@ CREATE TABLE t2(k1 int,
                 v2 text,
                 PRIMARY KEY(k1, k2));
 CREATE INDEX ON t2(v1, k2);
-COPY t2 FROM '$DATA_PATH/data/t2.csv' DELIMITER ',';
+COPY t2 FROM '$DATA_PATH/data/t2.csv' with (delimiter ',', FORMAT csv, NULL 'NULL');
 
 CREATE TABLE t3(k1 int,
                 k2 text,
@@ -26,7 +26,7 @@ CREATE TABLE t3(k1 int,
                 v2 text,
                 PRIMARY KEY(k1, k2));
 CREATE INDEX ON t3(v1, k2);
-COPY t3 FROM '$DATA_PATH/data/t3.csv' DELIMITER ',';
+COPY t3 FROM '$DATA_PATH/data/t3.csv' with (delimiter ',', FORMAT csv, NULL 'NULL');
 
 CREATE TABLE ts2(k1 int,
                  k2 text,
@@ -34,7 +34,7 @@ CREATE TABLE ts2(k1 int,
                  v2 text,
                  PRIMARY KEY(k1, k2));
 CREATE INDEX ON ts2(v1, k2);
-COPY ts2 FROM '$DATA_PATH/data/ts2.csv' DELIMITER ',';
+COPY ts2 FROM '$DATA_PATH/data/ts2.csv' with (delimiter ',', FORMAT csv, NULL 'NULL');
 
 CREATE TABLE ts3(k1 int,
                  k2 text,
@@ -42,4 +42,4 @@ CREATE TABLE ts3(k1 int,
                  v2 text,
                  PRIMARY KEY(k1, k2));
 CREATE INDEX ON ts3(v1, k2);
-COPY ts3 FROM '$DATA_PATH/data/ts3.csv' DELIMITER ',';
+COPY ts3 FROM '$DATA_PATH/data/ts3.csv' with (delimiter ',', FORMAT csv, NULL 'NULL');

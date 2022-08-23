@@ -195,14 +195,34 @@ class BasicOpsModel(SQLModel):
             self.logger.warn("Model files already presented, skipping ts2.csv")
         else:
             with open(f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data/ts2.csv", "w") as ts2_file:
-                for i in tqdm(range(20_000 * self.config.basic_multiplier)):
+                for i in tqdm(range(17_000 * self.config.basic_multiplier)):
                     ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
                     ts2_file.write(f"{i},k2-{i},{i},{ng_string}\n")
+
+                for i in tqdm(range(17_000 * self.config.basic_multiplier, 18_000 * self.config.basic_multiplier)):
+                    ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+                    ts2_file.write(f"{i},k2-{i},NULL,{ng_string}\n")
+
+                for i in tqdm(range(18_000 * self.config.basic_multiplier, 19_000 * self.config.basic_multiplier)):
+                    ts2_file.write(f"{i},k2-{i},{i},NULL\n")
+
+                for i in tqdm(range(19_000 * self.config.basic_multiplier, 20_000 * self.config.basic_multiplier)):
+                    ts2_file.write(f"{i},k2-{i},NULL,NULL\n")
 
         if exists(f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data/ts3.csv"):
             self.logger.warn("Model files already presented, skipping ts3.csv")
         else:
             with open(f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data/ts3.csv", "w") as ts3_file:
-                for i in tqdm(range(5_000 * self.config.basic_multiplier)):
+                for i in tqdm(range(2_000 * self.config.basic_multiplier)):
                     ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
                     ts3_file.write(f"{i},k2-{i},{i},{ng_string}\n")
+
+                for i in tqdm(range(2_000 * self.config.basic_multiplier, 3_000 * self.config.basic_multiplier)):
+                    ng_string = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+                    ts3_file.write(f"{i},k2-{i},NULL,{ng_string}\n")
+
+                for i in tqdm(range(3_000 * self.config.basic_multiplier, 4_000 * self.config.basic_multiplier)):
+                    ts3_file.write(f"{i},k2-{i},{i},NULL\n")
+
+                for i in tqdm(range(4_000 * self.config.basic_multiplier, 5_000 * self.config.basic_multiplier)):
+                    ts3_file.write(f"{i},k2-{i},NULL,NULL\n")

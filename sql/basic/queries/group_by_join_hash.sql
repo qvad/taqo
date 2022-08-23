@@ -1,4 +1,4 @@
-SELECT t1.k1, t1.k2, t2.v1, t2.v2 FROM t1 JOIN t2 ON t1.v1 = t2.v1 WHERE t1.k1 >= 81800 AND t1.k1 < 81900 AND t2.k1 >= 81800 AND t2.k1 < 81900 GROUP BY t1.k1, t1.k2, t2.v1, t2.v2;
-SELECT t1.k1, t1.k2, t2.v1, t2.v2 FROM t1 JOIN t2 ON t1.v1 = t2.v1 WHERE t1.k1 >= 81000 AND t1.k1 < 81900 AND t2.k1 >= 81800 AND t2.k1 < 84000 GROUP BY t1.k1, t1.k2, t2.v1, t2.v2;
-SELECT ts2.k1, ts2.k2, ts3.v1, ts3.v2 FROM ts2 JOIN ts3 ON ts2.v1 = ts3.v1 WHERE ts2.k1 >= 171800 AND ts2.k1 < 171900 AND ts3.k1 >= 21800 AND ts3.k1 < 21900 GROUP BY ts2.k1, ts2.k2, ts3.v1, ts3.v2;
-SELECT ts2.k1, ts2.k2, ts3.v1, ts3.v2 FROM ts2 JOIN ts3 ON ts2.v1 = ts3.v1 WHERE ts2.k1 >= 171000 AND ts2.k1 < 171900 AND ts3.k1 >= 21800 AND ts3.k1 < 24000 GROUP BY ts2.k1, ts2.k2, ts3.v1, ts3.v2;
+SELECT t1.k1, t1.k2, t2.v1, t2.v2 FROM t1 JOIN t2 ON t1.v1 = t2.v1 WHERE t1.k1 >= 8180 AND t1.k1 < 8190 AND t2.k1 >= 8180 AND t2.k1 < 8190 GROUP BY t1.k1, t1.k2, t2.v1, t2.v2;
+SELECT t1.k1, t1.k2, t2.v1, t2.v2 FROM t1 JOIN t2 ON t1.v1 = t2.v1 WHERE t1.k1 >= 8100 AND t1.k1 < 8190 AND t2.k1 >= 8180 AND t2.k1 < 8400 GROUP BY t1.k1, t1.k2, t2.v1, t2.v2;
+SELECT ts2.k1, ts2.k2, ts3.v1, ts3.v2 FROM ts2 JOIN ts3 ON ts2.v1 = ts3.v1 WHERE ts2.k1 >= 17180 AND ts2.k1 < 17190 AND ts3.k1 >= 2180 AND ts3.k1 < 2190 GROUP BY ts2.k1, ts2.k2, ts3.v1, ts3.v2;
+SELECT ts2.k1, ts2.k2, ts3.v1, ts3.v2 FROM ts2 JOIN ts3 ON ts2.v1 = ts3.v1 WHERE ts2.k1 >= 17100 AND ts2.k1 < 17190 AND ts3.k1 >= 2180 AND ts3.k1 < 2400 GROUP BY ts2.k1, ts2.k2, ts3.v1, ts3.v2;
