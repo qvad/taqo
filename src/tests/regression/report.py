@@ -10,49 +10,61 @@ class RegressionReport(Report):
     def __init__(self):
         super().__init__()
 
-        self.same_execution_plan = []
-        self.improved_execution_time = []
-        self.worse_execution_time = []
+        self.queries = {}
 
     def define_version(self, first_version, second_version):
         self.report += f"[VERSION]\n====\nFirst:\n{first_version}\n\nSecond:\n{second_version}\n====\n\n"
 
     def add_query(self, first_query: Query, second_query: Query):
-        if first_query.compare_plans(second_query.execution_plan):
-            self.same_execution_plan.append([first_query, second_query])
-        elif first_query.execution_time_ms > second_query.execution_time_ms:
-            self.improved_execution_time.append([first_query, second_query])
+        if first_query.tag not in self.queries:
+            self.queries[first_query.tag] = [[first_query, second_query], ]
         else:
-            self.worse_execution_time.append([first_query, second_query])
+            self.queries[first_query.tag].append([first_query, second_query])
 
     def build_report(self):
         # link to top
-        self.report += "\n[#top]\n== All results by analysis type\n"
+        self.report += "\n[#top]\n== Summary\n"
+
+        num_columns = 4
+        self._start_table("1,1,1,4")
+        self.report += "|First|Second|Ratio|Query\n"
+        for tag, queries in self.queries.items():
+            self.report += f"{num_columns}+m|{tag}.sql\n"
+            for query in queries:
+                same_plan = query[0].compare_plans(query[1].execution_plan)
+                color = "[green]" if same_plan else "[orange]"
+                ratio = "{:.2f}".format(query[0].execution_time_ms / query[1].execution_time_ms if query[1].execution_time_ms != 0 else 0)
+                self.report += f"|{query[0].execution_time_ms}\n" \
+                               f"|{query[1].execution_time_ms}\n" \
+                               f"a|{color}#*{ratio}*#\n"
+                hexdigest = hashlib.md5(query[0].query.encode('utf-8')).hexdigest()
+                self.report += f"a|[#{hexdigest}_top]\n<<{hexdigest}>>\n"
+                self._start_source(["sql"])
+                self.report += format_sql(query[1].query.replace("|", "\|"))
+                self._end_source()
+                self.report += "\n"
+                self._end_table_row()
+        self._end_table()
+
         # different results links
-        self.report += "\n<<worse>>\n"
-        self.report += "\n<<improved>>\n"
-        self.report += "\n<<same>>\n"
+        for tag in self.queries.keys():
+            self.report += f"\n<<{tag}>>\n"
 
-        self.report += f"\n[#worse]\n== Worse execution time queries ({len(self.worse_execution_time)})\n\n"
-        for query in self.worse_execution_time:
-            self.__report_query(query[0], query[1])
-
-        self.report += f"\n[#improved]\n== Improved execution time ({len(self.improved_execution_time)})\n\n"
-        for query in self.improved_execution_time:
-            self.__report_query(query[0], query[1])
-
-        self.report += f"\n[#same]\n\n== Same execution plan ({len(self.same_execution_plan)})\n\n"
-        for query in self.same_execution_plan:
-            self.__report_query(query[0], query[1])
+        for tag, queries in self.queries.items():
+            self.report += f"\n[#{tag}]\n== {tag} queries file\n\n"
+            for query in queries:
+                self.__report_query(query[0], query[1])
 
     # noinspection InsecureHash
     def __report_query(self, first_query: Query, second_query: Query):
         self.reported_queries_counter += 1
         query_hash = hashlib.md5(first_query.query.encode('utf-8')).hexdigest()
 
+        self.report += f"\n[#{query_hash}]\n"
         self.report += f"=== Query {query_hash}"
         self.report += f"\n{first_query.tag}\n"
         self.report += "\n<<top,Go to top>>\n"
+        self.report += f"\n<<{query_hash}_top,Show in summary>>\n"
         self._add_double_newline()
 
         self._start_source(["sql"])
