@@ -17,7 +17,7 @@
     1. [Configuration (TODO)](#configuration-todo)
     2. [Runner (TODO)](#runner-todo)
 
-# Query Optimizer Testing Framework <a name="query-optimizer-testing-framework"></a>
+# Query Optimizer Testing Framework
 
 Idea of framework is to provide semi-automated tests that may help in testing and validating query
 optimizer current performance and changes. Main goal is to provide human readable reports and
@@ -25,6 +25,7 @@ probably automate some checks.
 
 There are 2 main essences in the framework - *Model* and *Test/Report*.
 
+----
 ## Model
 
 Model is a set of DDLs that define the model and select queries that need to be tested
@@ -50,13 +51,14 @@ test all problems should be visible. See `sql/basic/*` structure.
 
 #### Complex model
 
-Generated queries that focus on testing different Joins.
+Generated queries that focus on testing different Joins. See `src/models/complex.py`
 
 #### ClickBench OLAP model
 
-Model based on ClickBench.
+Model based on ClickBench. See `sql/clickbench/**`
 
-## Tests <a name="tests"></a>
+----
+## Tests
 
 Tests are a sequence of following actions: creating tables (if needed), running queries, collecting
 results, evaluating a few automated checks and then finally generating a report in ASCIIDOC format (
@@ -131,8 +133,9 @@ Scenario:
 
 ### Custom tests
 
-Basically any set of actions and checks can be implemented here
+Any custom report and test can be implemented here - comparison with other DBs, validate specific flags etc.
 
+----
 # Setup
 
 Install Python dependencies `pip install -r requirements.txt` and setup you SUT database.
@@ -145,6 +148,8 @@ should be `/opt/homebrew/bin/asciidoctor`. Note that `asciidoc` and `asciidoctor
 projects!
 
 For proper syntax highlight `coderay` must be installed by `gem install coderay`
+
+----
 
 # Runner and configuration
 
