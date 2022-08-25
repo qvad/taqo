@@ -1,4 +1,23 @@
-# Query Optimizer Testing Framework
+# Table of Contents
+
+1. [Query Optimizer Testing Framework](#query-optimizer-testing-framework)
+2. [Model](#model)
+    1. [SQL model](#sql-model)
+    2. [Basic SQL model](#basic-sql-model)
+    3. [Other models](#other-models)
+        1. [Complex model](#complex-model)
+        2. [ClickBench OLAP model](#clickbench-olap-model)
+3. [Tests](#tests)
+    1. [TAQO-inspired test](#taqo-inspired-test)
+    1. [Regression test](#regression-test)
+    1. [Custom tests](#custom-tests)
+4. [Setup](#setup)
+    1. [Additional dependencies](#additional-dependencies)
+5. [Runner and configuration](#runner-and-configuration)
+    1. [Configuration (TODO)](#configuration-todo)
+    2. [Runner (TODO)](#runner-todo)
+
+# Query Optimizer Testing Framework <a name="query-optimizer-testing-framework"></a>
 
 Idea of framework is to provide semi-automated tests that may help in testing and validating query
 optimizer current performance and changes. Main goal is to provide human readable reports and
@@ -37,7 +56,7 @@ Generated queries that focus on testing different Joins.
 
 Model based on ClickBench.
 
-## Tests
+## Tests <a name="tests"></a>
 
 Tests are a sequence of following actions: creating tables (if needed), running queries, collecting
 results, evaluating a few automated checks and then finally generating a report in ASCIIDOC format (
@@ -166,7 +185,7 @@ look_near_best_plan = true # evaluate only queries that are near current best op
 
 ```
 
-## Runner help (TODO)
+## Runner (TODO)
 
 ```
 usage: runner.py [-h] [--config CONFIG] [--test TEST] [--model MODEL]
