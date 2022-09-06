@@ -25,12 +25,22 @@ class AbstractTest(ABC):
         self.logger.info("Starting Yugabyte DB")
 
         self.yugabyte = factory(self.config)
+
         self.yugabyte.change_version_and_compile(self.config.revisions_or_paths[0]
                                                  if len(self.config.revisions_or_paths) > 0
                                                  else None)
         self.yugabyte.stop_database()
         self.yugabyte.destroy()
         self.yugabyte.start_database()
+
+        return self.get_commit_message(self.config.revisions_or_paths[0])
+
+    def get_commit_message(self, commit_hash):
+        output = str(subprocess.check_output(
+            f"echo `git log -n 1 --pretty=format:%s {commit_hash}`",
+            cwd=self.config.yugabyte_code_path,
+            shell=True)).rstrip('\n')
+        return f"{output} ({commit_hash})" if self.config.revisions_or_paths[0] else ""
 
     def stop_db(self):
         self.yugabyte.stop_database()

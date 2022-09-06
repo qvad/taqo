@@ -13,7 +13,7 @@ class RegressionReport(Report):
         self.queries = {}
 
     def define_version(self, first_version, second_version):
-        self.report += f"[VERSION]\n====\nFirst:\n{first_version}\n\nSecond:\n{second_version}\n====\n\n"
+        self.report += f"[GIT COMMIT/VERSION]\n====\nFirst:\n{first_version}\n\nSecond:\n{second_version}\n====\n\n"
 
     def add_query(self, first_query: Query, second_query: Query):
         if first_query.tag not in self.queries:
@@ -23,22 +23,43 @@ class RegressionReport(Report):
 
     def build_report(self):
         # link to top
-        self.report += "\n[#top]\n== Summary\n"
+        self.report += "\n[#tags_summary]\n== Tags summary with number of changed plans (by query file name)\n"
 
+        self._start_table("2")
+        for tag, queries in self.queries.items():
+            num_same_plans = sum(1 for query in queries
+                                 if query[0].compare_plans(query[1].execution_plan))
+            self.report += f"a|<<{tag}>>\n"
+            num_changed_plans = len(queries) - num_same_plans
+            color = "[green]" if num_changed_plans == 0 else "[orange]"
+            self.report += f"a|{color}#*{len(queries) - num_same_plans}*#\n"
+            self._end_table_row()
+        self._end_table()
+
+        self.report += "\n[#query_summary]\n== Query Summary\n"
         num_columns = 4
         self._start_table("1,1,1,4")
-        self.report += "|First|Second|Ratio|Query\n"
+        self.report += "|First|Second|Ratio (Second/First)|Query\n"
         for tag, queries in self.queries.items():
             self.report += f"{num_columns}+m|{tag}.sql\n"
-            for query in queries:
+            for query_id, query in enumerate(queries):
                 same_plan = query[0].compare_plans(query[1].execution_plan)
                 color = "[green]" if same_plan else "[orange]"
-                ratio = "{:.2f}".format(query[0].execution_time_ms / query[1].execution_time_ms if query[1].execution_time_ms != 0 else 0)
-                self.report += f"|{query[0].execution_time_ms}\n" \
+                ratio = "{:.2f}".format(
+                    query[1].execution_time_ms / query[0].execution_time_ms
+                    if query[0].execution_time_ms != 0 else 0)
+
+                # insert anchor to the first query in file
+                self.report += "a|"
+                if query_id == 0:
+                    self.report += f"[#{tag}]\n"
+
+                # append all query stats
+                self.report += f"{query[0].execution_time_ms}\n" \
                                f"|{query[1].execution_time_ms}\n" \
                                f"a|{color}#*{ratio}*#\n"
                 hexdigest = hashlib.md5(query[0].query.encode('utf-8')).hexdigest()
-                self.report += f"a|[#{hexdigest}_top]\n<<{hexdigest}>>\n"
+                self.report += f"a|[#{hexdigest}_query]\n<<tags_summary, Go to tags summary>>\n\n<<{hexdigest}>>\n"
                 self._start_source(["sql"])
                 self.report += format_sql(query[1].query.replace("|", "\|"))
                 self._end_source()
@@ -46,12 +67,8 @@ class RegressionReport(Report):
                 self._end_table_row()
         self._end_table()
 
-        # different results links
-        for tag in self.queries.keys():
-            self.report += f"\n<<{tag}>>\n"
-
         for tag, queries in self.queries.items():
-            self.report += f"\n[#{tag}]\n== {tag} queries file\n\n"
+            self.report += f"\n== {tag} queries file\n\n"
             for query in queries:
                 self.__report_query(query[0], query[1])
 
@@ -62,9 +79,10 @@ class RegressionReport(Report):
 
         self.report += f"\n[#{query_hash}]\n"
         self.report += f"=== Query {query_hash}"
-        self.report += f"\n{first_query.tag}\n"
-        self.report += "\n<<top,Go to top>>\n"
-        self.report += f"\n<<{query_hash}_top,Show in summary>>\n"
+        self.report += f"\nTags: `{first_query.tag}`\n"
+        self.report += "\n<<tags_summary,Go to tags summary>>\n"
+        self.report += "\n<<query_summary,Go to query summary>>\n"
+        self.report += f"\n<<{query_hash}_query,Show in query summary>>\n"
         self._add_double_newline()
 
         self._start_source(["sql"])

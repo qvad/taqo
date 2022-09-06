@@ -45,8 +45,10 @@ class RegressionTest(AbstractTest):
         self.yugabyte.start_database()
         self.yugabyte.call_upgrade_ysql()
 
+        return self.get_commit_message(self.config.revisions_or_paths[1])
+
     def evaluate(self):
-        self.start_db()
+        first_commit_message = self.start_db()
 
         conn = None
 
@@ -66,6 +68,7 @@ class RegressionTest(AbstractTest):
                 first_queries = model.get_queries(created_tables)
                 first_version_queries = self.evaluate_queries_for_version(conn, first_queries)
                 first_version_queries.db_version = first_version
+                first_version_queries.git_message = first_commit_message
 
                 conn.close()
             else:
@@ -78,11 +81,12 @@ class RegressionTest(AbstractTest):
                                                                      model)
 
             if len(self.config.revisions_or_paths) == 2 and self.config.revisions_or_paths[1]:
-                self.switch_version()
+                second_commit_message = self.switch_version()
 
                 # reconnect
                 conn = self.evaluate_and_compare_with_second_version(created_tables,
                                                                      first_version_queries,
+                                                                     second_commit_message,
                                                                      model)
             else:
                 store_queries_to_file(first_version_queries)
@@ -97,7 +101,10 @@ class RegressionTest(AbstractTest):
             # stop yugabyte
             self.stop_db()
 
-    def evaluate_and_compare_with_second_version(self, created_tables, first_version_queries,
+    def evaluate_and_compare_with_second_version(self,
+                                                 created_tables,
+                                                 first_version_queries,
+                                                 second_commit_message,
                                                  model):
         self.logger.info("Reconnecting to DB after upgrade")
         self.yugabyte.establish_connection()
@@ -109,7 +116,11 @@ class RegressionTest(AbstractTest):
             second_version = cur.fetchone()[0]
             self.logger.info(f"Running regression test against {second_version}")
 
-        self.report.define_version(first_version_queries.db_version, second_version)
+        if first_version_queries.git_message and second_commit_message:
+            self.report.define_version(first_version_queries.git_message, second_commit_message)
+        else:
+            self.report.define_version(first_version_queries.db_version, second_version)
+
         second_version_queries = self.evaluate_queries_for_version(conn, second_queries)
 
         for first_version_query, second_version_query in zip(first_version_queries.queries,

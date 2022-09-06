@@ -1,5 +1,3 @@
-DROP TABLE IF EXISTS hits;
-
 CREATE TABLE hits
 (
     WatchID BIGINT NOT NULL,
@@ -109,5 +107,3 @@ CREATE TABLE hits
     CLID INTEGER NOT NULL,
     PRIMARY KEY (CounterID, EventDate, UserID, EventTime, WatchID)
 );
-
-COPY hits TO '/path/hits_10m.csv';

@@ -232,6 +232,7 @@ class Optimization(Query):
 @dataclasses.dataclass
 class ListOfQueries:
     db_version: str = ""
+    git_message: str = ""
     queries: List[Query] = None
 
     def append(self, new_element):
