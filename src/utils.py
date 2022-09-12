@@ -29,7 +29,7 @@ def get_result_hashsum(cur):
         for column_value in row:
             str_result += f"{str(column_value)}"
 
-    return hashlib.md5(str_result.encode()).hexdigest()
+    return get_md5(str_result)
 
 
 def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 0):
@@ -110,3 +110,7 @@ def allowed_diff(config, original_execution_time, optimization_execution_time):
 
     return (abs(original_execution_time - optimization_execution_time) / optimization_execution_time) < \
            config.skip_percentage_delta
+
+
+def get_md5(string: str):
+    return str(hashlib.md5(string.get_clean_plan().query.encode('utf-8')).hexdigest())

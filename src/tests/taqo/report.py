@@ -6,7 +6,7 @@ from sql_formatter.core import format_sql
 
 from database import Query
 from tests.abstract import Report
-from utils import allowed_diff
+from utils import allowed_diff, get_md5
 
 
 class TaqoReport(Report):
@@ -43,7 +43,7 @@ class TaqoReport(Report):
                     pi = optimizations[j]
                     pj = optimizations[i]
                     score += (a_best / pi.execution_time_ms) * \
-                             (a_best/ pj.execution_time_ms) * \
+                             (a_best / pj.execution_time_ms) * \
                              math.sqrt(
                                  ((pj.execution_time_ms - pi.execution_time_ms) / a_diff) ** 2 + \
                                  ((pj.optimizer_score - pi.optimizer_score) / e_diff) ** 2) * \
@@ -154,7 +154,8 @@ class TaqoReport(Report):
         self._end_source()
         self._end_collapsible()
 
-    def fix_last_newline_in_result(self, result, rows):
+    @staticmethod
+    def fix_last_newline_in_result(result, rows):
         if result:
             splitted_result = result.split("\n")
             result = "\n".join(splitted_result[:-1])
@@ -168,7 +169,7 @@ class TaqoReport(Report):
         best_optimization = query.get_best_optimization()
 
         self.reported_queries_counter += 1
-        query_hash = hashlib.md5(query.query.encode('utf-8')).hexdigest()
+        query_hash = get_md5(query.query)
 
         self.report += f"=== Query {query_hash} " \
                        f"(TAQO efficiency - {self.calculate_score(query.optimizations)})"

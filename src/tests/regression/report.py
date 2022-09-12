@@ -4,6 +4,7 @@ from sql_formatter.core import format_sql
 
 from database import Query
 from tests.abstract import Report
+from utils import get_md5
 
 
 class RegressionReport(Report):
@@ -75,7 +76,7 @@ class RegressionReport(Report):
     # noinspection InsecureHash
     def __report_query(self, first_query: Query, second_query: Query):
         self.reported_queries_counter += 1
-        query_hash = hashlib.md5(first_query.query.encode('utf-8')).hexdigest()
+        query_hash = get_md5(first_query.query)
 
         self.report += f"\n[#{query_hash}]\n"
         self.report += f"=== Query {query_hash}"

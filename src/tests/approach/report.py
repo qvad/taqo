@@ -4,7 +4,7 @@ from sql_formatter.core import format_sql
 
 from database import Query
 from tests.abstract import Report
-from utils import allowed_diff
+from utils import allowed_diff, get_md5
 
 
 class ApproachReport(Report):
@@ -54,7 +54,7 @@ class ApproachReport(Report):
     # noinspection InsecureHash
     def __report_query(self, default: Query, analyze: Query, all: Query):
         self.reported_queries_counter += 1
-        query_hash = hashlib.md5(default.query.encode('utf-8')).hexdigest()
+        query_hash = get_md5(default.query)
 
         self.report += f"=== Query {query_hash}"
         self.report += f"\n{default.tag}\n"

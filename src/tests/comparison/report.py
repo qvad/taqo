@@ -4,6 +4,7 @@ from sql_formatter.core import format_sql
 
 from database import Query
 from tests.abstract import Report
+from utils import get_md5
 
 
 class ComparisonReport(Report):
@@ -39,7 +40,7 @@ class ComparisonReport(Report):
                                f"|{query[1].execution_time_ms}\n" \
                                f"a|*{ratio}*\n" \
                                f"a|{color}#*{ratio_x3_str}*#\n"
-                hexdigest = hashlib.md5(query[0].query.encode('utf-8')).hexdigest()
+                hexdigest = get_md5(query[0].query)
                 self.report += f"a|[#{hexdigest}_top]\n<<{hexdigest}>>\n"
                 self._start_source(["sql"])
                 self.report += format_sql(query[1].query.replace("|", "\|"))
@@ -60,7 +61,7 @@ class ComparisonReport(Report):
     # noinspection InsecureHash
     def __report_query(self, yb_query: Query, pg_query: Query):
         self.reported_queries_counter += 1
-        query_hash = hashlib.md5(yb_query.query.encode('utf-8')).hexdigest()
+        query_hash = get_md5(yb_query.query)
 
         self.report += f"\n[#{query_hash}]\n"
         self.report += f"=== Query {query_hash}"

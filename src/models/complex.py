@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from database import Query, Table, Field
 from models.abstract import QTFModel, QueryJoins
-from utils import evaluate_sql
+from utils import evaluate_sql, get_md5
 
 
 class ComplexModel(QTFModel):
@@ -71,7 +71,7 @@ class ComplexModel(QTFModel):
                 model_queries.append(create_table)
                 for columns_list in self.INDEXED_AND_SELECTED:
                     joined_columns_list = ', '.join(columns_list)
-                    hex_digest = hashlib.md5(joined_columns_list.encode()).hexdigest()
+                    hex_digest = get_md5(joined_columns_list)
 
                     create_index = f"CREATE INDEX {table.name}_{hex_digest}_idx " \
                                    f"ON {table.name}({joined_columns_list})"

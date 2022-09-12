@@ -1,3 +1,4 @@
+import hashlib
 import time
 from difflib import SequenceMatcher
 
@@ -11,7 +12,7 @@ from models.factory import get_test_model
 from tests.abstract import AbstractTest
 from tests.taqo.report import TaqoReport
 from utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql, \
-    allowed_diff
+    allowed_diff, get_md5
 
 
 class TaqoTest(AbstractTest):
@@ -140,6 +141,7 @@ class TaqoTest(AbstractTest):
         num_skipped = 0
         min_execution_time = original_query.execution_time_ms
         original_query.optimizations = []
+        execution_plans_checked = set()
 
         for optimization in progress_bar:
             # in case of enable statistics enabled
@@ -157,7 +159,7 @@ class TaqoTest(AbstractTest):
 
                 evaluate_sql(cur, f"SET statement_timeout = '{optimizer_query_timeout}'")
 
-            self.try_to_get_explain_hints(cur, optimization, original_query)
+            self.try_to_get_default_explain_hints(cur, optimization, original_query)
 
             try:
                 evaluate_sql(cur, optimization.get_explain())
@@ -174,11 +176,17 @@ class TaqoTest(AbstractTest):
             optimization.execution_plan = '\n'.join(
                 str(item[0]) for item in cur.fetchall())
 
+            exec_plan_md5 = get_md5(optimization.get_clean_plan())
+            not_unique_plan = exec_plan_md5 in execution_plans_checked
+            execution_plans_checked.add(exec_plan_md5)
+
             optimization.optimizer_score = get_optimizer_score_from_plan(
                 optimization.execution_plan)
 
-            if not calculate_avg_execution_time(cur, optimization,
-                                                num_retries=int(self.config.num_retries)):
+            if not_unique_plan or not calculate_avg_execution_time(
+                    cur,
+                    optimization,
+                    num_retries=int(self.config.num_retries)):
                 num_skipped += 1
 
             # get new minimum execution time
@@ -186,7 +194,8 @@ class TaqoTest(AbstractTest):
                     optimization.execution_time_ms < min_execution_time:
                 min_execution_time = optimization.execution_time_ms
 
-            progress_bar.set_postfix({'skipped': num_skipped, 'min_execution_time_ms': min_execution_time})
+            progress_bar.set_postfix(
+                {'skipped': num_skipped, 'min_execution_time_ms': min_execution_time})
 
         return list_of_optimizations
 
@@ -197,7 +206,8 @@ class TaqoTest(AbstractTest):
 
         best_optimization = query.get_best_optimization()
         for optimization in query.optimizations:
-            if allowed_diff(self.config, best_optimization.execution_time_ms, optimization.execution_time_ms):
+            if allowed_diff(self.config, best_optimization.execution_time_ms,
+                            optimization.execution_time_ms):
                 no_cost_plan = optimization.get_no_cost_plan()
                 for plan_line in plan_heatmap.values():
                     for optimization_line in no_cost_plan.split("->"):
@@ -209,7 +219,7 @@ class TaqoTest(AbstractTest):
 
         query.execution_plan_heatmap = plan_heatmap
 
-    def try_to_get_explain_hints(self, cur, optimization, original_query):
+    def try_to_get_default_explain_hints(self, cur, optimization, original_query):
         if not original_query.explain_hints:
             if self.config.enable_statistics or optimization.execution_plan is None:
                 evaluate_sql(cur, optimization.get_heuristic_explain())
@@ -219,6 +229,7 @@ class TaqoTest(AbstractTest):
             else:
                 execution_plan = optimization.execution_plan
 
-            if original_query.compare_plans(execution_plan) and original_query.tips_looks_fair(optimization):
+            if original_query.compare_plans(execution_plan) and original_query.tips_looks_fair(
+                    optimization):
                 # store execution plan hints from optimization
                 original_query.explain_hints = optimization.explain_hints
