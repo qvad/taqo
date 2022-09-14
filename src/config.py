@@ -58,6 +58,8 @@ class Config(metaclass=Singleton):
     enable_statistics: bool = False
     explain_clause: bool = False
     session_props: List[str] = None
+    session_props_v1: List[str] = None
+    session_props_v2: List[str] = None
 
     test: str = None
     model: str = None

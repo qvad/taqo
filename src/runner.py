@@ -147,10 +147,13 @@ if __name__ == "__main__":
         postgres=pg_connection,
 
         compare_with_pg=args.compare_with_pg,
+        skip_model_creation=args.skip_model_creation,
+
         enable_statistics=args.enable_statistics or get_bool_from_str(configuration.get("enable_statistics", False)),
         explain_clause=args.explain_clause or configuration.get("explain_clause", "EXPLAIN"),
         session_props=configuration.get("session_props", []),
-        skip_model_creation=args.skip_model_creation,
+        session_props_v1=configuration.get("session_props_v1", []),
+        session_props_v2=configuration.get("session_props_v2", []),
 
         test=args.test,
         model=args.model,

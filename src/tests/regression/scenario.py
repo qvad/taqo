@@ -11,10 +11,12 @@ class RegressionTest(AbstractTest):
         super().__init__()
         self.report = RegressionReport()
 
-    def evaluate_queries_for_version(self, conn, queries):
+    def evaluate_queries_for_version(self, conn, queries, version_props):
         version_queries = ListOfQueries()
         with conn.cursor() as cur:
-            for query in self.config.session_props:
+            session_props = version_props or self.config.session_props
+
+            for query in session_props:
                 evaluate_sql(cur, query)
 
             counter = 1
@@ -69,7 +71,8 @@ class RegressionTest(AbstractTest):
                     self.logger.info(f"Running regression test against {first_version}")
 
                 first_queries = model.get_queries(created_tables)
-                first_version_queries = self.evaluate_queries_for_version(conn, first_queries)
+                first_version_queries = self.evaluate_queries_for_version(
+                    conn, first_queries, self.config.session_props_v1)
                 first_version_queries.db_version = first_version
                 first_version_queries.git_message = first_commit_message
 
@@ -81,6 +84,7 @@ class RegressionTest(AbstractTest):
                 # reconnect
                 conn = self.evaluate_and_compare_with_second_version(created_tables,
                                                                      first_version_queries,
+                                                                     first_commit_message,
                                                                      model)
 
             if len(self.config.revisions_or_paths) == 2 and self.config.revisions_or_paths[1]:
@@ -124,7 +128,7 @@ class RegressionTest(AbstractTest):
         else:
             self.report.define_version(first_version_queries.db_version, second_version)
 
-        second_version_queries = self.evaluate_queries_for_version(conn, second_queries)
+        second_version_queries = self.evaluate_queries_for_version(conn, second_queries, self.config.session_props_v2)
 
         for first_version_query, second_version_query in zip(first_version_queries.queries,
                                                              second_version_queries.queries):
