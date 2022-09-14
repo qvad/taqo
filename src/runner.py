@@ -8,6 +8,7 @@ from tests.approach.scenario import ApproachTest
 from tests.comparison.scenario import ComparisonTest
 from tests.regression.scenario import RegressionTest
 from tests.taqo.scenario import TaqoTest
+from utils import get_bool_from_str
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -43,6 +44,10 @@ if __name__ == "__main__":
     parser.add_argument('--master_flags',
                         default=None,
                         help='Comma separated master flags')
+
+    parser.add_argument('--explain_clause',
+                        default=None,
+                        help='Explain clause that will be placed before query. Default "EXPLAIN"')
 
     parser.add_argument('--host',
                         default="127.0.0.1",
@@ -142,7 +147,9 @@ if __name__ == "__main__":
         postgres=pg_connection,
 
         compare_with_pg=args.compare_with_pg,
-        enable_statistics=args.enable_statistics,
+        enable_statistics=args.enable_statistics or get_bool_from_str(configuration.get("enable_statistics", False)),
+        explain_clause=args.explain_clause or configuration.get("explain_clause", "EXPLAIN"),
+        session_props=configuration.get("session_props", []),
         skip_model_creation=args.skip_model_creation,
 
         test=args.test,

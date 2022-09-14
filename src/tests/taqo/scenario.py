@@ -65,9 +65,8 @@ class TaqoTest(AbstractTest):
 
     def evaluate_queries_against_postgres(self, conn, queries):
         with conn.cursor() as cur:
-            evaluate_sql(cur, ENABLE_PLAN_HINTING)
-            evaluate_sql(cur, ENABLE_DEBUG_HINTING)
-            evaluate_sql(cur, DEBUG_MESSAGE_LEVEL)
+            for query in self.config.session_props:
+                evaluate_sql(cur, query)
 
             for original_query in tqdm(queries):
                 original_query.postgres_query = Query(
@@ -90,10 +89,8 @@ class TaqoTest(AbstractTest):
         with conn.cursor() as cur:
             counter = 1
 
-            evaluate_sql(cur, ENABLE_PLAN_HINTING)
-            evaluate_sql(cur, ENABLE_DEBUG_HINTING)
-            evaluate_sql(cur, CLIENT_MESSAGES_TO_LOG)
-            evaluate_sql(cur, DEBUG_MESSAGE_LEVEL)
+            for query in self.config.session_props:
+                evaluate_sql(cur, query)
 
             if self.config.enable_statistics:
                 self.logger.debug("Enable yb_enable_optimizer_statistics flag")

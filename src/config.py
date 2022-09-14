@@ -56,6 +56,8 @@ class Config(metaclass=Singleton):
 
     compare_with_pg: bool = False
     enable_statistics: bool = False
+    explain_clause: bool = False
+    session_props: List[str] = None
 
     test: str = None
     model: str = None
@@ -78,8 +80,6 @@ class Config(metaclass=Singleton):
     clear: bool = False
 
     def __str__(self):
-        explain_query = "EXPLAIN ANALYZE" if self.enable_statistics else "EXPLAIN"
-
         build_param_skipped = "(skipped)" if self.yugabyte_code_path else ""
 
         connections = f"  Yugabyte Connection - {self.yugabyte}\n"
@@ -87,7 +87,7 @@ class Config(metaclass=Singleton):
             connections += f"  Postgres Connection - {self.postgres}\n"
 
         return f"{connections}" + \
-               f"  Using following explain syntax - '{explain_query} /*+ ... */ QUERY'\n" + \
+               f"  Using following explain syntax - '{self.explain_clause} /*+ ... */ QUERY'\n" + \
                f"  Running '{self.test}' test on model '{self.model}'\n" + \
                f"  Repository code path '{self.yugabyte_code_path}', revisions to test {self.revisions_or_paths}\n" + \
                f"  Additional properties defined:\n" + \

@@ -92,7 +92,7 @@ def get_alias_table_names(sql_str, table_names):
 
 
 def get_explain_clause():
-    return EXPLAIN_ANALYZE if Config().enable_statistics else EXPLAIN
+    return Config().explain_clause
 
 
 def evaluate_sql(cur, sql):
@@ -108,9 +108,14 @@ def allowed_diff(config, original_execution_time, optimization_execution_time):
     if optimization_execution_time <= 0:
         return False
 
-    return (abs(original_execution_time - optimization_execution_time) / optimization_execution_time) < \
+    return (
+                       abs(original_execution_time - optimization_execution_time) / optimization_execution_time) < \
            config.skip_percentage_delta
 
 
 def get_md5(string: str):
-    return str(hashlib.md5(string.get_clean_plan().query.encode('utf-8')).hexdigest())
+    return str(hashlib.md5(string.encode('utf-8')).hexdigest())
+
+
+def get_bool_from_str(string: str):
+    return string in {True, 1, "True", "true", "TRUE", "T"}

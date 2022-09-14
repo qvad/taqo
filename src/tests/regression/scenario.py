@@ -14,6 +14,9 @@ class RegressionTest(AbstractTest):
     def evaluate_queries_for_version(self, conn, queries):
         version_queries = ListOfQueries()
         with conn.cursor() as cur:
+            for query in self.config.session_props:
+                evaluate_sql(cur, query)
+
             counter = 1
             for first_version_query in queries:
                 try:
