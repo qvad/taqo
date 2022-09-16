@@ -164,7 +164,9 @@ class YugabyteLocalRepository(Yugabyte):
 
         self.logger.info(f"Building yugabyte from source code '{self.path}'")
         subprocess.call(['./yb_build.sh',
-                         'release', '--clean', '--no-tests', '--skip-java-build'],
+                         'release',
+                         # '--clean',
+                         '--no-tests', '--skip-java-build'],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.STDOUT,
                         cwd=self.path)

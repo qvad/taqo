@@ -23,7 +23,12 @@ DEBUG_MESSAGE_LEVEL = "SET pg_hint_plan.message_level = debug;"
 ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
 
 PLAN_CLEANUP_REGEX = r"\s\(actual time.*\)|\s\(never executed\)|\s\(cost.*\)|" \
-                     r"\sMemory:.*|Planning Time.*|Execution Time.*|Peak Memory Usage.*|"
+                     r"\sMemory:.*|Planning Time.*|Execution Time.*|Peak Memory Usage.*|" \
+                     r"Read RPC Count:.*|Read RPC Wait Time:.*|DocDB Scanned Rows:.*|"
+PLAN_RPC_CALLS = r"\nRead RPC Count:\s(\d+)"
+PLAN_RPC_WAIT_TIMES = r"\nRead RPC Wait Time:\s([+-]?([0-9]*[.])?[0-9]+)"
+PLAN_DOCDB_SCANNED_ROWS = r"\nDocDB Scanned Rows:\s(\d+)"
+PLAN_PEAK_MEMORY = r"\nPeak memory:\s(\d+)"
 PLAN_TREE_CLEANUP = r"\n\s*->\s*|\n\s*"
 
 
@@ -189,6 +194,32 @@ class Query:
                 best_optimization = optimization
 
         return best_optimization
+
+    def get_rpc_calls(self, execution_plan=None):
+        try:
+            return int(re.sub(PLAN_RPC_CALLS, '', execution_plan or self.execution_plan).strip())
+        except Exception:
+            return 0
+
+    def get_rpc_wait_times(self, execution_plan=None):
+        try:
+            return int(
+                re.sub(PLAN_RPC_WAIT_TIMES, '', execution_plan or self.execution_plan).strip())
+        except Exception:
+            return 0
+
+    def get_scanned_rows(self, execution_plan=None):
+        try:
+            return int(
+                re.sub(PLAN_DOCDB_SCANNED_ROWS, '', execution_plan or self.execution_plan).strip())
+        except Exception:
+            return 0
+
+    def get_peak_memory(self, execution_plan=None):
+        try:
+            return int(re.sub(PLAN_PEAK_MEMORY, '', execution_plan or self.execution_plan).strip())
+        except Exception:
+            return 0
 
     def get_no_cost_plan(self, execution_plan=None):
         return re.sub(PLAN_CLEANUP_REGEX, '', execution_plan or self.execution_plan).strip()

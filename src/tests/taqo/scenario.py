@@ -1,12 +1,10 @@
-import hashlib
 import time
 from difflib import SequenceMatcher
 
 import psycopg2
 from tqdm import tqdm
 
-from database import ListOfOptimizations, ENABLE_PLAN_HINTING, ENABLE_STATISTICS_HINT, Query, \
-    ENABLE_DEBUG_HINTING, DEBUG_MESSAGE_LEVEL, CLIENT_MESSAGES_TO_LOG
+from database import ListOfOptimizations, ENABLE_STATISTICS_HINT, Query
 from db.postgres import Postgres
 from models.factory import get_test_model
 from tests.abstract import AbstractTest
