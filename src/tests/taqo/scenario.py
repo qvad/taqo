@@ -4,7 +4,7 @@ from difflib import SequenceMatcher
 import psycopg2
 from tqdm import tqdm
 
-from database import ListOfOptimizations, ENABLE_STATISTICS_HINT, Query
+from database import ListOfOptimizations, ENABLE_STATISTICS_HINT, Query, ExecutionPlan
 from db.postgres import Postgres
 from models.factory import get_test_model
 from tests.abstract import AbstractTest
@@ -104,8 +104,8 @@ class TaqoTest(AbstractTest):
                         f"Evaluating query {short_query}... [{counter}/{len(queries)}]")
 
                     evaluate_sql(cur, original_query.get_explain())
-                    original_query.execution_plan = '\n'.join(
-                        str(item[0]) for item in cur.fetchall())
+                    original_query.execution_plan = ExecutionPlan('\n'.join(
+                        str(item[0]) for item in cur.fetchall()))
                     original_query.optimizer_score = get_optimizer_score_from_plan(
                         original_query.execution_plan)
 
@@ -164,12 +164,12 @@ class TaqoTest(AbstractTest):
 
                 num_skipped += 1
                 optimization.execution_time_ms = 0
-                optimization.execution_plan = ""
+                optimization.execution_plan = ExecutionPlan("")
                 optimization.optimizer_score = 0
                 continue
 
-            optimization.execution_plan = '\n'.join(
-                str(item[0]) for item in cur.fetchall())
+            optimization.execution_plan = ExecutionPlan('\n'.join(
+                str(item[0]) for item in cur.fetchall()))
 
             exec_plan_md5 = get_md5(optimization.get_clean_plan())
             not_unique_plan = exec_plan_md5 in execution_plans_checked

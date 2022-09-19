@@ -1,4 +1,4 @@
-from database import ENABLE_STATISTICS_HINT, ListOfQueries
+from database import ENABLE_STATISTICS_HINT, ListOfQueries, ExecutionPlan
 from models.factory import get_test_model
 from tests.abstract import AbstractTest
 from tests.approach.report import ApproachReport
@@ -20,7 +20,7 @@ class ApproachTest(AbstractTest):
                     self.logger.info(
                         f"Evaluating query {query.query[:40]}... [{counter}/{len(queries)}]")
                     evaluate_sql(cur, query.get_explain_analyze())
-                    query.execution_plan = '\n'.join(str(item[0]) for item in cur.fetchall())
+                    query.execution_plan = ExecutionPlan('\n'.join(str(item[0]) for item in cur.fetchall()))
                     query.optimizer_score = \
                         get_optimizer_score_from_plan(query.execution_plan)
 

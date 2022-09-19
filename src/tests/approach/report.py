@@ -85,27 +85,27 @@ class ApproachReport(Report):
 
         self._start_collapsible("Default approach plan (w/o analyze)")
         self._start_source(["diff"])
-        self.report += default.execution_plan
+        self.report += default.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
         self._start_collapsible("Analyze approach plan (w/ analyze)")
         self._start_source(["diff"])
-        self.report += analyze.execution_plan
+        self.report += analyze.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
         self._start_collapsible("New approach plan (w/ analyze and statistics)")
         self._start_source(["diff"])
-        self.report += all.execution_plan
+        self.report += all.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
         self._start_source(["diff"])
 
-        diff = self._get_plan_diff(default.execution_plan, all.execution_plan)
+        diff = self._get_plan_diff(default.execution_plan.full_str, all.execution_plan.full_str)
         if not diff:
-            diff = default.execution_plan
+            diff = default.execution_plan.full_str
 
         self.report += diff
         self._end_source()

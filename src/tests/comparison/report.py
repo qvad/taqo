@@ -94,21 +94,21 @@ class ComparisonReport(Report):
 
         self._start_collapsible("Yugabyte version plan")
         self._start_source(["diff"])
-        self.report += yb_query.execution_plan
+        self.report += yb_query.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
         self._start_collapsible("Postgres version plan")
         self._start_source(["diff"])
-        self.report += pg_query.execution_plan
+        self.report += pg_query.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
         self._start_source(["diff"])
 
-        diff = self._get_plan_diff(yb_query.execution_plan, pg_query.execution_plan)
+        diff = self._get_plan_diff(yb_query.execution_plan.full_str, pg_query.execution_plan.full_str)
         if not diff:
-            diff = yb_query.execution_plan
+            diff = yb_query.execution_plan.full_str
 
         self.report += diff
         self._end_source()

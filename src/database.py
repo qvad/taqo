@@ -166,7 +166,7 @@ class Query:
     query: str = ""
     explain_hints: str = ""
     tables: List[Table] = None
-    execution_plan: str = ""
+    execution_plan: 'ExecutionPlan' = None
     execution_plan_heatmap: Dict[int, Dict[str, str]] = None
     optimizer_score: float = 1
     optimizer_tips: QueryTips = None
@@ -195,50 +195,16 @@ class Query:
 
         return best_optimization
 
-    def get_rpc_calls(self, execution_plan=None):
-        try:
-            return int(re.sub(PLAN_RPC_CALLS, '', execution_plan or self.execution_plan).strip())
-        except Exception:
-            return 0
-
-    def get_rpc_wait_times(self, execution_plan=None):
-        try:
-            return int(
-                re.sub(PLAN_RPC_WAIT_TIMES, '', execution_plan or self.execution_plan).strip())
-        except Exception:
-            return 0
-
-    def get_scanned_rows(self, execution_plan=None):
-        try:
-            return int(
-                re.sub(PLAN_DOCDB_SCANNED_ROWS, '', execution_plan or self.execution_plan).strip())
-        except Exception:
-            return 0
-
-    def get_peak_memory(self, execution_plan=None):
-        try:
-            return int(re.sub(PLAN_PEAK_MEMORY, '', execution_plan or self.execution_plan).strip())
-        except Exception:
-            return 0
-
-    def get_no_cost_plan(self, execution_plan=None):
-        return re.sub(PLAN_CLEANUP_REGEX, '', execution_plan or self.execution_plan).strip()
-
-    def get_no_tree_plan(self, execution_plan=None):
-        return re.sub(PLAN_TREE_CLEANUP, '\n', execution_plan or self.execution_plan).strip()
-
-    def get_clean_plan(self, execution_plan=None):
-        return self.get_no_tree_plan(self.get_no_cost_plan(execution_plan=execution_plan))
-
     def tips_looks_fair(self, optimization):
-        clean_plan = self.get_clean_plan()
+        clean_plan = self.execution_plan.get_clean_plan()
 
         return not any(
             join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan
             for join in Joins)
 
-    def compare_plans(self, execution_plan):
-        return self.get_clean_plan() == self.get_clean_plan(execution_plan)
+    def compare_plans(self, execution_plan: 'ExecutionPlan'):
+        return self.execution_plan.get_clean_plan() == self.execution_plan.get_clean_plan(
+            execution_plan)
 
     def __str__(self):
         return f"Query - \"{self.query}\"\n" \
@@ -271,6 +237,100 @@ class ListOfQueries:
             self.queries = [new_element, ]
         else:
             self.queries.append(new_element)
+
+
+class EPNode:
+    def __init__(self):
+        self.root: 'EPNode' | None = None
+        self.childs: List['EPNode'] = []
+        self.type: str = ""
+        self.full_str: str = ""
+        self.level: int = 0
+
+    def __str__(self):
+        return self.full_str
+
+
+class ExecutionPlan:
+    def __init__(self, full_plan_str):
+        self.root = EPNode()
+        self.full_str = full_plan_str
+
+        current_node = self.root
+        for line in full_plan_str.split("\n"):
+            if line.strip().startswith("->"):
+                level = int(line.find("->") / 2)
+                previous_node = current_node
+                current_node = EPNode()
+                current_node.level = level
+                current_node.full_str += line
+
+                if previous_node.level <= current_node.level:
+                    previous_node.childs.append(current_node)
+                    current_node.root = previous_node
+                else:
+                    walking_node = previous_node.root
+                    while walking_node.level != current_node.level:
+                        walking_node = walking_node.root
+                    walking_node = walking_node.root
+                    walking_node.childs.append(current_node)
+                    current_node.root = walking_node
+            else:
+                current_node.full_str += line
+
+    def __cmp__(self, other):
+        if isinstance(other, str):
+            return self.full_str == other
+
+        return self.full_str == other.full_str
+
+    def __str__(self):
+        return self.full_str
+
+    def get_rpc_calls(self, execution_plan: 'ExecutionPlan' = None):
+        try:
+            return int(re.sub(
+                PLAN_RPC_CALLS, '',
+                execution_plan.full_str if execution_plan else self.full_str).strip())
+        except Exception:
+            return 0
+
+    def get_rpc_wait_times(self, execution_plan: 'ExecutionPlan' = None):
+        try:
+            return int(
+                re.sub(PLAN_RPC_WAIT_TIMES, '',
+                       execution_plan.full_str if execution_plan else self.full_str).strip())
+        except Exception:
+            return 0
+
+    def get_scanned_rows(self, execution_plan: 'ExecutionPlan' = None):
+        try:
+            return int(
+                re.sub(PLAN_DOCDB_SCANNED_ROWS, '',
+                       execution_plan.full_str if execution_plan else self.full_str).strip())
+        except Exception:
+            return 0
+
+    def get_peak_memory(self, execution_plan: 'ExecutionPlan' = None):
+        try:
+            return int(
+                re.sub(PLAN_PEAK_MEMORY, '',
+                       execution_plan.full_str if execution_plan else self.full_str).strip())
+        except Exception:
+            return 0
+
+    def get_no_cost_plan(self, execution_plan: 'ExecutionPlan' = None):
+        return re.sub(PLAN_CLEANUP_REGEX, '',
+                      execution_plan.full_str if execution_plan else self.full_str).strip()
+
+    def get_no_tree_plan(self, execution_plan: 'ExecutionPlan' = None):
+        return re.sub(PLAN_TREE_CLEANUP, '\n',
+                      execution_plan.full_str if execution_plan else self.full_str).strip()
+
+    def get_clean_plan(self, execution_plan: 'ExecutionPlan' = None):
+        no_tree_plan = re.sub(PLAN_TREE_CLEANUP, '\n',
+                              execution_plan.full_str if execution_plan else self.full_str).strip()
+        return re.sub(PLAN_CLEANUP_REGEX, '', no_tree_plan).strip()
 
 
 class ListOfOptimizations:

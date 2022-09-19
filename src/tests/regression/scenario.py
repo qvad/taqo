@@ -1,4 +1,5 @@
-from database import ListOfQueries, get_queries_from_previous_result, store_queries_to_file
+from database import ListOfQueries, get_queries_from_previous_result, store_queries_to_file, \
+    ExecutionPlan
 from models.factory import get_test_model
 from tests.abstract import AbstractTest
 from tests.regression.report import RegressionReport
@@ -25,8 +26,8 @@ class RegressionTest(AbstractTest):
                     self.logger.info(
                         f"Evaluating query {first_version_query.query[:40]}... [{counter}/{len(queries)}]")
                     evaluate_sql(cur, first_version_query.get_explain())
-                    first_version_query.execution_plan = '\n'.join(
-                        str(item[0]) for item in cur.fetchall())
+                    first_version_query.execution_plan = ExecutionPlan('\n'.join(
+                        str(item[0]) for item in cur.fetchall()))
                     first_version_query.optimizer_score = get_optimizer_score_from_plan(
                         first_version_query.execution_plan)
 

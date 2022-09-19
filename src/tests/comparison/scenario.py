@@ -1,4 +1,4 @@
-from database import ListOfQueries
+from database import ListOfQueries, ExecutionPlan
 from db.postgres import Postgres
 from models.factory import get_test_model
 from tests.abstract import AbstractTest
@@ -25,8 +25,8 @@ class ComparisonTest(AbstractTest):
                     self.logger.info(
                         f"Evaluating query {first_version_query.query[:40]}... [{counter}/{len(queries)}]")
                     evaluate_sql(cur, first_version_query.get_explain())
-                    first_version_query.execution_plan = '\n'.join(
-                        str(item[0]) for item in cur.fetchall())
+                    first_version_query.execution_plan = ExecutionPlan('\n'.join(
+                        str(item[0]) for item in cur.fetchall()))
                     first_version_query.optimizer_score = get_optimizer_score_from_plan(
                         first_version_query.execution_plan)
 

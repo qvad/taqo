@@ -236,8 +236,8 @@ class TaqoReport(Report):
             self._start_collapsible("Postgres plan diff")
             self._start_source(["diff"])
             # postgres plan should be red
-            self.report += self._get_plan_diff(query.postgres_query.execution_plan,
-                                               query.execution_plan, )
+            self.report += self._get_plan_diff(query.postgres_query.execution_plan.full_str,
+                                               query.execution_plan.full_str, )
             self._end_source()
             self._end_collapsible()
 
@@ -246,21 +246,21 @@ class TaqoReport(Report):
 
         self._start_collapsible("Original plan")
         self._start_source(["diff"])
-        self.report += query.execution_plan
+        self.report += query.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
         self._start_collapsible("Best plan")
         self._start_source(["diff"])
-        self.report += best_optimization.execution_plan
+        self.report += best_optimization.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
         self._start_source(["diff"])
 
-        diff = self._get_plan_diff(query.execution_plan, best_optimization.execution_plan)
+        diff = self._get_plan_diff(query.execution_plan.full_str, best_optimization.execution_plan.full_str)
         if not diff:
-            diff = query.execution_plan
+            diff = query.execution_plan.full_str
 
         self.report += diff
         self._end_source()

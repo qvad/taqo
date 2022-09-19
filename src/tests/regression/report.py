@@ -68,7 +68,7 @@ class RegressionReport(Report):
 
     def add_plan_comaprison(self):
         self._start_collapsible("Plan comparison")
-        self.report += "\n[#plans_summary]\n== Tags summary with number of changed plans (by query file name)\n"
+        self.report += "\n[#plans_summary]\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
             num_same_plans = sum(1 for query in queries
@@ -76,63 +76,63 @@ class RegressionReport(Report):
             self.report += f"a|<<{tag}>>\n"
             num_changed_plans = len(queries) - num_same_plans
             color = "[green]" if num_changed_plans == 0 else "[orange]"
-            self.report += f"a|{color}#*{len(queries) - num_same_plans}*#\n"
+            self.report += f"a|{color}#*{num_same_plans}*#\n"
             self._end_table_row()
         self._end_table()
         self._end_collapsible()
 
     def add_rpc_calls(self):
         self._start_collapsible("RPC Calls")
-        self.report += "\n[#rpc_summary]\n== Tags summary of RPC calls (by query file name)\n"
+        self.report += "\n[#rpc_summary]\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
-            num_same_plans = sum(query[0].get_rpc_calls() != query[1].get_rpc_calls()
+            num_same_plans = sum(query[0].execution_plan.get_rpc_calls() != query[1].execution_plan.get_rpc_calls()
                                  for query in queries)
             self.report += f"a|<<{tag}>>\n"
             color = "[green]" if num_same_plans == 0 else "[orange]"
-            self.report += f"a|{color}#*{len(queries) - num_same_plans}*#\n"
+            self.report += f"a|{color}#*{num_same_plans}*#\n"
             self._end_table_row()
         self._end_table()
         self._end_collapsible()
 
     def add_rpc_wait_times(self):
         self._start_collapsible("RPC Wait Times")
-        self.report += "\n[#rpc_wait_summary]\n== Tags summary of RPC calls (by query file name)\n"
+        self.report += "\n[#rpc_wait_summary]\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
-            num_same_plans = sum(query[0].get_rpc_wait_times() != query[1].get_rpc_wait_times()
+            num_same_plans = sum(query[0].execution_plan.get_rpc_wait_times() != query[1].execution_plan.get_rpc_wait_times()
                                  for query in queries)
             self.report += f"a|<<{tag}>>\n"
             color = "[green]" if num_same_plans == 0 else "[orange]"
-            self.report += f"a|{color}#*{len(queries) - num_same_plans}*#\n"
+            self.report += f"a|{color}#*{num_same_plans}*#\n"
             self._end_table_row()
         self._end_table()
         self._end_collapsible()
 
     def add_scanned_rows(self):
         self._start_collapsible("Scanned rows")
-        self.report += "\n[#rows_summary]\n== Tags summary of RPC calls (by query file name)\n"
+        self.report += "\n[#rows_summary]\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
-            num_same_plans = sum(query[0].get_scanned_rows() != query[1].get_scanned_rows()
+            num_same_plans = sum(query[0].execution_plan.get_scanned_rows() != query[1].execution_plan.get_scanned_rows()
                                  for query in queries)
             self.report += f"a|<<{tag}>>\n"
             color = "[green]" if num_same_plans == 0 else "[orange]"
-            self.report += f"a|{color}#*{len(queries) - num_same_plans}*#\n"
+            self.report += f"a|{color}#*{num_same_plans}*#\n"
             self._end_table_row()
         self._end_table()
         self._end_collapsible()
 
     def add_peak_memory_collapsible(self):
         self._start_collapsible("Peak memory")
-        self.report += "\n[#memory_summary]\n== Tags summary of RPC calls (by query file name)\n"
+        self.report += "\n[#memory_summary]\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
-            num_same_plans = sum(query[0].get_peak_memory() != query[1].get_peak_memory()
+            num_same_plans = sum(query[0].execution_plan.get_peak_memory() != query[1].execution_plan.get_peak_memory()
                                  for query in queries)
             self.report += f"a|<<{tag}>>\n"
             color = "[green]" if num_same_plans == 0 else "[orange]"
-            self.report += f"a|{color}#*{len(queries) - num_same_plans}*#\n"
+            self.report += f"a|{color}#*{num_same_plans}*#\n"
             self._end_table_row()
         self._end_table()
         self._end_collapsible()
@@ -174,21 +174,21 @@ class RegressionReport(Report):
 
         self._start_collapsible("First version plan")
         self._start_source(["diff"])
-        self.report += first_query.execution_plan
+        self.report += first_query.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
         self._start_collapsible("Second version plan")
         self._start_source(["diff"])
-        self.report += second_query.execution_plan
+        self.report += second_query.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
         self._start_source(["diff"])
 
-        diff = self._get_plan_diff(first_query.execution_plan, second_query.execution_plan)
+        diff = self._get_plan_diff(first_query.execution_plan.full_str, second_query.execution_plan.full_str)
         if not diff:
-            diff = first_query.execution_plan
+            diff = first_query.execution_plan.full_str
 
         self.report += diff
         self._end_source()
