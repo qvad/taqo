@@ -68,7 +68,7 @@ class RegressionReport(Report):
 
     def add_plan_comaprison(self):
         self._start_collapsible("Plan comparison")
-        self.report += "\n[#tags_summary]\n== Tags summary with number of changed plans (by query file name)\n"
+        self.report += "\n[#plans_summary]\n== Tags summary with number of changed plans (by query file name)\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
             num_same_plans = sum(1 for query in queries
@@ -83,7 +83,7 @@ class RegressionReport(Report):
 
     def add_rpc_calls(self):
         self._start_collapsible("RPC Calls")
-        self.report += "\n[#tags_summary]\n== Tags summary of RPC calls (by query file name)\n"
+        self.report += "\n[#rpc_summary]\n== Tags summary of RPC calls (by query file name)\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
             num_same_plans = sum(query[0].get_rpc_calls() != query[1].get_rpc_calls()
@@ -97,7 +97,7 @@ class RegressionReport(Report):
 
     def add_rpc_wait_times(self):
         self._start_collapsible("RPC Wait Times")
-        self.report += "\n[#tags_summary]\n== Tags summary of RPC calls (by query file name)\n"
+        self.report += "\n[#rpc_wait_summary]\n== Tags summary of RPC calls (by query file name)\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
             num_same_plans = sum(query[0].get_rpc_wait_times() != query[1].get_rpc_wait_times()
@@ -111,7 +111,7 @@ class RegressionReport(Report):
 
     def add_scanned_rows(self):
         self._start_collapsible("Scanned rows")
-        self.report += "\n[#tags_summary]\n== Tags summary of RPC calls (by query file name)\n"
+        self.report += "\n[#rows_summary]\n== Tags summary of RPC calls (by query file name)\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
             num_same_plans = sum(query[0].get_scanned_rows() != query[1].get_scanned_rows()
@@ -125,7 +125,7 @@ class RegressionReport(Report):
 
     def add_peak_memory_collapsible(self):
         self._start_collapsible("Peak memory")
-        self.report += "\n[#tags_summary]\n== Tags summary of RPC calls (by query file name)\n"
+        self.report += "\n[#memory_summary]\n== Tags summary of RPC calls (by query file name)\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
             num_same_plans = sum(query[0].get_peak_memory() != query[1].get_peak_memory()
@@ -145,7 +145,7 @@ class RegressionReport(Report):
         self.report += f"\n[#{query_hash}]\n"
         self.report += f"=== Query {query_hash}"
         self.report += f"\nTags: `{first_query.tag}`\n"
-        self.report += "\n<<tags_summary,Go to tags summary>>\n"
+        self.report += "\n<<plans_summary,Go to tags summary>>\n"
         self.report += "\n<<query_summary,Go to query summary>>\n"
         self.report += f"\n<<{query_hash}_query,Show in query summary>>\n"
         self._add_double_newline()
