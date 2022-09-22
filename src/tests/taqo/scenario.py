@@ -171,7 +171,7 @@ class TaqoTest(AbstractTest):
             optimization.execution_plan = ExecutionPlan('\n'.join(
                 str(item[0]) for item in cur.fetchall()))
 
-            exec_plan_md5 = get_md5(optimization.get_clean_plan())
+            exec_plan_md5 = get_md5(optimization.execution_plan.get_clean_plan())
             not_unique_plan = exec_plan_md5 in execution_plans_checked
             execution_plans_checked.add(exec_plan_md5)
 
