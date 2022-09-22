@@ -219,8 +219,8 @@ class TaqoTest(AbstractTest):
             if self.config.enable_statistics or optimization.execution_plan is None:
                 evaluate_sql(cur, optimization.get_heuristic_explain())
 
-                execution_plan = '\n'.join(
-                    str(item[0]) for item in cur.fetchall())
+                execution_plan = ExecutionPlan('\n'.join(
+                    str(item[0]) for item in cur.fetchall()))
             else:
                 execution_plan = optimization.execution_plan
 
