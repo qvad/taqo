@@ -258,7 +258,8 @@ class TaqoReport(Report):
 
         self._start_source(["diff"])
 
-        diff = self._get_plan_diff(query.execution_plan.full_str, best_optimization.execution_plan.full_str)
+        diff = self._get_plan_diff(query.execution_plan.full_str,
+                                   best_optimization.execution_plan.full_str)
         if not diff:
             diff = query.execution_plan.full_str
 

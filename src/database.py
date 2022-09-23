@@ -324,8 +324,12 @@ class ExecutionPlan:
                       execution_plan.full_str if execution_plan else self.full_str).strip()
 
     def get_no_tree_plan(self, execution_plan: 'ExecutionPlan' = None):
-        return re.sub(PLAN_TREE_CLEANUP, '\n',
-                      execution_plan.full_str if execution_plan else self.full_str).strip()
+        return self.get_no_tree_plan_str(
+            execution_plan.full_str if execution_plan else self.full_str)
+
+    @staticmethod
+    def get_no_tree_plan_str(plan_str):
+        return re.sub(PLAN_TREE_CLEANUP, '\n', plan_str).strip()
 
     def get_clean_plan(self, execution_plan: 'ExecutionPlan' = None):
         no_tree_plan = re.sub(PLAN_TREE_CLEANUP, '\n',

@@ -207,8 +207,8 @@ class TaqoTest(AbstractTest):
                 for plan_line in plan_heatmap.values():
                     for optimization_line in no_cost_plan.split("->"):
                         if SequenceMatcher(
-                                a=optimization.execution_plan.get_no_tree_plan(plan_line['str']),
-                                b=optimization.execution_plan.get_no_tree_plan(optimization_line)
+                                a=optimization.execution_plan.get_no_tree_plan_str(plan_line['str']),
+                                b=optimization.execution_plan.get_no_tree_plan_str(optimization_line)
                         ).ratio() > 0.9:
                             plan_line['weight'] += 1
 
