@@ -197,18 +197,18 @@ class TaqoTest(AbstractTest):
     def plan_heatmap(self, query: Query):
         plan_heatmap = {line_id: {'weight': 0, 'str': execution_plan_line}
                         for line_id, execution_plan_line in
-                        enumerate(query.get_no_cost_plan().split("->"))}
+                        enumerate(query.execution_plan.get_no_cost_plan().split("->"))}
 
         best_optimization = query.get_best_optimization()
         for optimization in query.optimizations:
             if allowed_diff(self.config, best_optimization.execution_time_ms,
                             optimization.execution_time_ms):
-                no_cost_plan = optimization.get_no_cost_plan()
+                no_cost_plan = optimization.execution_plan.get_no_cost_plan()
                 for plan_line in plan_heatmap.values():
                     for optimization_line in no_cost_plan.split("->"):
                         if SequenceMatcher(
-                                a=optimization.get_no_tree_plan(plan_line['str']),
-                                b=optimization.get_no_tree_plan(optimization_line)
+                                a=optimization.execution_plan.get_no_tree_plan(plan_line['str']),
+                                b=optimization.execution_plan.get_no_tree_plan(optimization_line)
                         ).ratio() > 0.9:
                             plan_line['weight'] += 1
 
