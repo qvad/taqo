@@ -135,6 +135,9 @@ class Leading:
             self.table_scan_hints.append(tables_and_idxs)
 
     def fill_joins_with_pairwise(self):
+        if len(self.tables) <= 1:
+            return
+
         table_permutations = list(itertools.permutations(self.tables))
         join_product = list(itertools.product(Joins, repeat=len(self.tables) - 1))
         scan_product = list(itertools.product(Scans, repeat=len(self.tables)))
