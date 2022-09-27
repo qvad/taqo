@@ -201,15 +201,16 @@ class TaqoReport(Report):
         self.report += "|Comparison analysis\n"
 
         self._start_table_row()
-        if self.config.compare_with_pg:
-            self.report += \
-                f"[red]#Result hash#: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best) vs `{query.postgres_query.result_hash}` (pg)" \
-                    if query.postgres_query.result_hash != query.result_hash else \
-                    f"Result hash: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best) vs `{query.postgres_query.result_hash}` (pg)"
-        elif best_optimization.result_hash != query.result_hash:
-            self.report += f"[red]#Result hash#: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best)"
-        else:
-            self.report += f"Result hash: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best)"
+        if 'order by' in query.query:
+            if self.config.compare_with_pg:
+                self.report += \
+                    f"[red]#Result hash#: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best) vs `{query.postgres_query.result_hash}` (pg)" \
+                        if query.postgres_query.result_hash != query.result_hash else \
+                        f"Result hash: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best) vs `{query.postgres_query.result_hash}` (pg)"
+            elif best_optimization.result_hash != query.result_hash:
+                self.report += f"[red]#Result hash#: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best)"
+            else:
+                self.report += f"Result hash: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best)"
 
         self._end_table_row()
 
