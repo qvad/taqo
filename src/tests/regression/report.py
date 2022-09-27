@@ -1,5 +1,3 @@
-import hashlib
-
 from sql_formatter.core import format_sql
 
 from database import Query
@@ -52,7 +50,7 @@ class RegressionReport(Report):
                 self.report += f"{query[0].execution_time_ms}\n" \
                                f"|{query[1].execution_time_ms}\n" \
                                f"a|{color}#*{ratio}*#\n"
-                hexdigest = hashlib.md5(query[0].query.encode('utf-8')).hexdigest()
+                hexdigest = get_md5(query[0].query)
                 self.report += f"a|[#{hexdigest}_query]\n<<tags_summary, Go to tags summary>>\n\n<<{hexdigest}>>\n"
                 self._start_source(["sql"])
                 self.report += format_sql(query[1].query.replace("|", "\|"))
