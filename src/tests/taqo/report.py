@@ -1,5 +1,4 @@
-import hashlib
-import math
+import os
 
 from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
@@ -12,50 +11,26 @@ from utils import allowed_diff, get_md5
 class TaqoReport(Report):
     def __init__(self):
         super().__init__()
+
+        os.mkdir(f"report/{self.start_date}")
+        os.mkdir(f"report/{self.start_date}/imgs")
+
+        self.logger.info(f"Created report folder for this run at 'report/{self.start_date}'")
+
         self.failed_validation = []
         self.same_execution_plan = []
         self.better_plan_found = []
 
+    def get_report_name(self):
+        return "TAQO"
+
     def define_version(self, version):
         self.report += f"[VERSION]\n====\n{version}\n====\n\n"
 
-    def calculate_score(self, optimizations):
-        optimizations = [q for q in optimizations
-                         if q and
-                         q.optimizer_score is not None
-                         and q.execution_time_ms != 0]
-        optimizations.sort(key=lambda q: q.execution_time_ms)
-
-        try:
-            e_max = max(op.optimizer_score for op in optimizations)
-            e_diff = e_max - min(op.optimizer_score for op in optimizations)
-
-            if e_diff == 0:
-                e_diff = 0.01
-
-            a_max = max(op.execution_time_ms for op in optimizations)
-            a_best = min(op.execution_time_ms for op in optimizations)
-            a_diff = a_max - a_best
-
-            score = 0
-            for i in range(2, len(optimizations) - 1):
-                for j in range(1, i):
-                    pi = optimizations[j]
-                    pj = optimizations[i]
-                    score += (a_best / pi.execution_time_ms) * \
-                             (a_best / pj.execution_time_ms) * \
-                             math.sqrt(
-                                 ((pj.execution_time_ms - pi.execution_time_ms) / a_diff) ** 2 + \
-                                 ((pj.optimizer_score - pi.optimizer_score) / e_diff) ** 2) * \
-                             math.copysign(1, (pj.optimizer_score - pi.optimizer_score))
-        except InterruptedError as ie:
-            raise ie
-        except Exception:
-            self.logger.debug("Failed to calculate score, setting TAQO score as 0.0")
-            return 0.0
-        print("{:.2f}".format(score))
-
-        return "{:.2f}".format(score)
+    @staticmethod
+    def calculate_score(query):
+        return "{:.2f}".format(
+            query.get_best_optimization().execution_time_ms / query.execution_time_ms)
 
     def create_plot(self, best_optimization, optimizations, query):
         plt.xlabel('Execution time')
@@ -172,7 +147,7 @@ class TaqoReport(Report):
         query_hash = get_md5(query.query)
 
         self.report += f"=== Query {query_hash} " \
-                       f"(TAQO efficiency - {self.calculate_score(query.optimizations)})"
+                       f"(Optimizer efficiency - {self.calculate_score(query)})"
         self.report += "\n<<top,Go to top>>\n"
         self._add_double_newline()
 

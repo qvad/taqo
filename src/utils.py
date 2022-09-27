@@ -1,4 +1,5 @@
 import hashlib
+import math
 import re
 import time
 
@@ -109,7 +110,7 @@ def allowed_diff(config, original_execution_time, optimization_execution_time):
         return False
 
     return (
-                       abs(original_execution_time - optimization_execution_time) / optimization_execution_time) < \
+                   abs(original_execution_time - optimization_execution_time) / optimization_execution_time) < \
            config.skip_percentage_delta
 
 
@@ -119,3 +120,53 @@ def get_md5(string: str):
 
 def get_bool_from_str(string: str):
     return string in {True, 1, "True", "true", "TRUE", "T"}
+
+
+def calculate_taqo_score(query):
+    """
+    Calculates TAQO score based on algorithm from the paper
+    https://databasescience.files.wordpress.com/2013/01/taqo.pdf
+
+    Since it doesn't count default execution, it basically tests optimizer score efficiency.
+    Not fully representative for this framework.
+
+    :param query: Query object with evaluated optimizations
+    :return: float number TAQO score
+    """
+
+    optimizations = [q for q in query.optimizations
+                     if q and
+                     q.optimizer_score is not None
+                     and q.execution_time_ms != 0]
+    optimizations.sort(key=lambda q: q.execution_time_ms)
+
+    try:
+        e_max = max(op.optimizer_score for op in optimizations)
+        e_diff = e_max - min(op.optimizer_score for op in optimizations)
+
+        if e_diff == 0:
+            e_diff = 0.01
+
+        a_max = max(op.execution_time_ms for op in optimizations)
+        a_best = min(op.execution_time_ms for op in optimizations)
+        a_diff = a_max - a_best
+
+        score = 0
+        for i in range(2, len(optimizations) - 1):
+            for j in range(1, i):
+                pi = optimizations[j]
+                pj = optimizations[i]
+                score += (a_best / pi.execution_time_ms) * \
+                         (a_best / pj.execution_time_ms) * \
+                         math.sqrt(
+                             ((pj.execution_time_ms - pi.execution_time_ms) / a_diff) ** 2 + \
+                             ((pj.optimizer_score - pi.optimizer_score) / e_diff) ** 2) * \
+                         math.copysign(1, (pj.optimizer_score - pi.optimizer_score))
+    except InterruptedError as ie:
+        raise ie
+    except Exception:
+        print("Failed to calculate score, setting TAQO score as 0.0")
+        return 0.0
+    print("{:.2f}".format(score))
+
+    return "{:.2f}".format(score)
