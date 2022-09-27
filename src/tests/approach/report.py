@@ -16,6 +16,9 @@ class ApproachReport(Report):
         self.improved_execution_time = []
         self.worse_execution_time = []
 
+    def get_report_name(self):
+        return "Default/Analyze/Analyze+Statistics"
+
     def add_query(self, default: Query, analyze: Query, all: Query):
         if default.compare_plans(all.execution_plan):
             self.same_execution_plan.append([default, analyze, all])

@@ -13,6 +13,9 @@ class ComparisonReport(Report):
 
         self.queries = {}
 
+    def get_report_name(self):
+        return "Comparison"
+
     def define_version(self, first_version, second_version):
         self.report += f"[VERSION]\n====\nYugabyte:\n{first_version}\n\nPostgres:\n{second_version}\n====\n\n"
 

@@ -11,6 +11,9 @@ class RegressionReport(Report):
 
         self.queries = {}
 
+    def get_report_name(self):
+        return "Regression"
+
     def define_version(self, first_version, second_version):
         self.report += f"[GIT COMMIT/VERSION]\n====\nFirst:\n{first_version}\n\nSecond:\n{second_version}\n====\n\n"
 

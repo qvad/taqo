@@ -163,7 +163,7 @@ if __name__ == "__main__":
     )
 
     config.logger.info("------------------------------------------------------------")
-    config.logger.info("Query Optimizer Testing Framework for Yugabyte/PG DBs")
+    config.logger.info("Query Optimizer Testing Framework for Postgres compatible DBs")
     config.logger.info("")
     config.logger.info("Initial configuration:")
     for line in str(config).split("\n"):

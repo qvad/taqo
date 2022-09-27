@@ -51,7 +51,7 @@ class Report:
         self.config = Config()
         self.logger = self.config.logger
 
-        self.report = f"= Optimizer Test Report \n" \
+        self.report = f"= Optimizer {self.get_report_name()} Test Report \n" \
                       f":source-highlighter: coderay\n" \
                       f":coderay-linenums-mode: inline\n\n"
 
@@ -71,10 +71,8 @@ class Report:
         if not os.path.isdir("report"):
             os.mkdir("report")
 
-        os.mkdir(f"report/{self.start_date}")
-        os.mkdir(f"report/{self.start_date}/imgs")
-
-        self.logger.info(f"Created report folder for this run at 'report/{self.start_date}'")
+    def get_report_name(self):
+        return ""
 
     def report_model(self, model_queries):
         self._start_collapsible("Model queries")
