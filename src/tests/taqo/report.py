@@ -52,15 +52,18 @@ class TaqoReport(Report):
     def add_query(self, query: Query):
         best_optimization = query.get_best_optimization()
 
-        if self.config.compare_with_pg and query.result_hash != query.postgres_query.result_hash:
-            self.failed_validation.append(query)
-        if not self.config.compare_with_pg and query.result_hash != best_optimization.result_hash:
-            self.failed_validation.append(query)
+        if len(query.optimizations) > 1:
+            if self.config.compare_with_pg and query.result_hash != query.postgres_query.result_hash:
+                self.failed_validation.append(query)
+            if not self.config.compare_with_pg and query.result_hash != best_optimization.result_hash:
+                self.failed_validation.append(query)
 
-        if allowed_diff(self.config, query.execution_time_ms, best_optimization.execution_time_ms):
-            self.same_execution_plan.append(query)
+            if allowed_diff(self.config, query.execution_time_ms, best_optimization.execution_time_ms):
+                self.same_execution_plan.append(query)
+            else:
+                self.better_plan_found.append(query)
         else:
-            self.better_plan_found.append(query)
+            self.same_execution_plan.append(query)
 
     def build_report(self):
         # link to top
