@@ -29,8 +29,11 @@ class TaqoReport(Report):
 
     @staticmethod
     def calculate_score(query):
-        return "{:.2f}".format(
-            query.get_best_optimization().execution_time_ms / query.execution_time_ms)
+        if query.execution_time_ms == 0:
+            return -1
+        else:
+            return "{:.2f}".format(
+                query.get_best_optimization().execution_time_ms / query.execution_time_ms)
 
     def create_plot(self, best_optimization, optimizations, query):
         plt.xlabel('Execution time')
@@ -58,7 +61,8 @@ class TaqoReport(Report):
             if not self.config.compare_with_pg and query.result_hash != best_optimization.result_hash:
                 self.failed_validation.append(query)
 
-            if allowed_diff(self.config, query.execution_time_ms, best_optimization.execution_time_ms):
+            if allowed_diff(self.config, query.execution_time_ms,
+                            best_optimization.execution_time_ms):
                 self.same_execution_plan.append(query)
             else:
                 self.better_plan_found.append(query)
