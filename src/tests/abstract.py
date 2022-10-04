@@ -71,6 +71,9 @@ class Report:
         if not os.path.isdir("report"):
             os.mkdir("report")
 
+        if not os.path.isdir(f"report/{self.start_date}"):
+            os.mkdir(f"report/{self.start_date}")
+
     def get_report_name(self):
         return ""
 
