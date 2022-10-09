@@ -12,7 +12,6 @@ class TaqoReport(Report):
     def __init__(self):
         super().__init__()
 
-        os.mkdir(f"report/{self.start_date}")
         os.mkdir(f"report/{self.start_date}/imgs")
 
         self.logger.info(f"Created report folder for this run at 'report/{self.start_date}'")
