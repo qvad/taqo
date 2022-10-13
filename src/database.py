@@ -254,13 +254,14 @@ class EPNode:
         return self.full_str
 
 
+@dataclasses.dataclass
 class ExecutionPlan:
-    def __init__(self, full_plan_str):
-        self.root = EPNode()
-        self.full_str = full_plan_str
+    full_str: str
 
-        current_node = self.root
-        for line in full_plan_str.split("\n"):
+    def parse_tree(self):
+        root = EPNode()
+        current_node = root
+        for line in self.full_str.split("\n"):
             if line.strip().startswith("->"):
                 level = int(line.find("->") / 2)
                 previous_node = current_node
@@ -410,6 +411,6 @@ def get_queries_from_previous_result(previous_execution_path):
         return from_dict(ListOfQueries, json.load(prev_result), DaciteConfig(check_types=False))
 
 
-def store_queries_to_file(queries):
-    with open("report/output.json", "w") as result_file:
+def store_queries_to_file(queries, output_json_name):
+    with open(f"report/{output_json_name}.json", "w") as result_file:
         result_file.write(json.dumps(queries, cls=EnhancedJSONEncoder))

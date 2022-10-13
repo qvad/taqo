@@ -4,6 +4,7 @@ import random
 
 from tqdm import tqdm
 
+from config import ModelSteps
 from database import Query, Table, Field
 from models.abstract import QTFModel, QueryJoins
 from utils import evaluate_sql, get_md5
@@ -22,8 +23,8 @@ class ComplexModel(QTFModel):
                   Field('c_real', True),
                   Field('c_money', True)
               ], num) for num in
-        # [1_000_000, 500_000, 50_000, 100]
-        [50_000, 5_000, 100]
+        [1_000_000, 500_000, 50_000, 100]
+        # [50_000, 5_000, 100]
     ]
     COLUMNS = [
         'c_int',
@@ -47,7 +48,7 @@ class ComplexModel(QTFModel):
     # IS NOT NULL
 
     def create_tables(self, conn, skip_analyze=False, db_prefix=None):
-        if self.config.skip_model_creation:
+        if len(self.config.model_creation) == 0:
             return self.TABLES
 
         self.logger.info("Creating simple model tables and run analyze")
@@ -55,31 +56,34 @@ class ComplexModel(QTFModel):
         model_queries = []
         with conn.cursor() as cur:
             for table in tqdm(self.TABLES):
-                evaluate_sql(cur, f"DROP TABLE IF EXISTS {table.name} CASCADE")
-                create_table = f"CREATE TABLE {table.name} AS " \
-                               f"SELECT c_int, " \
-                               f"(case when c_int % 2 = 0 then true else false end) as c_bool, " \
-                               f"(c_int + 0.0001)::text as c_text, " \
-                               f"(c_int + 0.0002)::varchar as c_varchar, " \
-                               f"(c_int + 0.1)::decimal as c_decimal, " \
-                               f"(c_int + 0.2)::float as c_float, " \
-                               f"(c_int + 0.3)::real as c_real, " \
-                               f"(c_int + 0.4)::money as c_money " \
-                               f"FROM generate_Series(1,{table.size}) c_int;"
-                evaluate_sql(cur, create_table)
+                if ModelSteps.TEARDOWN:
+                    evaluate_sql(cur, f"DROP TABLE IF EXISTS {table.name} CASCADE")
 
-                model_queries.append(create_table)
-                for columns_list in self.INDEXED_AND_SELECTED:
-                    joined_columns_list = ', '.join(columns_list)
-                    hex_digest = get_md5(joined_columns_list)
+                if ModelSteps.CREATE and ModelSteps.IMPORT:
+                    create_table = f"CREATE TABLE {table.name} AS " \
+                                   f"SELECT c_int, " \
+                                   f"(case when c_int % 2 = 0 then true else false end) as c_bool, " \
+                                   f"(c_int + 0.0001)::text as c_text, " \
+                                   f"(c_int + 0.0002)::varchar as c_varchar, " \
+                                   f"(c_int + 0.1)::decimal as c_decimal, " \
+                                   f"(c_int + 0.2)::float as c_float, " \
+                                   f"(c_int + 0.3)::real as c_real, " \
+                                   f"(c_int + 0.4)::money as c_money " \
+                                   f"FROM generate_Series(1,{table.size}) c_int;"
+                    evaluate_sql(cur, create_table)
 
-                    create_index = f"CREATE INDEX {table.name}_{hex_digest}_idx " \
-                                   f"ON {table.name}({joined_columns_list})"
-                    evaluate_sql(cur, create_index)
-                    model_queries.append(create_index)
+                    model_queries.append(create_table)
+                    for columns_list in self.INDEXED_AND_SELECTED:
+                        joined_columns_list = ', '.join(columns_list)
+                        hex_digest = get_md5(joined_columns_list)
 
-                if not skip_analyze:
-                    evaluate_sql(cur, f"ANALYZE {table.name}")
+                        create_index = f"CREATE INDEX {table.name}_{hex_digest}_idx " \
+                                       f"ON {table.name}({joined_columns_list})"
+                        evaluate_sql(cur, create_index)
+                        model_queries.append(create_index)
+
+                    if not skip_analyze:
+                        evaluate_sql(cur, f"ANALYZE {table.name}")
 
         return self.TABLES, model_queries
 

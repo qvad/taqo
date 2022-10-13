@@ -102,7 +102,7 @@ class YugabyteLocalCluster(Yugabyte):
         sleep(15)
 
     def destroy(self):
-        if not self.config.skip_model_creation:
+        if self.config.destroy_database:
             self.logger.info("Destroying existing Yugabyte var/ directory")
 
             out = subprocess.check_output(['bin/yb-ctl', 'destroy'],
@@ -165,7 +165,7 @@ class YugabyteLocalRepository(Yugabyte):
         self.logger.info(f"Building yugabyte from source code '{self.path}'")
         subprocess.call(['./yb_build.sh',
                          'release',
-                         '--clean',
+                         # '--clean',
                          '--no-tests', '--skip-java-build'],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.STDOUT,
@@ -175,7 +175,7 @@ class YugabyteLocalRepository(Yugabyte):
         pass
 
     def destroy(self):
-        if not self.config.skip_model_creation:
+        if self.config.destroy_database:
             self.logger.info("Destroying existing Yugabyte var/ directory")
 
             out = subprocess.check_output(['bin/yugabyted', 'destroy'],
