@@ -113,7 +113,7 @@ class ComplexModel(QTFModel):
 
         for perm in itertools.permutations(tables, 3):
             first_table = perm[0]
-            tables_cycle = itertools.cycle(tables)
+            tables_cycle = itertools.cycle(perm)
             for query_join in QueryJoins:
                 next_distinct = next(distinct)
                 joined_columns_list = ', '.join(
