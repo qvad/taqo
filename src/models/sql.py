@@ -28,15 +28,15 @@ class SQLModel(QTFModel):
                                                             db_prefix)
             teardown_queries.insert(0, "-- TEARDOWN QUERIES")
 
-        if ModelSteps.TEARDOWN in self.config.model_creation:
+        if ModelSteps.CREATE in self.config.model_creation:
             created_tables, create_queries = self.evaluate_ddl_queries(conn, ModelSteps.CREATE,
                                                                        skip_analyze, db_prefix)
             create_queries.insert(0, "-- CREATE QUERIES")
 
-        if ModelSteps.TEARDOWN in self.config.model_creation:
+        if ModelSteps.IMPORT in self.config.model_creation:
             _, import_queries = self.evaluate_ddl_queries(conn, ModelSteps.IMPORT, skip_analyze,
                                                           db_prefix)
-            import_queries.insert(0, "-- INSERT QUERIES")
+            import_queries.insert(0, "-- IMPORT QUERIES")
 
         return created_tables, teardown_queries + create_queries + import_queries
 

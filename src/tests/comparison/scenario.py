@@ -53,7 +53,7 @@ class ComparisonTest(AbstractTest):
             self.logger.info("Running queries against postgres")
             self.postgres.establish_connection()
             conn = self.postgres.connection.conn
-            pg_created_tables, _ = model.create_tables(conn, "postgres")
+            pg_created_tables, _ = model.create_tables(conn, db_prefix="postgres")
             pg_queries = model.get_queries(pg_created_tables)
 
             with conn.cursor() as cur:
