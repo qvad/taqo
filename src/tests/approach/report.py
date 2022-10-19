@@ -19,15 +19,23 @@ class ApproachReport(Report):
     def get_report_name(self):
         return "Default/Analyze/Analyze+Statistics"
 
-    def add_query(self, default: Query, analyze: Query, all: Query):
-        if default.compare_plans(all.execution_plan):
-            self.same_execution_plan.append([default, analyze, all])
-        elif allowed_diff(self.config, default.execution_time_ms, all.execution_time_ms):
-            self.almost_same_execution_time.append([default, analyze, all])
-        elif default.execution_time_ms < all.execution_time_ms:
-            self.worse_execution_time.append([default, analyze, all])
+    def add_query(self,
+                  default: Query,
+                  default_analyze: Query,
+                  analyze: Query,
+                  analyze_analyze: Query,
+                  all: Query,
+                  all_analyze: Query
+                  ):
+        queries_tuple = [default, default_analyze, analyze, analyze_analyze, all, all_analyze]
+        if default.compare_plans(all_analyze.execution_plan):
+            self.same_execution_plan.append(queries_tuple)
+        elif allowed_diff(self.config, default.execution_time_ms, all_analyze.execution_time_ms):
+            self.almost_same_execution_time.append(queries_tuple)
+        elif default.execution_time_ms < all_analyze.execution_time_ms:
+            self.worse_execution_time.append(queries_tuple)
         else:
-            self.improved_execution_time.append([default, analyze, all])
+            self.improved_execution_time.append(queries_tuple)
 
     def build_report(self):
         # link to top
@@ -40,22 +48,28 @@ class ApproachReport(Report):
 
         self.report += f"\n[#worse]\n== Worse execution time queries ({len(self.worse_execution_time)})\n\n"
         for query in self.worse_execution_time:
-            self.__report_query(query[0], query[1], query[2])
+            self.__report_query(*query)
 
         self.report += f"\n[#same_time]\n== Almost same execution time queries ({len(self.almost_same_execution_time)})\n\n"
         for query in self.almost_same_execution_time:
-            self.__report_query(query[0], query[1], query[2])
+            self.__report_query(*query)
 
         self.report += f"\n[#improved]\n== Improved execution time ({len(self.improved_execution_time)})\n\n"
         for query in self.improved_execution_time:
-            self.__report_query(query[0], query[1], query[2])
+            self.__report_query(*query)
 
         self.report += f"\n[#same_plan]\n\n== Same execution plan ({len(self.same_execution_plan)})\n\n"
         for query in self.same_execution_plan:
-            self.__report_query(query[0], query[1], query[2])
+            self.__report_query(*query)
 
     # noinspection InsecureHash
-    def __report_query(self, default: Query, analyze: Query, all: Query):
+    def __report_query(self,
+                       default: Query,
+                       default_analyze: Query,
+                       analyze: Query,
+                       analyze_analyze: Query,
+                       all: Query,
+                       all_analyze: Query):
         self.reported_queries_counter += 1
         query_hash = get_md5(default.query)
 
@@ -75,13 +89,13 @@ class ApproachReport(Report):
         self.report += "|Comparison analysis\n"
 
         self._start_table_row()
-        self.report += f"Cost: `{default.optimizer_score}` (default) vs `{analyze.optimizer_score}` (analyze) vs `{all.optimizer_score}` (all)"
+        self.report += f"Cost: `{default.optimizer_score}` (default) vs `{analyze.optimizer_score}` (analyze) vs `{all_analyze.optimizer_score}` (all)"
         self._end_table_row()
 
         self.report += "\n"
 
         self._start_table_row()
-        self.report += f"Execution time: `{default.execution_time_ms}` (default) vs `{analyze.execution_time_ms}` (analyze) vs `{all.execution_time_ms}` (all)"
+        self.report += f"Execution time: `{default.execution_time_ms}` (default) vs `{analyze.execution_time_ms}` (analyze) vs `{all_analyze.execution_time_ms}` (all)"
         self._end_table_row()
 
         self._start_table_row()
@@ -92,15 +106,33 @@ class ApproachReport(Report):
         self._end_source()
         self._end_collapsible()
 
+        self._start_collapsible("Default approach plan with EXPLAIN ANALYZE (w/o analyze)")
+        self._start_source(["diff"])
+        self.report += default_analyze.execution_plan.full_str
+        self._end_source()
+        self._end_collapsible()
+
         self._start_collapsible("Analyze approach plan (w/ analyze)")
         self._start_source(["diff"])
         self.report += analyze.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
+        self._start_collapsible("Table analyze approach plan with EXPLAIN ANALYZE (w/ analyze)")
+        self._start_source(["diff"])
+        self.report += analyze_analyze.execution_plan.full_str
+        self._end_source()
+        self._end_collapsible()
+
         self._start_collapsible("New approach plan (w/ analyze and statistics)")
         self._start_source(["diff"])
         self.report += all.execution_plan.full_str
+        self._end_source()
+        self._end_collapsible()
+
+        self._start_collapsible("New approach plan with EXPLAIN ANALYZE (w/ analyze and statistics)")
+        self._start_source(["diff"])
+        self.report += all_analyze.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
