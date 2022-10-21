@@ -89,13 +89,17 @@ class ApproachReport(Report):
         self.report += "|Comparison analysis\n"
 
         self._start_table_row()
-        self.report += f"Cost: `{default.optimizer_score}` (default) vs `{analyze.optimizer_score}` (analyze) vs `{all_analyze.optimizer_score}` (all)"
+        self.report += f"Cost: `{default.optimizer_score}` (default) vs {default_analyze.optimizer_score}` (default analyze) vs " \
+                       f"`{analyze.optimizer_score}` (table analyze) vs {analyze_analyze.optimizer_score}` (table analyze + query analyze) vs " \
+                       f"`{all.optimizer_score}` (stats + table analyze) vs {all_analyze.optimizer_score}` (stats + table analyze + query analyze)"
         self._end_table_row()
 
         self.report += "\n"
 
         self._start_table_row()
-        self.report += f"Execution time: `{default.execution_time_ms}` (default) vs `{analyze.execution_time_ms}` (analyze) vs `{all_analyze.execution_time_ms}` (all)"
+        self.report += f"Execution time: `{default.execution_time_ms}` (default) vs {default_analyze.execution_time_ms}` (default analyze) vs " \
+                       f"`{analyze.execution_time_ms}` (table analyze) vs {analyze_analyze.execution_time_ms}` (table analyze + query analyze) vs " \
+                       f"`{all.execution_time_ms}` (stats + table analyze) vs {all_analyze.optimizer_score}` (stats + table analyze + query analyze)"
         self._end_table_row()
 
         self._start_table_row()
@@ -112,25 +116,25 @@ class ApproachReport(Report):
         self._end_source()
         self._end_collapsible()
 
-        self._start_collapsible("Analyze approach plan (w/ analyze)")
+        self._start_collapsible("Plan with analyzed table (w/ analyze)")
         self._start_source(["diff"])
         self.report += analyze.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
-        self._start_collapsible("Table analyze approach plan with EXPLAIN ANALYZE (w/ analyze)")
+        self._start_collapsible("Plan with analyzed table with EXPLAIN ANALYZE (w/ analyze)")
         self._start_source(["diff"])
         self.report += analyze_analyze.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
-        self._start_collapsible("New approach plan (w/ analyze and statistics)")
+        self._start_collapsible("Stats + table analyze (w/ analyze and statistics)")
         self._start_source(["diff"])
         self.report += all.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
-        self._start_collapsible("New approach plan with EXPLAIN ANALYZE (w/ analyze and statistics)")
+        self._start_collapsible("Stats + table analyze with EXPLAIN ANALYZE (w/ analyze and statistics)")
         self._start_source(["diff"])
         self.report += all_analyze.execution_plan.full_str
         self._end_source()
@@ -138,7 +142,7 @@ class ApproachReport(Report):
 
         self._start_source(["diff"])
 
-        diff = self._get_plan_diff(default.execution_plan.full_str, all.execution_plan.full_str)
+        diff = self._get_plan_diff(default.execution_plan.full_str, all_analyze.execution_plan.full_str)
         if not diff:
             diff = default.execution_plan.full_str
 
