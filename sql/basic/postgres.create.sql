@@ -24,11 +24,9 @@ CREATE TABLE ts2(k1 int,
                  v1 int,
                  v2 text,
                  PRIMARY KEY(k1, k2));
-CREATE INDEX ON ts2(v1, k2);
 
 CREATE TABLE ts3(k1 int,
                  k2 text,
                  v1 int,
                  v2 text,
-                 PRIMARY KEY(k1, k2));
-CREATE INDEX ON ts3(v1, k2);
+                 PRIMARY KEY(k1));
