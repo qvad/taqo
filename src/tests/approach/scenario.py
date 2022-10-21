@@ -58,13 +58,15 @@ class ApproachTest(AbstractTest):
             model = get_test_model()
             created_tables, model_queries = model.create_tables(conn, skip_analyze=True)
             queries_default = model.get_queries(created_tables)
+            queries_default_with_analyze = model.get_queries(created_tables)
 
             self.report.report_model(model_queries)
 
             queries_default_plans = self.evaluate_queries_for_version(conn, queries_default, False)
-            queries_default_plans_with_analyze = self.evaluate_queries_for_version(conn,
-                                                                                   queries_default,
-                                                                                   True)
+            queries_default_plans_with_analyze = self.evaluate_queries_for_version(
+                conn,
+                queries_default_with_analyze,
+                True)
 
             self.logger.info("Evaluating with ANALYZE")
 
@@ -76,10 +78,14 @@ class ApproachTest(AbstractTest):
                 self.logger.exception("Evaluating with statistics and ANALYZE", e)
 
             queries_analyze = model.get_queries(created_tables)
+            queries_analyze_with_analyze = model.get_queries(created_tables)
+
             queries_analyze_plans = self.evaluate_queries_for_version(conn, queries_analyze, False)
-            queries_analyze_plans_with_analyze = self.evaluate_queries_for_version(conn,
-                                                                                   queries_analyze,
-                                                                                   True)
+            queries_analyze_plans_with_analyze = self.evaluate_queries_for_version(
+                conn,
+                queries_analyze_with_analyze,
+                True)
+
             try:
                 self.logger.info("Evaluating with statistics and ANALYZE")
                 with conn.cursor() as cur:
@@ -88,9 +94,13 @@ class ApproachTest(AbstractTest):
                 self.logger.exception("Evaluating with statistics and ANALYZE", e)
 
             queries_all = model.get_queries(created_tables)
+            queries_all_with_analyze = model.get_queries(created_tables)
+
             queries_all_plans = self.evaluate_queries_for_version(conn, queries_all, False)
-            queries_all_plans_with_analyze = self.evaluate_queries_for_version(conn, queries_all,
-                                                                               True)
+            queries_all_plans_with_analyze = self.evaluate_queries_for_version(
+                conn,
+                queries_all_with_analyze,
+                True)
 
             for query_id in range(len(queries_default_plans.queries)):
                 self.report.add_query(
