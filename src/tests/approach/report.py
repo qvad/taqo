@@ -89,17 +89,17 @@ class ApproachReport(Report):
         self.report += "|Comparison analysis\n"
 
         self._start_table_row()
-        self.report += f"Cost: `{default.optimizer_score}` (default) vs {default_analyze.optimizer_score}` (default analyze) vs " \
-                       f"`{analyze.optimizer_score}` (table analyze) vs {analyze_analyze.optimizer_score}` (table analyze + query analyze) vs " \
-                       f"`{all.optimizer_score}` (stats + table analyze) vs {all_analyze.optimizer_score}` (stats + table analyze + query analyze)"
+        self.report += f"Cost: `{default.optimizer_score}` (default) vs `{default_analyze.optimizer_score}` (default analyze) vs " \
+                       f"`{analyze.optimizer_score}` (table analyze) vs `{analyze_analyze.optimizer_score}` (table analyze + query analyze) vs " \
+                       f"`{all.optimizer_score}` (stats + table analyze) vs `{all_analyze.optimizer_score}` (stats + table analyze + query analyze)"
         self._end_table_row()
 
         self.report += "\n"
 
         self._start_table_row()
-        self.report += f"Execution time: `{default.execution_time_ms}` (default) vs {default_analyze.execution_time_ms}` (default analyze) vs " \
-                       f"`{analyze.execution_time_ms}` (table analyze) vs {analyze_analyze.execution_time_ms}` (table analyze + query analyze) vs " \
-                       f"`{all.execution_time_ms}` (stats + table analyze) vs {all_analyze.optimizer_score}` (stats + table analyze + query analyze)"
+        self.report += f"Execution time: `{default.execution_time_ms}` (default) vs `{default_analyze.execution_time_ms}` (default analyze) vs " \
+                       f"`{analyze.execution_time_ms}` (table analyze) vs `{analyze_analyze.execution_time_ms}` (table analyze + query analyze) vs " \
+                       f"`{all.execution_time_ms}` (stats + table analyze) vs `{all_analyze.optimizer_score}` (stats + table analyze + query analyze)"
         self._end_table_row()
 
         self._start_table_row()

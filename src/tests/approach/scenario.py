@@ -28,7 +28,7 @@ class ApproachTest(AbstractTest):
                     query.optimizer_score = \
                         get_optimizer_score_from_plan(query.execution_plan)
 
-                    query_executed = query.get_explain_analyze() if explain_with_analyze else query.get_heuristic_explain()
+                    query_executed = query.get_explain_analyze() if explain_with_analyze else query.get_query()
                     calculate_avg_execution_time(cur, query, query_str=query_executed,
                                                  num_retries=int(self.config.num_retries))
 
