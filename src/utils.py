@@ -34,9 +34,10 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
     config = Config()
 
     query_str = query_str or query.get_query()
-    with_analyze = query_str is not None and \
-                   "explain" in query_str and \
-                   ("analyze" in query_str or "analyse" in query_str)
+    query_str_lower = query_str.lower() if query_str is not None else None
+    with_analyze = query_str_lower is not None and \
+                   "explain" in query_str_lower and \
+                   ("analyze" in query_str_lower or "analyse" in query_str_lower)
 
     sum_execution_times = 0
     actual_evaluations = 0
