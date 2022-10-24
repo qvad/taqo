@@ -17,7 +17,10 @@ class ComparisonTest(AbstractTest):
         version_queries = ListOfQueries()
         with conn.cursor() as cur:
             for query in self.config.session_props:
-                evaluate_sql(cur, query)
+                try:
+                    evaluate_sql(cur, query)
+                except Exception as e:
+                    self.logger.exception(f"Failed to execute session query: {e}\n{query}")
 
             counter = 1
             for first_version_query in queries:

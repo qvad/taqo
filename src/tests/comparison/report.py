@@ -35,9 +35,9 @@ class ComparisonReport(Report):
         for tag, queries in self.queries.items():
             self.report += f"{num_columns}+m|{tag}.sql\n"
             for query in queries:
-                ratio = "{:.2f}".format(query[0].execution_time_ms / query[1].execution_time_ms if query[1].execution_time_ms != 0 else 0)
-                ratio_x3 = query[0].execution_time_ms / (3 * query[1].execution_time_ms) if query[1].execution_time_ms != 0 else 0
-                ratio_x3_str = "{:.2f}".format(query[0].execution_time_ms / (3 * query[1].execution_time_ms) if query[1].execution_time_ms != 0 else 0)
+                ratio = "{:.2f}".format(query[0].execution_time_ms / query[1].execution_time_ms if query[1].execution_time_ms != 0 else 99999999)
+                ratio_x3 = query[0].execution_time_ms / (3 * query[1].execution_time_ms) if query[1].execution_time_ms != 0 else 99999999
+                ratio_x3_str = "{:.2f}".format(query[0].execution_time_ms / (3 * query[1].execution_time_ms) if query[1].execution_time_ms != 0 else 99999999)
                 color = "[green]" if ratio_x3 <= 1.0 else "[red]"
                 self.report += f"|{query[0].execution_time_ms}\n" \
                                f"|{query[1].execution_time_ms}\n" \

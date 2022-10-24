@@ -8,12 +8,9 @@ from sql_metadata import Parser
 
 from config import Config
 
-EXPLAIN = "EXPLAIN "
-EXPLAIN_ANALYZE = "EXPLAIN ANALYZE "
-
 
 def current_milli_time():
-    return round(time.time() * 1000)
+    return (time.time_ns() // 1_000) / 1_000
 
 
 def get_optimizer_score_from_plan(execution_plan):
@@ -22,7 +19,7 @@ def get_optimizer_score_from_plan(execution_plan):
         return float(match.groups()[0])
 
 
-def get_result_hashsum(cur):
+def get_result(cur):
     result = cur.fetchall()
 
     str_result = ""
@@ -30,11 +27,16 @@ def get_result_hashsum(cur):
         for column_value in row:
             str_result += f"{str(column_value)}"
 
-    return get_md5(str_result)
+    return str_result
 
 
 def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 0):
     config = Config()
+
+    query_str = query_str or query.get_query()
+    with_analyze = query_str is not None and \
+                   "explain" in query_str and \
+                   ("analyze" in query_str or "analyse" in query_str)
 
     sum_execution_times = 0
     actual_evaluations = 0
@@ -47,23 +49,34 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
         # noinspection PyUnresolvedReferences
         try:
             start_time = current_milli_time()
-            evaluate_sql(cur, query_str or query.get_query())
+            evaluate_sql(cur, query_str)
+
+            result = None
+            if iteration >= num_warmup and with_analyze:
+                result = get_result(cur)
+
+                matches = re.finditer(r"Execution\sTime:\s(\d+\.\d+)\sms", result, re.MULTILINE)
+                for matchNum, match in enumerate(matches, start=1):
+                    return float(match.groups()[0])
+                sum_execution_times += result
+            else:
+                sum_execution_times += current_milli_time() - start_time
 
             if iteration == 0:
-                query.result_hash = get_result_hashsum(cur)
+                if not result:
+                    result = get_result(cur)
 
-            if iteration >= num_warmup:
-                sum_execution_times += current_milli_time() - start_time
-        except psycopg2.errors.QueryCanceled as qc:
+                query.result_hash = get_md5(result)
+        except psycopg2.errors.QueryCanceled:
             # failed by timeout - it's ok just skip optimization
             query.execution_time_ms = 0
             config.logger.debug(
-                f"Skipping optimization due to timeout limitation: {query.get_query()}")
+                f"Skipping optimization due to timeout limitation:\n{query_str}")
             return False
         except psycopg2.errors.DatabaseError as ie:
-            # Some serious problem occured - probably an issue
+            # Some serious problem occurred - probably an issue
             query.execution_time_ms = 0
-            config.logger.error(f"INTERNAL ERROR {ie}\nSQL query:{query.get_query()}")
+            config.logger.error(f"INTERNAL ERROR {ie}\nSQL query:\n{query_str}")
             return False
         finally:
             if iteration >= num_warmup:
@@ -109,9 +122,8 @@ def allowed_diff(config, original_execution_time, optimization_execution_time):
     if optimization_execution_time <= 0:
         return False
 
-    return (
-                   abs(original_execution_time - optimization_execution_time) / optimization_execution_time) < \
-           config.skip_percentage_delta
+    return (abs(original_execution_time - optimization_execution_time) /
+            optimization_execution_time) < config.skip_percentage_delta
 
 
 def get_md5(string: str):
