@@ -82,6 +82,7 @@ class Config(metaclass=Singleton):
     look_near_best_plan: bool = None
 
     num_queries: int = None
+    parametrized: bool = False
     num_retries: int = None
     num_warmup: int = None
     skip_timeout_delta: int = None

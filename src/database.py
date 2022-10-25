@@ -175,6 +175,7 @@ class Query:
     optimizer_tips: QueryTips = None
     execution_time_ms: float = 0
     optimizations: List['Query'] = None
+    parameters: List = None
     postgres_query: 'Query' = None
     result_hash: str = None
 

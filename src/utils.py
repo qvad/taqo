@@ -2,11 +2,14 @@ import hashlib
 import math
 import re
 import time
+from copy import copy
 
 import psycopg2
 from sql_metadata import Parser
 
 from config import Config
+
+PARAMETER_VARIABLE = r"(\%\((.*?)\))"
 
 
 def current_milli_time():
@@ -50,7 +53,7 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
         # noinspection PyUnresolvedReferences
         try:
             start_time = current_milli_time()
-            evaluate_sql(cur, query_str)
+            query.parameters = evaluate_sql(cur, query_str)
 
             result = None
             if iteration >= num_warmup and with_analyze:
@@ -113,10 +116,44 @@ def get_explain_clause():
 def evaluate_sql(cur, sql):
     config = Config()
 
+    parameters = []
+
+    sql_wo_parameters = copy(sql)
+    str_param_skew = 0
+    str_wo_param_skew = 0
+    for match in re.finditer(PARAMETER_VARIABLE, sql, re.MULTILINE):
+        var_value = match.groups()[1]
+
+        if var_value.isnumeric():
+            if var_value.isdigit():
+                correct_value = int(var_value)
+            else:
+                correct_value = float(var_value)
+        else:
+            correct_value = var_value.replace("'", "")
+
+        changed_var_name = '%s'
+        sql = changed_var_name.join(
+            [sql[:str_param_skew + match.start(0)],
+             sql[str_param_skew + match.end(0):]])
+        str_param_skew += len(changed_var_name) - (match.end(0) - match.start(0))
+
+        sql_wo_parameters = var_value.join(
+            [sql_wo_parameters[:str_wo_param_skew + match.start(0)],
+             sql_wo_parameters[str_wo_param_skew + match.end(0):]])
+        str_wo_param_skew += len(var_value) - (match.end(0) - match.start(0))
+
+        parameters.append(correct_value)
+
     config.logger.debug(
         sql.replace("\n", "")[:120] + "..." if len(sql) > 120 else sql.replace("\n", ""))
 
-    cur.execute(sql)
+    if config.parametrized and parameters:
+        cur.execute(sql, parameters)
+    else:
+        cur.execute(sql_wo_parameters)
+
+    return parameters
 
 
 def allowed_diff(config, original_execution_time, optimization_execution_time):

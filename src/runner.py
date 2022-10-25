@@ -89,6 +89,10 @@ if __name__ == "__main__":
     parser.add_argument('--num_queries',
                         default=-1,
                         help='Number of queries to evaluate')
+    parser.add_argument('--parametrized',
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help='Run parametrized query instead of normal')
     parser.add_argument('--compare_with_pg',
                         action=argparse.BooleanOptionalAction,
                         default=False,
@@ -138,7 +142,7 @@ if __name__ == "__main__":
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
 
         # configuration file properties
-        yugabyte_code_path=args.yugabyte_code_path or configuration.get("yugabyte_code_path"),
+        yugabyte_code_path=args.yugabyte_code_path or configuration.get("yugabyte_code_path", None),
         previous_results_path=args.previous_results_path,
         num_nodes=int(args.num_nodes) or configuration.get("num_nodes", 3),
 
@@ -153,6 +157,7 @@ if __name__ == "__main__":
 
         num_queries=int(args.num_queries)
         if int(args.num_queries) > 0 else configuration.get("num_queries", -1),
+        parametrized=args.parametrized,
         num_retries=configuration.get("num_retries", 5),
         num_warmup=configuration.get("num_warmup", 5),
 
