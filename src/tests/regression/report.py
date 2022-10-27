@@ -25,7 +25,7 @@ class RegressionReport(Report):
 
     def build_report(self):
         # link to top
-        self.add_plan_comaprison()
+        self.add_plan_comparison()
         self.add_rpc_calls()
         self.add_rpc_wait_times()
         self.add_scanned_rows()
@@ -67,7 +67,7 @@ class RegressionReport(Report):
             for query in queries:
                 self.__report_query(query[0], query[1])
 
-    def add_plan_comaprison(self):
+    def add_plan_comparison(self):
         self._start_collapsible("Plan comparison")
         self.report += "\n[#plans_summary]\n"
         self._start_table("2")
@@ -77,7 +77,7 @@ class RegressionReport(Report):
             self.report += f"a|<<{tag}>>\n"
             num_changed_plans = len(queries) - num_same_plans
             color = "[green]" if num_changed_plans == 0 else "[orange]"
-            self.report += f"a|{color}#*{num_same_plans}*#\n"
+            self.report += f"a|{color}#*{num_changed_plans}*#\n"
             self._end_table_row()
         self._end_table()
         self._end_collapsible()
