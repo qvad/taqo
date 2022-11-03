@@ -157,20 +157,20 @@ class RegressionReport(Report):
 
         self._add_double_newline()
 
+        self._start_table("3")
+        self.report += "|Metric|First|Second\n"
+        self._start_table_row()
+        self.report += f"Cardinality|{first_query.result_cardinality}|{second_query.result_cardinality}"
+        self._end_table_row()
+        self._start_table_row()
+        self.report += f"Optimizer cost|{first_query.optimizer_score}|{second_query.optimizer_score}"
+        self._end_table_row()
+        self._start_table_row()
+        self.report += f"Execution time|{first_query.execution_time_ms}|{second_query.execution_time_ms}"
+        self._end_table_row()
+        self._end_table()
+
         self._start_table()
-
-        self.report += "|Comparison analysis\n"
-
-        self._start_table_row()
-        self.report += f"`Cost: {first_query.optimizer_score}` (first) vs `{second_query.optimizer_score}` (second)"
-        self._end_table_row()
-
-        self.report += "\n"
-
-        self._start_table_row()
-        self.report += f"`Execution time: {first_query.execution_time_ms}` (first) vs `{second_query.execution_time_ms}` (second)"
-        self._end_table_row()
-
         self._start_table_row()
 
         self._start_collapsible("First version plan")

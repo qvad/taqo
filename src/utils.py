@@ -9,7 +9,7 @@ from sql_metadata import Parser
 
 from config import Config
 
-PARAMETER_VARIABLE = r"(\%\((.*?)\))"
+PARAMETER_VARIABLE = r"[^'](\%\((.*?)\))"
 
 
 def current_milli_time():
@@ -26,11 +26,13 @@ def get_result(cur):
     result = cur.fetchall()
 
     str_result = ""
+    cardinality = 0
     for row in result:
+        cardinality += 1
         for column_value in row:
             str_result += f"{str(column_value)}"
 
-    return str_result
+    return cardinality, str_result
 
 
 def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 0):
@@ -57,18 +59,25 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
 
             result = None
             if iteration >= num_warmup and with_analyze:
-                result = get_result(cur)
+                _, result = get_result(cur)
+
+                # get cardinality for queries with analyze
+                evaluate_sql(cur, query.get_query())
+                cardinality, _ = get_result(cur)
 
                 matches = re.finditer(r"Execution\sTime:\s(\d+\.\d+)\sms", result, re.MULTILINE)
                 for matchNum, match in enumerate(matches, start=1):
-                    return float(match.groups()[0])
+                    result = float(match.groups()[0])
+                    break
                 sum_execution_times += result
+                query.result_cardinality = cardinality
             else:
                 sum_execution_times += current_milli_time() - start_time
 
             if iteration == 0:
                 if not result:
-                    result = get_result(cur)
+                    cardinality, result = get_result(cur)
+                    query.result_cardinality = cardinality
 
                 query.result_hash = get_md5(result)
         except psycopg2.errors.QueryCanceled:

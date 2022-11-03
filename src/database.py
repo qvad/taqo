@@ -174,6 +174,7 @@ class Query:
     optimizer_score: float = 1
     optimizer_tips: QueryTips = None
     execution_time_ms: float = 0
+    result_cardinality: int = 0
     optimizations: List['Query'] = None
     parameters: List = None
     postgres_query: 'Query' = None

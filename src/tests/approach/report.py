@@ -84,23 +84,26 @@ class ApproachReport(Report):
 
         self._add_double_newline()
 
+        self._start_table("3")
+        self.report += "|Metric|Default|Default+QA|TA|TA + QA|S+TA|S+TA+QA\n"
+        self._start_table_row()
+        self.report += f"Cardinality|{default.result_cardinality}|{default_analyze.result_cardinality}|" \
+                       f"{analyze.result_cardinality}|{analyze_analyze.result_cardinality}|" \
+                       f"{all.result_cardinality}|{all_analyze.result_cardinality}"
+        self._end_table_row()
+        self._start_table_row()
+        self.report += f"Optimizer cost|{default.optimizer_score}|{default_analyze.optimizer_score}|" \
+                       f"{analyze.optimizer_score}|{analyze_analyze.optimizer_score}|" \
+                       f"{all.optimizer_score}|{all_analyze.optimizer_score}"
+        self._end_table_row()
+        self._start_table_row()
+        self.report += f"Execution time|{default.execution_time_ms}|{default_analyze.execution_time_ms}|" \
+                       f"{analyze.execution_time_ms}|{analyze_analyze.execution_time_ms}|" \
+                       f"{all.execution_time_ms}|{all_analyze.execution_time_ms}"
+        self._end_table_row()
+        self._end_table()
+
         self._start_table()
-
-        self.report += "|Comparison analysis\n"
-
-        self._start_table_row()
-        self.report += f"Cost: `{default.optimizer_score}` (default) vs `{default_analyze.optimizer_score}` (default analyze) vs " \
-                       f"`{analyze.optimizer_score}` (table analyze) vs `{analyze_analyze.optimizer_score}` (table analyze + query analyze) vs " \
-                       f"`{all.optimizer_score}` (stats + table analyze) vs `{all_analyze.optimizer_score}` (stats + table analyze + query analyze)"
-        self._end_table_row()
-
-        self.report += "\n"
-
-        self._start_table_row()
-        self.report += f"Execution time: `{default.execution_time_ms}` (default) vs `{default_analyze.execution_time_ms}` (default analyze) vs " \
-                       f"`{analyze.execution_time_ms}` (table analyze) vs `{analyze_analyze.execution_time_ms}` (table analyze + query analyze) vs " \
-                       f"`{all.execution_time_ms}` (stats + table analyze) vs `{all_analyze.optimizer_score}` (stats + table analyze + query analyze)"
-        self._end_table_row()
 
         self._start_table_row()
 

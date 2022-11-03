@@ -79,20 +79,20 @@ class ComparisonReport(Report):
 
         self._add_double_newline()
 
+        self._start_table("3")
+        self.report += "|Metric|Yugabyte|Postgres\n"
+        self._start_table_row()
+        self.report += f"Cardinality|{yb_query.result_cardinality}|{pg_query.result_cardinality}"
+        self._end_table_row()
+        self._start_table_row()
+        self.report += f"Optimizer cost|{yb_query.optimizer_score}|{pg_query.optimizer_score}"
+        self._end_table_row()
+        self._start_table_row()
+        self.report += f"Execution time|{yb_query.execution_time_ms}|{pg_query.execution_time_ms}"
+        self._end_table_row()
+        self._end_table()
+
         self._start_table()
-
-        self.report += "|Comparison analysis\n"
-
-        self._start_table_row()
-        self.report += f"`Cost: {yb_query.optimizer_score}` (yb) vs `{pg_query.optimizer_score}` (pg)"
-        self._end_table_row()
-
-        self.report += "\n"
-
-        self._start_table_row()
-        self.report += f"`Execution time: {yb_query.execution_time_ms}` (yb) vs `{pg_query.execution_time_ms}` (pg)"
-        self._end_table_row()
-
         self._start_table_row()
 
         self._start_collapsible("Yugabyte version plan")
