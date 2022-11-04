@@ -11,6 +11,7 @@ class ApproachReport(Report):
     def __init__(self):
         super().__init__()
 
+        self.different_explain_plans = []
         self.same_execution_plan = []
         self.almost_same_execution_time = []
         self.improved_execution_time = []
@@ -28,6 +29,11 @@ class ApproachReport(Report):
                   all_analyze: Query
                   ):
         queries_tuple = [default, default_analyze, analyze, analyze_analyze, all, all_analyze]
+        if not default.compare_plans(default_analyze.execution_plan) or \
+                not analyze.compare_plans(analyze_analyze.execution_plan) or \
+                not all.compare_plans(all_analyze.execution_plan):
+            self.different_explain_plans.append(queries_tuple)
+
         if default.compare_plans(all_analyze.execution_plan):
             self.same_execution_plan.append(queries_tuple)
         elif allowed_diff(self.config, default.execution_time_ms, all_analyze.execution_time_ms):
@@ -41,10 +47,15 @@ class ApproachReport(Report):
         # link to top
         self.report += "\n[#top]\n== All results by analysis type\n"
         # different results links
+        self.report += "\n<<error>>\n"
         self.report += "\n<<worse>>\n"
         self.report += "\n<<same_time>>\n"
         self.report += "\n<<improved>>\n"
         self.report += "\n<<same_plan>>\n"
+
+        self.report += f"\n[#error]\n== ERROR: Different EXPLAIN and EXPLAIN ANALYZE plans ({len(self.different_explain_plans)})\n\n"
+        for query in self.different_explain_plans:
+            self.__report_query(*query)
 
         self.report += f"\n[#worse]\n== Worse execution time queries ({len(self.worse_execution_time)})\n\n"
         for query in self.worse_execution_time:
@@ -137,7 +148,8 @@ class ApproachReport(Report):
         self._end_source()
         self._end_collapsible()
 
-        self._start_collapsible("Stats + table analyze with EXPLAIN ANALYZE (w/ analyze and statistics)")
+        self._start_collapsible(
+            "Stats + table analyze with EXPLAIN ANALYZE (w/ analyze and statistics)")
         self._start_source(["diff"])
         self.report += all_analyze.execution_plan.full_str
         self._end_source()
@@ -145,7 +157,8 @@ class ApproachReport(Report):
 
         self._start_source(["diff"])
 
-        diff = self._get_plan_diff(default.execution_plan.full_str, all_analyze.execution_plan.full_str)
+        diff = self._get_plan_diff(default.execution_plan.full_str,
+                                   all_analyze.execution_plan.full_str)
         if not diff:
             diff = default.execution_plan.full_str
 
