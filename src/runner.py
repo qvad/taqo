@@ -35,6 +35,10 @@ if __name__ == "__main__":
                         default="config/default.conf",
                         help='Configuration file path')
 
+    parser.add_argument('--ddl_prefix',
+                        default="",
+                        help='DDL file prefix for a file (empty or postgres)')
+
     parser.add_argument('--test',
                         default="taqo",
                         help='Type of test to evaluate - taqo (default) or regression')
@@ -140,6 +144,8 @@ if __name__ == "__main__":
 
     config = Config(
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
+
+        ddl_prefix=args.ddl_prefix,
 
         # configuration file properties
         yugabyte_code_path=args.yugabyte_code_path or configuration.get("yugabyte_code_path", None),

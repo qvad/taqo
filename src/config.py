@@ -50,6 +50,7 @@ class ConnectionConfig:
 class Config(metaclass=Singleton):
     logger: logging.Logger = None
 
+    ddl_prefix: str = ""
     yugabyte_code_path: str = None
     previous_results_path: str = None
     output: str = None

@@ -45,6 +45,7 @@ class SQLModel(QTFModel):
         created_tables: List[Table] = []
         file_name = step_prefix.name.lower()
 
+        db_prefix = self.config.ddl_prefix or db_prefix
         if db_prefix and exists(f"sql/{self.config.model}/{db_prefix}.{file_name}.sql"):
             file_name = f"{db_prefix}.{file_name}"
 
