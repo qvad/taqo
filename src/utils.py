@@ -134,10 +134,7 @@ def evaluate_sql(cur, sql):
         var_value = match.groups()[1]
 
         if var_value.isnumeric():
-            if var_value.isdigit():
-                correct_value = int(var_value)
-            else:
-                correct_value = float(var_value)
+            correct_value = int(var_value) if var_value.isdigit() else float(var_value)
         else:
             correct_value = var_value.replace("'", "")
 
