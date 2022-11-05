@@ -2,7 +2,6 @@ import glob
 import os
 import random
 import string
-from enum import Enum
 from os.path import exists
 from typing import List
 
@@ -10,38 +9,43 @@ import sqlparse
 from sqlparse.sql import Comment
 from tqdm import tqdm
 
+from config import ModelSteps
 from database import Query, QueryTips, Table, Field
 from models.abstract import QTFModel
 from utils import get_alias_table_names, evaluate_sql
 
 
-class ModelSteps(Enum):
-    CREATE = 0
-    IMPORT = 1
-    TEARDOWN = 2
-
-
 class SQLModel(QTFModel):
 
     def create_tables(self, conn, skip_analyze=False, db_prefix=None):
-        _, teardown_queries = self.evaluate_ddl_queries(conn, ModelSteps.TEARDOWN, skip_analyze,
-                                                        db_prefix)
-        create_tables, create_queries = self.evaluate_ddl_queries(conn, ModelSteps.CREATE,
-                                                                  skip_analyze, db_prefix)
-        _, import_queries = self.evaluate_ddl_queries(conn, ModelSteps.IMPORT, skip_analyze,
-                                                      db_prefix)
+        teardown_queries = []
+        create_queries = []
+        import_queries = []
+        created_tables = []
 
-        teardown_queries.insert(0, "-- TEARDOWN QUERIES")
-        create_queries.insert(0, "-- CREATE QUERIES")
-        import_queries.insert(0, "-- INSERT QUERIES")
+        if ModelSteps.TEARDOWN in self.config.model_creation:
+            _, teardown_queries = self.evaluate_ddl_queries(conn, ModelSteps.TEARDOWN, skip_analyze,
+                                                            db_prefix)
+            teardown_queries.insert(0, "-- TEARDOWN QUERIES")
 
-        return create_tables, teardown_queries + create_queries + import_queries
+        if ModelSteps.CREATE in self.config.model_creation:
+            created_tables, create_queries = self.evaluate_ddl_queries(conn, ModelSteps.CREATE,
+                                                                       skip_analyze, db_prefix)
+            create_queries.insert(0, "-- CREATE QUERIES")
+
+        if ModelSteps.IMPORT in self.config.model_creation:
+            _, import_queries = self.evaluate_ddl_queries(conn, ModelSteps.IMPORT, skip_analyze,
+                                                          db_prefix)
+            import_queries.insert(0, "-- IMPORT QUERIES")
+
+        return created_tables, teardown_queries + create_queries + import_queries
 
     def evaluate_ddl_queries(self, conn, step_prefix: ModelSteps, skip_analyze=False,
                              db_prefix=None):
         created_tables: List[Table] = []
         file_name = step_prefix.name.lower()
 
+        db_prefix = self.config.ddl_prefix or db_prefix
         if db_prefix and exists(f"sql/{self.config.model}/{db_prefix}.{file_name}.sql"):
             file_name = f"{db_prefix}.{file_name}"
 
@@ -55,7 +59,7 @@ class SQLModel(QTFModel):
 
                 if not exists(path_to_file):
                     self.logger.warn(f"Unable to locate file {path_to_file}")
-                elif not self.config.skip_model_creation:
+                else:
                     with open(f"sql/{self.config.model}/{file_name}.sql", "r") as sql_file:
                         full_queries = self.apply_variables('\n'.join(sql_file.readlines()))
                         for query in tqdm(full_queries.split(";")):
@@ -65,8 +69,6 @@ class SQLModel(QTFModel):
 
                                 model_queries.append(cleaned)
                                 evaluate_sql(cur, cleaned)
-                else:
-                    self.logger.info("Skipped model creation due to the argument")
 
                 if step_prefix == ModelSteps.CREATE:
                     self.load_tables_from_public(created_tables, cur)

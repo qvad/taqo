@@ -177,43 +177,41 @@ class TaqoReport(Report):
 
         self._add_double_newline()
 
-        self._start_table()
-
-        self.report += "|Comparison analysis\n"
-
+        self._start_table("3")
+        self.report += "|Metric|Default|Best\n"
         self._start_table_row()
         if 'order by' in query.query:
             if self.config.compare_with_pg:
                 self.report += \
-                    f"[red]#Result hash#: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best) vs `{query.postgres_query.result_hash}` (pg)" \
-                        if query.postgres_query.result_hash != query.result_hash else \
-                        f"Result hash: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best) vs `{query.postgres_query.result_hash}` (pg)"
+                    f"!! Result hash|{query.result_hash}|{best_optimization.result_hash} (yb) != {query.postgres_query.result_hash} (pg)" \
+                    if query.postgres_query.result_hash != query.result_hash else \
+                    f"Result hash|`{query.result_hash}|{best_optimization.result_hash} (yb) != {query.postgres_query.result_hash} (pg)"
             elif best_optimization.result_hash != query.result_hash:
-                self.report += f"[red]#Result hash#: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best)"
+                self.report += f"!! Result hash|{query.result_hash}|{best_optimization.result_hash}"
             else:
-                self.report += f"Result hash: `{query.result_hash}` (default) vs `{best_optimization.result_hash}` (best)"
+                self.report += f"Result hash|{query.result_hash}|{best_optimization.result_hash}"
 
         self._end_table_row()
-
         self._start_table_row()
-        self.report += f"Optimizer cost: `{query.optimizer_score}` (default) vs `{best_optimization.optimizer_score}` (best)"
+        self.report += f"Cardinality|{query.result_cardinality}|{best_optimization.result_cardinality}"
         self._end_table_row()
-
-        self.report += "\n"
-
         self._start_table_row()
-        self.report += f"Execution time: `{query.execution_time_ms}` (default) vs `{best_optimization.execution_time_ms}` (best)"
+        self.report += f"Optimizer cost|{query.optimizer_score}|{best_optimization.optimizer_score}"
         self._end_table_row()
+        self._start_table_row()
+        self.report += f"Execution time|{query.execution_time_ms}|{best_optimization.execution_time_ms}"
+        self._end_table_row()
+        self._end_table()
 
+        self._start_table()
         self._start_table_row()
 
         if self.config.compare_with_pg:
-            # todo do we need to report just plan?
-            # self._start_collapsible("Postgres plan")
-            # self._start_source(["diff"])
-            # self.report += query.postgres_query.execution_plan
-            # self._end_source()
-            # self._end_collapsible()
+            self._start_collapsible("Postgres plan")
+            self._start_source(["diff"])
+            self.report += query.postgres_query.execution_plan
+            self._end_source()
+            self._end_collapsible()
 
             self._start_collapsible("Postgres plan diff")
             self._start_source(["diff"])

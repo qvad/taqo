@@ -77,10 +77,13 @@ class YugabyteLocalCluster(Yugabyte):
     def start_database(self):
         self.logger.info(f"Starting Yugabyte cluster with {self.config.num_nodes} nodes")
 
-        launch_cmds = ['bin/yb-ctl',
-                       '--replication_factor',
-                       str(self.config.num_nodes),
-                       'create']
+        launch_cmds = [
+            'python3',
+            'bin/yb-ctl',
+            '--replication_factor',
+            str(self.config.num_nodes),
+            'create'
+        ]
 
         if self.config.tserver_flags:
             launch_cmds.append(f'--tserver_flags={self.config.tserver_flags}')
@@ -102,7 +105,7 @@ class YugabyteLocalCluster(Yugabyte):
         sleep(15)
 
     def destroy(self):
-        if not self.config.skip_model_creation:
+        if self.config.destroy_database:
             self.logger.info("Destroying existing Yugabyte var/ directory")
 
             out = subprocess.check_output(['bin/yb-ctl', 'destroy'],
@@ -165,8 +168,9 @@ class YugabyteLocalRepository(Yugabyte):
         self.logger.info(f"Building yugabyte from source code '{self.path}'")
         subprocess.call(['./yb_build.sh',
                          'release',
-                         '--clean',
-                         '--no-tests', '--skip-java-build'],
+                         # '--clean',
+                         '--no-tests',
+                         '--skip-java-build'],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.STDOUT,
                         cwd=self.path)
@@ -175,10 +179,10 @@ class YugabyteLocalRepository(Yugabyte):
         pass
 
     def destroy(self):
-        if not self.config.skip_model_creation:
+        if self.config.destroy_database:
             self.logger.info("Destroying existing Yugabyte var/ directory")
 
-            out = subprocess.check_output(['bin/yugabyted', 'destroy'],
+            out = subprocess.check_output(['python3', 'bin/yugabyted', 'destroy'],
                                           stderr=subprocess.PIPE,
                                           cwd=self.path, )
 
@@ -188,7 +192,7 @@ class YugabyteLocalRepository(Yugabyte):
     def start_database(self):
         self.logger.info("Starting Yugabyte node")
 
-        out = subprocess.check_output(['bin/yugabyted', 'start'],
+        out = subprocess.check_output(['python3', 'bin/yugabyted', 'start'],
                                       stderr=subprocess.PIPE,
                                       cwd=self.path, )
 
@@ -203,7 +207,7 @@ class YugabyteLocalRepository(Yugabyte):
 
     def stop_database(self):
         self.logger.info("Stopping Yugabyte node if exists")
-        out = subprocess.check_output(['bin/yugabyted', 'stop'],
+        out = subprocess.check_output(['python3', 'bin/yugabyted', 'stop'],
                                       stderr=subprocess.PIPE,
                                       cwd=self.path, )
 

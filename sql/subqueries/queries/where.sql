@@ -22,7 +22,7 @@ FROM t1000000
          FULL JOIN t500000 ON t1000000.a = t500000.a
          FULL join t50000 ON t1000000.a = t50000.a
 WHERE t1000000.a in
-      (SELECT t50000.a from t50000 where t50000.a < 100)
+      (SELECT t50000.a from t50000 where t50000.a < %(100))
 ORDER BY t1000000.a
 LIMIT 1000;
 
@@ -50,7 +50,7 @@ FROM t1000000
          INNER JOIN t500000 ON t1000000.a = t500000.a
          INNER join t50000 ON t1000000.a = t50000.a
 WHERE t1000000.a in
-      (SELECT t50000.a from t50000 where t50000.a < 100)
+      (SELECT t50000.a from t50000 where t50000.a < %(100))
 ORDER BY t1000000.a
 LIMIT 1000;
 
@@ -78,6 +78,6 @@ FROM t1000000
          LEFT OUTER JOIN t500000 ON t1000000.a = t500000.a
          LEFT OUTER JOIN t50000 ON t1000000.a = t50000.a
 WHERE t1000000.a in
-      (SELECT t50000.a from t50000 where t50000.a < 100)
+      (SELECT t50000.a from t50000 where t50000.a < %(100))
 ORDER BY t1000000.a
 LIMIT 1000;

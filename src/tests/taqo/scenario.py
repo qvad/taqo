@@ -4,7 +4,8 @@ from difflib import SequenceMatcher
 import psycopg2
 from tqdm import tqdm
 
-from database import ListOfOptimizations, ENABLE_STATISTICS_HINT, Query, ExecutionPlan
+from database import ListOfOptimizations, ENABLE_STATISTICS_HINT, Query, ExecutionPlan, \
+    store_queries_to_file
 from db.postgres import Postgres
 from models.factory import get_test_model
 from tests.abstract import AbstractTest
@@ -44,7 +45,7 @@ class TaqoTest(AbstractTest):
                 postgres.establish_connection()
                 pg_conn = postgres.connection.conn
 
-                model.create_tables(pg_conn, "postgres")
+                model.create_tables(pg_conn, db_prefix="postgres")
 
                 self.evaluate_queries_against_postgres(pg_conn, queries)
 
@@ -125,6 +126,8 @@ class TaqoTest(AbstractTest):
                     raise e
                 finally:
                     counter += 1
+
+        store_queries_to_file(queries, self.config.output)
 
     def evaluate_optimizations(self, cur, original_query):
         # build all possible optimizations

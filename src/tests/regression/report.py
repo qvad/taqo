@@ -25,7 +25,7 @@ class RegressionReport(Report):
 
     def build_report(self):
         # link to top
-        self.add_plan_comaprison()
+        self.add_plan_comparison()
         self.add_rpc_calls()
         self.add_rpc_wait_times()
         self.add_scanned_rows()
@@ -67,7 +67,7 @@ class RegressionReport(Report):
             for query in queries:
                 self.__report_query(query[0], query[1])
 
-    def add_plan_comaprison(self):
+    def add_plan_comparison(self):
         self._start_collapsible("Plan comparison")
         self.report += "\n[#plans_summary]\n"
         self._start_table("2")
@@ -77,7 +77,7 @@ class RegressionReport(Report):
             self.report += f"a|<<{tag}>>\n"
             num_changed_plans = len(queries) - num_same_plans
             color = "[green]" if num_changed_plans == 0 else "[orange]"
-            self.report += f"a|{color}#*{num_same_plans}*#\n"
+            self.report += f"a|{color}#*{num_changed_plans}*#\n"
             self._end_table_row()
         self._end_table()
         self._end_collapsible()
@@ -157,20 +157,20 @@ class RegressionReport(Report):
 
         self._add_double_newline()
 
+        self._start_table("3")
+        self.report += "|Metric|First|Second\n"
+        self._start_table_row()
+        self.report += f"Cardinality|{first_query.result_cardinality}|{second_query.result_cardinality}"
+        self._end_table_row()
+        self._start_table_row()
+        self.report += f"Optimizer cost|{first_query.optimizer_score}|{second_query.optimizer_score}"
+        self._end_table_row()
+        self._start_table_row()
+        self.report += f"Execution time|{first_query.execution_time_ms}|{second_query.execution_time_ms}"
+        self._end_table_row()
+        self._end_table()
+
         self._start_table()
-
-        self.report += "|Comparison analysis\n"
-
-        self._start_table_row()
-        self.report += f"`Cost: {first_query.optimizer_score}` (first) vs `{second_query.optimizer_score}` (second)"
-        self._end_table_row()
-
-        self.report += "\n"
-
-        self._start_table_row()
-        self.report += f"`Execution time: {first_query.execution_time_ms}` (first) vs `{second_query.execution_time_ms}` (second)"
-        self._end_table_row()
-
         self._start_table_row()
 
         self._start_collapsible("First version plan")

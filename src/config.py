@@ -1,7 +1,8 @@
 import dataclasses
 import logging
 import sys
-from typing import List
+from enum import Enum
+from typing import List, Set
 
 
 class Singleton(type):
@@ -27,6 +28,12 @@ def init_logger(level="INFO") -> logging.Logger:
     return _logger
 
 
+class ModelSteps(Enum):
+    CREATE = 0
+    IMPORT = 1
+    TEARDOWN = 2
+
+
 @dataclasses.dataclass
 class ConnectionConfig:
     host: str = None
@@ -43,8 +50,10 @@ class ConnectionConfig:
 class Config(metaclass=Singleton):
     logger: logging.Logger = None
 
+    ddl_prefix: str = ""
     yugabyte_code_path: str = None
     previous_results_path: str = None
+    output: str = None
     revisions_or_paths: List[str] = None
 
     num_nodes: int = None
@@ -68,11 +77,13 @@ class Config(metaclass=Singleton):
     random_seed: int = None
     use_allpairs: bool = None
     skip_table_scan_hints: bool = None
-    skip_model_creation: bool = None
+    model_creation: Set[ModelSteps] = None
+    destroy_database: bool = None
     skip_percentage_delta: bool = None
     look_near_best_plan: bool = None
 
     num_queries: int = None
+    parametrized: bool = False
     num_retries: int = None
     num_warmup: int = None
     skip_timeout_delta: int = None
@@ -104,7 +115,8 @@ class Config(metaclass=Singleton):
                f"    --basic_multiplier: x{self.basic_multiplier}\n" + \
                f"    --skip_timeout_delta: ±{self.skip_timeout_delta}s\n" + \
                f"    --skip_table_scan_hints: {self.skip_table_scan_hints}\n" + \
-               f"    --skip_model_creation: {self.skip_model_creation}\n" + \
+               f"    --model_creation: {self.model_creation}\n" + \
+               f"    --output: {self.output}.json\n" + \
                f"    --look_near_best_plan: {self.look_near_best_plan}\n" + \
                f"    --max_optimizations: {self.max_optimizations}\n" + \
                f"    --asciidoctor_path: '{self.asciidoctor_path}'\n" + \

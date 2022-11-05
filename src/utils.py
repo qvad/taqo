@@ -2,18 +2,18 @@ import hashlib
 import math
 import re
 import time
+from copy import copy
 
 import psycopg2
 from sql_metadata import Parser
 
 from config import Config
 
-EXPLAIN = "EXPLAIN "
-EXPLAIN_ANALYZE = "EXPLAIN ANALYZE "
+PARAMETER_VARIABLE = r"[^'](\%\((.*?)\))"
 
 
 def current_milli_time():
-    return round(time.time() * 1000)
+    return (time.time_ns() // 1_000) / 1_000
 
 
 def get_optimizer_score_from_plan(execution_plan):
@@ -22,19 +22,27 @@ def get_optimizer_score_from_plan(execution_plan):
         return float(match.groups()[0])
 
 
-def get_result_hashsum(cur):
+def get_result(cur):
     result = cur.fetchall()
 
     str_result = ""
+    cardinality = 0
     for row in result:
+        cardinality += 1
         for column_value in row:
             str_result += f"{str(column_value)}"
 
-    return get_md5(str_result)
+    return cardinality, str_result
 
 
 def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 0):
     config = Config()
+
+    query_str = query_str or query.get_query()
+    query_str_lower = query_str.lower() if query_str is not None else None
+    with_analyze = query_str_lower is not None and \
+                   "explain" in query_str_lower and \
+                   ("analyze" in query_str_lower or "analyse" in query_str_lower)
 
     sum_execution_times = 0
     actual_evaluations = 0
@@ -47,23 +55,41 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
         # noinspection PyUnresolvedReferences
         try:
             start_time = current_milli_time()
-            evaluate_sql(cur, query_str or query.get_query())
+            query.parameters = evaluate_sql(cur, query_str)
+
+            result = None
+            if iteration >= num_warmup and with_analyze:
+                _, result = get_result(cur)
+
+                # get cardinality for queries with analyze
+                evaluate_sql(cur, query.get_query())
+                cardinality, _ = get_result(cur)
+
+                matches = re.finditer(r"Execution\sTime:\s(\d+\.\d+)\sms", result, re.MULTILINE)
+                for matchNum, match in enumerate(matches, start=1):
+                    result = float(match.groups()[0])
+                    break
+                sum_execution_times += result
+                query.result_cardinality = cardinality
+            else:
+                sum_execution_times += current_milli_time() - start_time
 
             if iteration == 0:
-                query.result_hash = get_result_hashsum(cur)
+                if not result:
+                    cardinality, result = get_result(cur)
+                    query.result_cardinality = cardinality
 
-            if iteration >= num_warmup:
-                sum_execution_times += current_milli_time() - start_time
-        except psycopg2.errors.QueryCanceled as qc:
+                query.result_hash = get_md5(result)
+        except psycopg2.errors.QueryCanceled:
             # failed by timeout - it's ok just skip optimization
             query.execution_time_ms = 0
             config.logger.debug(
-                f"Skipping optimization due to timeout limitation: {query.get_query()}")
+                f"Skipping optimization due to timeout limitation:\n{query_str}")
             return False
         except psycopg2.errors.DatabaseError as ie:
-            # Some serious problem occured - probably an issue
+            # Some serious problem occurred - probably an issue
             query.execution_time_ms = 0
-            config.logger.error(f"INTERNAL ERROR {ie}\nSQL query:{query.get_query()}")
+            config.logger.error(f"INTERNAL ERROR {ie}\nSQL query:\n{query_str}")
             return False
         finally:
             if iteration >= num_warmup:
@@ -99,19 +125,49 @@ def get_explain_clause():
 def evaluate_sql(cur, sql):
     config = Config()
 
+    parameters = []
+
+    sql_wo_parameters = copy(sql)
+    str_param_skew = 0
+    str_wo_param_skew = 0
+    for match in re.finditer(PARAMETER_VARIABLE, sql, re.MULTILINE):
+        var_value = match.groups()[1]
+
+        if var_value.isnumeric():
+            correct_value = int(var_value) if var_value.isdigit() else float(var_value)
+        else:
+            correct_value = var_value.replace("'", "")
+
+        changed_var_name = '%s'
+        sql = changed_var_name.join(
+            [sql[:str_param_skew + match.start(0)],
+             sql[str_param_skew + match.end(0):]])
+        str_param_skew += len(changed_var_name) - (match.end(0) - match.start(0))
+
+        sql_wo_parameters = var_value.join(
+            [sql_wo_parameters[:str_wo_param_skew + match.start(0)],
+             sql_wo_parameters[str_wo_param_skew + match.end(0):]])
+        str_wo_param_skew += len(var_value) - (match.end(0) - match.start(0))
+
+        parameters.append(correct_value)
+
     config.logger.debug(
         sql.replace("\n", "")[:120] + "..." if len(sql) > 120 else sql.replace("\n", ""))
 
-    cur.execute(sql)
+    if config.parametrized and parameters:
+        cur.execute(sql, parameters)
+    else:
+        cur.execute(sql_wo_parameters)
+
+    return parameters
 
 
 def allowed_diff(config, original_execution_time, optimization_execution_time):
     if optimization_execution_time <= 0:
         return False
 
-    return (
-                   abs(original_execution_time - optimization_execution_time) / optimization_execution_time) < \
-           config.skip_percentage_delta
+    return (abs(original_execution_time - optimization_execution_time) /
+            optimization_execution_time) < config.skip_percentage_delta
 
 
 def get_md5(string: str):

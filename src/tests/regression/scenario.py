@@ -1,9 +1,17 @@
+from enum import Enum
+
 from database import ListOfQueries, get_queries_from_previous_result, store_queries_to_file, \
     ExecutionPlan
 from models.factory import get_test_model
 from tests.abstract import AbstractTest
 from tests.regression.report import RegressionReport
 from utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql
+
+
+class PreviousResults(Enum):
+    NO_PREVIOUS_RESULTS = 0
+    SINGLE_RESULTS = 1
+    TWO_RESULTS = 2
 
 
 class RegressionTest(AbstractTest):
@@ -54,8 +62,32 @@ class RegressionTest(AbstractTest):
         return self.get_commit_message(self.config.revisions_or_paths[1])
 
     def evaluate(self):
-        first_commit_message = self.start_db()
+        previous_results_paths = []
+        if not self.config.previous_results_path:
+            previous_results_conf = PreviousResults.NO_PREVIOUS_RESULTS
+        else:
+            previous_results_paths = self.config.previous_results_path.split(",")
+            if len(previous_results_paths) == 1:
+                previous_results_conf = PreviousResults.SINGLE_RESULTS
+            elif len(previous_results_paths) == 2:
+                previous_results_conf = PreviousResults.TWO_RESULTS
+            else:
+                raise AssertionError("More previous results defined, only 2 allowed max")
 
+        if previous_results_conf == PreviousResults.TWO_RESULTS:
+            first_version_queries = get_queries_from_previous_result(
+                previous_results_paths[0])
+            second_version_queries = get_queries_from_previous_result(
+                previous_results_paths[1])
+
+            self.compare_results(first_version_queries, second_version_queries)
+
+            self.report.build_report()
+            self.report.publish_report("regression")
+
+            return
+
+        first_commit_message = self.start_db()
         conn = None
 
         try:
@@ -65,7 +97,7 @@ class RegressionTest(AbstractTest):
             model = get_test_model()
             created_tables, model_queries = model.create_tables(conn)
             self.report.report_model(model_queries)
-            if not self.config.previous_results_path:
+            if previous_results_conf == PreviousResults.NO_PREVIOUS_RESULTS:
                 with conn.cursor() as cur:
                     evaluate_sql(cur, 'SELECT VERSION();')
                     first_version = cur.fetchone()[0]
@@ -80,7 +112,7 @@ class RegressionTest(AbstractTest):
                 conn.close()
             else:
                 first_version_queries = get_queries_from_previous_result(
-                    self.config.previous_results_path)
+                    previous_results_paths[0])
 
                 # reconnect
                 conn = self.evaluate_and_compare_with_second_version(created_tables,
@@ -88,6 +120,7 @@ class RegressionTest(AbstractTest):
                                                                      first_commit_message,
                                                                      model)
 
+            # do not evaluate queries if we have 2 results
             if len(self.config.revisions_or_paths) == 2 and self.config.revisions_or_paths[1]:
                 second_commit_message = self.switch_version()
 
@@ -97,7 +130,7 @@ class RegressionTest(AbstractTest):
                                                                      second_commit_message,
                                                                      model)
             else:
-                store_queries_to_file(first_version_queries)
+                store_queries_to_file(first_version_queries, self.config.output)
         finally:
             # publish current report
             self.report.build_report()
@@ -131,8 +164,11 @@ class RegressionTest(AbstractTest):
 
         second_version_queries = self.evaluate_queries_for_version(conn, second_queries, self.config.session_props_v2)
 
+        self.compare_results(first_version_queries, second_version_queries)
+
+        return conn
+
+    def compare_results(self, first_version_queries, second_version_queries):
         for first_version_query, second_version_query in zip(first_version_queries.queries,
                                                              second_version_queries.queries):
             self.report.add_query(first_version_query, second_version_query)
-
-        return conn

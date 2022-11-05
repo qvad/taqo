@@ -17,7 +17,10 @@ class ComparisonTest(AbstractTest):
         version_queries = ListOfQueries()
         with conn.cursor() as cur:
             for query in self.config.session_props:
-                evaluate_sql(cur, query)
+                try:
+                    evaluate_sql(cur, query)
+                except Exception as e:
+                    self.logger.exception(f"Failed to execute session query: {e}\n{query}")
 
             counter = 1
             for first_version_query in queries:
@@ -47,6 +50,24 @@ class ComparisonTest(AbstractTest):
         conn = None
 
         try:
+            model = get_test_model()
+
+            # reconnect
+            self.logger.info("Running queries against postgres")
+            self.postgres.establish_connection()
+            conn = self.postgres.connection.conn
+            pg_created_tables, _ = model.create_tables(conn, db_prefix="postgres")
+            pg_queries = model.get_queries(pg_created_tables)
+
+            with conn.cursor() as cur:
+                evaluate_sql(cur, 'SELECT VERSION();')
+                second_version = cur.fetchone()[0]
+                self.logger.info(f"Running comparison test against {second_version}")
+
+            postgres_version_queries = self.evaluate_queries_for_version(conn, pg_queries)
+
+            conn.close()
+
             self.logger.info("Running queries against yugabyte")
             self.yugabyte.establish_connection()
             conn = self.yugabyte.connection.conn
@@ -57,31 +78,13 @@ class ComparisonTest(AbstractTest):
                 self.logger.info(f"Running comparison test against {yb_version}")
 
             # evaluate original query
-            model = get_test_model()
             created_tables, model_queries = model.create_tables(conn)
             queries = model.get_queries(created_tables)
             self.report.report_model(model_queries)
 
             yb_version_queries = self.evaluate_queries_for_version(conn, queries)
 
-            conn.close()
-
-            # reconnect
-            self.logger.info("Running queries against postgres")
-            self.postgres.establish_connection()
-            conn = self.postgres.connection.conn
-            pg_created_tables, _ = model.create_tables(conn, "postgres")
-            pg_queries = model.get_queries(pg_created_tables)
-
-            with conn.cursor() as cur:
-                evaluate_sql(cur, 'SELECT VERSION();')
-                second_version = cur.fetchone()[0]
-                self.logger.info(f"Running comparison test against {second_version}")
-
             self.report.define_version(yb_version, second_version)
-
-            postgres_version_queries = self.evaluate_queries_for_version(conn, pg_queries)
-
             for yb_version_query, pg_version_query in zip(yb_version_queries.queries,
                                                           postgres_version_queries.queries):
                 self.report.add_query(yb_version_query, pg_version_query)
