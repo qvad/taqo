@@ -56,13 +56,13 @@ class ComplexModel(QTFModel):
         model_queries = []
         with conn.cursor() as cur:
             for table in tqdm(self.TABLES):
-                colocation = "" if db_prefix else "WITH (colocated = true) "
+                colocation = "" if db_prefix else "WITH (colocated = true)"
 
                 if ModelSteps.TEARDOWN:
                     evaluate_sql(cur, f"DROP TABLE IF EXISTS {table.name} CASCADE")
 
                 if ModelSteps.CREATE and ModelSteps.IMPORT:
-                    create_table = f"CREATE TABLE {table.name} AS {colocation}" \
+                    create_table = f"CREATE TABLE {table.name} {colocation} AS " \
                                    f"SELECT c_int, " \
                                    f"(case when c_int % 2 = 0 then true else false end) as c_bool, " \
                                    f"(c_int + 0.0001)::text as c_text, " \
