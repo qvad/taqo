@@ -72,6 +72,9 @@ class SQLModel(QTFModel):
 
                 if step_prefix == ModelSteps.CREATE:
                     self.load_tables_from_public(created_tables, cur)
+        except Exception as e:
+            self.logger.exception(e)
+            raise e
         finally:
             return created_tables, model_queries
 
