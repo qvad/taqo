@@ -22,8 +22,6 @@ class QueryEvaluator:
         created_tables, model_queries = model.create_tables(connection)
         queries = model.get_queries(created_tables)
 
-        time.sleep(10)
-
         self.evaluate_queries_against_yugabyte(connection, queries, evaluate_optimizations)
 
         return queries

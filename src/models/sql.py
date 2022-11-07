@@ -12,7 +12,7 @@ from tqdm import tqdm
 from config import DDLStep
 from database import Query, QueryTips, Table, Field
 from models.abstract import QTFModel
-from utils import get_alias_table_names, evaluate_sql
+from utils import get_alias_table_names, evaluate_sql, get_md5
 
 
 class SQLModel(QTFModel):
@@ -182,6 +182,7 @@ class SQLModel(QTFModel):
                         queries.append(Query(
                             tag=os.path.basename(query).replace(".sql", ""),
                             query=cleaned,
+                            query_hash=get_md5(cleaned),
                             tables=[table for table in tables if
                                     table.name in tables_list.values()],
                             optimizer_tips=query_tips))

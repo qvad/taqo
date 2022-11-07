@@ -50,6 +50,7 @@ class Scenario():
                                 queries=evaluator.evaluate(self.yugabyte.connection.conn,
                                                            self.config.with_optimizations))
 
+            self.logger.info(f"Storing results to report/{self.config.output}")
             store_queries_to_file(loq, self.config.output)
         except Exception as e:
             self.logger.exception(e)

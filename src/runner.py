@@ -42,7 +42,7 @@ if __name__ == "__main__":
                         default="config/default.conf",
                         help='Configuration file path')
 
-    parser.add_argument('--report',
+    parser.add_argument('--type',
                         help='Report type - taqo, regression, comparison or selectivity')
 
     # TAQO or Comparison
@@ -230,22 +230,20 @@ if __name__ == "__main__":
         sc = Scenario(config)
         sc.evaluate()
     elif args.action == "report":
-        if args.report == "taqo":
-            report = TaqoReport()
-
+        if args.type == "taqo":
             yb_queries = get_queries_from_previous_result(args.results)
             pg_queries = get_queries_from_previous_result(
                 args.pg_results) if args.pg_results else None
 
-            report.generate_report(yb_queries, pg_queries)
-        elif args.report == "regression":
+            TaqoReport.generate_report(yb_queries, pg_queries)
+        elif args.type == "regression":
             report = RegressionReport()
 
             v1_queries = get_queries_from_previous_result(args.v1_results)
             v2_queries = get_queries_from_previous_result(args.v2_results)
 
             report.generate_report(v1_queries, v2_queries)
-        elif args.report == "comparison":
+        elif args.type == "comparison":
             report = ComparisonReport()
 
             yb_queries = get_queries_from_previous_result(args.results)
@@ -253,7 +251,7 @@ if __name__ == "__main__":
                 args.pg_results) if args.pg_results else None
 
             report.generate_report(yb_queries, pg_queries)
-        elif args.report == "approach":
+        elif args.type == "selectivity":
             report = SelectivityReport()
 
             default_queries = get_queries_from_previous_result(args.default_results)

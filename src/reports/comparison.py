@@ -2,7 +2,6 @@ from sql_formatter.core import format_sql
 
 from database import Query, ListOfQueries
 from reports.abstract import Report
-from utils import get_md5
 
 
 class ComparisonReport(Report):
@@ -11,7 +10,8 @@ class ComparisonReport(Report):
 
         self.queries = {}
 
-    def generate_report(self,
+    @classmethod
+    def generate_report(cls,
                         loq_yb: ListOfQueries,
                         loq_pg: ListOfQueries):
         report = ComparisonReport()
@@ -20,10 +20,10 @@ class ComparisonReport(Report):
         report.report_model(loq_yb.model_queries)
 
         for query in zip(loq_yb.queries, loq_pg.queries):
-            self.add_query(*query)
+            report.add_query(*query)
 
         report.build_report()
-        report.publish_report("regression")
+        report.publish_report("cmp")
 
     def get_report_name(self):
         return "Comparison"
@@ -55,8 +55,7 @@ class ComparisonReport(Report):
                                f"|{query[1].execution_time_ms}\n" \
                                f"a|*{ratio}*\n" \
                                f"a|{color}#*{ratio_x3_str}*#\n"
-                hexdigest = get_md5(query[0].query)
-                self.report += f"a|[#{hexdigest}_top]\n<<{hexdigest}>>\n"
+                self.report += f"a|[#{query[0].query_hash}_top]\n<<{query[0].query_hash}>>\n"
                 self._start_source(["sql"])
                 self.report += format_sql(query[1].query.replace("|", "\|"))
                 self._end_source()
@@ -76,13 +75,12 @@ class ComparisonReport(Report):
     # noinspection InsecureHash
     def __report_query(self, yb_query: Query, pg_query: Query):
         self.reported_queries_counter += 1
-        query_hash = get_md5(yb_query.query)
 
-        self.report += f"\n[#{query_hash}]\n"
-        self.report += f"=== Query {query_hash}"
+        self.report += f"\n[#{yb_query.query_hash}]\n"
+        self.report += f"=== Query {yb_query.query_hash}"
         self.report += f"\n{yb_query.tag}\n"
         self.report += "\n<<top,Go to top>>\n"
-        self.report += f"\n<<{query_hash}_top,Show in summary>>\n"
+        self.report += f"\n<<{yb_query.query_hash}_top,Show in summary>>\n"
         self._add_double_newline()
 
         self._start_source(["sql"])

@@ -28,13 +28,13 @@ class Report:
 
         if self.config.clear:
             self.logger.info("Clearing report directory")
-            shutil.rmtree("../reports", ignore_errors=True)
+            shutil.rmtree("report", ignore_errors=True)
 
-        if not os.path.isdir("../reports"):
-            os.mkdir("../reports")
+        if not os.path.isdir("report"):
+            os.mkdir("report")
 
-        if not os.path.isdir(f"../reports/{self.start_date}"):
-            os.mkdir(f"../reports/{self.start_date}")
+        if not os.path.isdir(f"report/{self.start_date}"):
+            os.mkdir(f"report/{self.start_date}")
 
     def get_report_name(self):
         return ""
@@ -97,5 +97,5 @@ class Report:
             f'{report_adoc}',
             shell=True)
 
-        report_html_path = Path(f'../reports/{self.start_date}/report_{report_name}.html')
+        report_html_path = Path(f'reports/{self.start_date}/report_{report_name}.html')
         self.logger.info(f"Done! Check report at {report_html_path.absolute()}")

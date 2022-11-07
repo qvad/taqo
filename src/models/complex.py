@@ -158,6 +158,7 @@ class ComplexModel(QTFModel):
 
                 queries.append(Query(
                     query=query,
+                    query_hash=get_md5(query),
                     tables=list(perm)
                 ))
 

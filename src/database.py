@@ -173,6 +173,7 @@ class Leading:
 class Query:
     tag: str = ""
     query: str = ""
+    query_hash: str = ""
     tables: List[Table] = None
 
     optimizer_tips: QueryTips = None
@@ -253,6 +254,9 @@ class ListOfQueries:
             self.queries = [new_element, ]
         else:
             self.queries.append(new_element)
+
+        # CPUs are cheap in 2022
+        self.queries.sort(key=lambda q: q.query_hash)
 
 
 class EPNode:
@@ -383,6 +387,7 @@ class ListOfOptimizations:
             optimizations.append(
                 Optimization(
                     query=self.query.query,
+                    query_hash=self.query.query_hash,
                     explain_hints=explain_hints
                 )
             )

@@ -5,7 +5,7 @@ from sql_formatter.core import format_sql
 
 from database import Query, ListOfQueries
 from reports.abstract import Report
-from utils import allowed_diff, get_md5
+from utils import allowed_diff
 
 
 class TaqoReport(Report):
@@ -20,7 +20,8 @@ class TaqoReport(Report):
         self.same_execution_plan = []
         self.better_plan_found = []
 
-    def generate_report(self, loq: ListOfQueries, pg_loq: ListOfQueries = None):
+    @classmethod
+    def generate_report(cls, loq: ListOfQueries, pg_loq: ListOfQueries = None):
         report = TaqoReport()
 
         report.define_version(loq.db_version)
@@ -31,7 +32,7 @@ class TaqoReport(Report):
                 raise AttributeError("There is no optimizations found in result file. "
                                      "Evaluate collect with --optimizations flag")
 
-            self.add_query(query, pg_loq.queries[qid] if pg_loq else None)
+            report.add_query(query, pg_loq.queries[qid] if pg_loq else None)
 
         report.build_report()
         report.publish_report("taqo")
@@ -166,9 +167,8 @@ class TaqoReport(Report):
         best_optimization = query.get_best_optimization()
 
         self.reported_queries_counter += 1
-        query_hash = get_md5(query.query)
 
-        self.report += f"=== Query {query_hash} " \
+        self.report += f"=== Query {query.query_hash} " \
                        f"(Optimizer efficiency - {self.calculate_score(query)})"
         self.report += "\n<<top,Go to top>>\n"
         self._add_double_newline()

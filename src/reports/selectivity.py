@@ -2,7 +2,7 @@ from sql_formatter.core import format_sql
 
 from database import Query, ListOfQueries
 from reports.abstract import Report
-from utils import allowed_diff, get_md5
+from utils import allowed_diff
 
 
 class SelectivityReport(Report):
@@ -18,7 +18,8 @@ class SelectivityReport(Report):
     def get_report_name(self):
         return "Default/Analyze/Analyze+Statistics"
 
-    def generate_report(self,
+    @classmethod
+    def generate_report(cls,
                         loq_default: ListOfQueries,
                         loq_default_analyze: ListOfQueries,
                         loq_ta: ListOfQueries,
@@ -35,10 +36,10 @@ class SelectivityReport(Report):
                          loq_ta_analyze.queries,
                          loq_stats.queries,
                          loq_stats_analyze.queries):
-            self.add_query(*query)
+            report.add_query(*query)
 
         report.build_report()
-        report.publish_report("taqo")
+        report.publish_report("sltvty")
 
     def add_query(self,
                   default: Query,
@@ -102,9 +103,8 @@ class SelectivityReport(Report):
                        all: Query,
                        all_analyze: Query):
         self.reported_queries_counter += 1
-        query_hash = get_md5(default.query)
 
-        self.report += f"=== Query {query_hash}"
+        self.report += f"=== Query {default.query_hash}"
         self.report += f"\n{default.tag}\n"
         self.report += "\n<<top,Go to top>>\n"
         self._add_double_newline()
@@ -115,7 +115,7 @@ class SelectivityReport(Report):
 
         self._add_double_newline()
 
-        self._start_table("3")
+        self._start_table("7")
         self.report += "|Metric|Default|Default+QA|TA|TA + QA|S+TA|S+TA+QA\n"
         self._start_table_row()
         self.report += f"Cardinality|{default.result_cardinality}|{default_analyze.result_cardinality}|" \
