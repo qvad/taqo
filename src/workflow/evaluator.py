@@ -75,7 +75,7 @@ class QueryEvaluator:
         # build all possible optimizations
         list_of_optimizations = ListOfOptimizations(
             self.config, original_query) \
-            .get_all_optimizations(int(self.config.max_optimizations))
+            .get_all_optimizations()
 
         self.logger.debug(f"{len(list_of_optimizations)} optimizations generated")
         progress_bar = tqdm(list_of_optimizations)

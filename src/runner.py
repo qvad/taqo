@@ -25,6 +25,8 @@ def parse_ddls(ddl_ops):
         result.add(DDLStep.IMPORT)
     if "drop" in ddl_ops:
         result.add(DDLStep.DROP)
+    if "analyze" in ddl_ops:
+        result.add(DDLStep.ANALYZE)
 
     return result
 
@@ -98,8 +100,8 @@ if __name__ == "__main__":
     parser.add_argument('--revision',
                         help='Git revision or path to release build')
     parser.add_argument('--ddls',
-                        default="create,import,drop",
-                        help='Model creation queries, comma separated: create, import, drop')
+                        default="create,analyze,import,drop",
+                        help='Model creation queries, comma separated: create,analyze,import,drop')
     parser.add_argument('--destroy_database',
                         action=argparse.BooleanOptionalAction,
                         default=True,

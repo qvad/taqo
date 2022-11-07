@@ -102,7 +102,7 @@ class Leading:
     def construct(self):
         if self.config.all_pairs_threshold == -1:
             self.get_all_combinations()
-        elif len(self.tables) > self.config.all_pairs_threshold:
+        elif len(self.tables) < self.config.all_pairs_threshold:
             self.get_all_combinations()
         else:
             self.get_all_pairs_combinations()
@@ -360,13 +360,10 @@ class ListOfOptimizations:
         self.leading = Leading(config, query.tables)
         self.leading.construct()
 
-    def get_all_optimizations(self, max_optimizations) -> List[Optimization]:
+    def get_all_optimizations(self) -> List[Optimization]:
         optimizations = []
         for leading_join in self.leading.joins:
             for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
-                if len(optimizations) >= max_optimizations:
-                    break
-
                 explain_hints = f"{leading_join} {' '.join(table_scan_hint)}"
 
                 self.add_optimization(explain_hints, optimizations)
@@ -374,9 +371,6 @@ class ListOfOptimizations:
         if not optimizations:
             # case w/o any joins
             for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
-                if len(optimizations) >= max_optimizations:
-                    break
-
                 explain_hints = f"{' '.join(table_scan_hint)}"
 
                 self.add_optimization(explain_hints, optimizations)

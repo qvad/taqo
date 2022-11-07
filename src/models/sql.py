@@ -20,27 +20,31 @@ class SQLModel(QTFModel):
     def create_tables(self, conn, skip_analyze=False, db_prefix=None):
         teardown_queries = []
         create_queries = []
+        analyze_queries = []
         import_queries = []
         created_tables = []
 
         if DDLStep.DROP in self.config.ddls:
-            _, teardown_queries = self.evaluate_ddl_queries(conn, DDLStep.DROP, skip_analyze,
-                                                            db_prefix)
+            _, teardown_queries = self.evaluate_ddl_queries(conn, DDLStep.DROP, db_prefix)
             teardown_queries.insert(0, "-- DROP QUERIES")
 
         if DDLStep.CREATE in self.config.ddls:
             created_tables, create_queries = self.evaluate_ddl_queries(conn, DDLStep.CREATE,
-                                                                       skip_analyze, db_prefix)
+                                                                       db_prefix)
             create_queries.insert(0, "-- CREATE QUERIES")
 
+        if DDLStep.ANALYZE in self.config.ddls:
+            analyzed_tables, analyze_queries = self.evaluate_ddl_queries(conn, DDLStep.CREATE,
+                                                                         db_prefix)
+            create_queries.insert(0, "-- ANALYZE QUERIES")
+
         if DDLStep.IMPORT in self.config.ddls:
-            _, import_queries = self.evaluate_ddl_queries(conn, DDLStep.IMPORT, skip_analyze,
-                                                          db_prefix)
+            _, import_queries = self.evaluate_ddl_queries(conn, DDLStep.IMPORT, db_prefix)
             import_queries.insert(0, "-- IMPORT QUERIES")
 
-        return created_tables, teardown_queries + create_queries + import_queries
+        return created_tables, teardown_queries + create_queries + analyze_queries + import_queries
 
-    def evaluate_ddl_queries(self, conn, step_prefix: DDLStep, skip_analyze=False,
+    def evaluate_ddl_queries(self, conn, step_prefix: DDLStep,
                              db_prefix=None):
         self.logger.info(f"Evaluating DDL {step_prefix.name} step")
 
@@ -66,9 +70,6 @@ class SQLModel(QTFModel):
                         full_queries = self.apply_variables('\n'.join(sql_file.readlines()))
                         for query in tqdm(full_queries.split(";")):
                             if cleaned := query.lstrip():
-                                if skip_analyze and 'analyze' in cleaned.lower():
-                                    continue
-
                                 model_queries.append(cleaned)
                                 evaluate_sql(cur, cleaned)
 

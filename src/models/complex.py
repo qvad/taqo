@@ -84,8 +84,8 @@ class ComplexModel(QTFModel):
                         evaluate_sql(cur, create_index)
                         model_queries.append(create_index)
 
-                    if not skip_analyze:
-                        evaluate_sql(cur, f"ANALYZE {table.name}")
+                if DDLStep.ANALYZE:
+                    evaluate_sql(cur, f"ANALYZE {table.name}")
 
         return self.TABLES, model_queries
 
