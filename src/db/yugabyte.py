@@ -12,9 +12,9 @@ JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]
 
 
 def factory(config):
-    if config.yugabyte_code_path:
+    if config.source_path:
         return YugabyteLocalRepository(config)
-    elif config.revision:
+    elif 'tar' in config.revision:
         return YugabyteLocalCluster(config)
     else:
         return Yugabyte(config)
@@ -43,7 +43,7 @@ class Yugabyte(Postgres):
         pass
 
     def start_database(self):
-        input("Upgrade target DB and press Enter to continue test...")
+        pass
 
     def stop_database(self):
         pass
@@ -99,10 +99,10 @@ class YugabyteLocalCluster(Yugabyte):
         sleep(15)
 
     def destroy(self):
-        if self.config.destroy_database:
+        if self.config.destroy_db:
             self.logger.info("Destroying existing Yugabyte var/ directory")
 
-            out = subprocess.check_output(['bin/yb-ctl', 'destroy'],
+            out = subprocess.check_output(['python3', 'bin/yb-ctl', 'destroy'],
                                           stderr=subprocess.PIPE,
                                           cwd=self.path, )
 
@@ -111,7 +111,7 @@ class YugabyteLocalCluster(Yugabyte):
 
     def stop_database(self):
         self.logger.info("Stopping Yugabyte node if exists")
-        out = subprocess.check_output(['bin/yb-ctl', 'stop'],
+        out = subprocess.check_output(['python3', 'bin/yb-ctl', 'stop'],
                                       stderr=subprocess.PIPE,
                                       cwd=self.path, )
 
@@ -137,7 +137,7 @@ class YugabyteLocalRepository(Yugabyte):
     def __init__(self, config):
         super().__init__(config)
 
-        self.path = self.config.yugabyte_code_path
+        self.path = self.config.source_path
 
     def change_version_and_compile(self, revision_or_path=None):
         if revision_or_path:
@@ -162,7 +162,7 @@ class YugabyteLocalRepository(Yugabyte):
         self.logger.info(f"Building yugabyte from source code '{self.path}'")
         subprocess.call(['./yb_build.sh',
                          'release',
-                         # '--clean',
+                         '--clean' if self.config.clean_build else '',
                          '--no-tests',
                          '--skip-java-build'],
                         stdout=subprocess.DEVNULL,

@@ -53,7 +53,7 @@ class Config(metaclass=Singleton):
 
     ddl_prefix: str = ""
     with_optimizations: bool = False
-    yugabyte_code_path: str = None
+    source_path: str = None
     output: str = None
     revision: str = None
 
@@ -74,7 +74,8 @@ class Config(metaclass=Singleton):
 
     random_seed: int = None
     ddls: Set[DDLStep] = None
-    destroy_database: bool = None
+    destroy_db: bool = None
+    clean_build: bool = None
     skip_percentage_delta: bool = None
     look_near_best_plan: bool = None
 
@@ -89,14 +90,14 @@ class Config(metaclass=Singleton):
     clear: bool = False
 
     def __str__(self):
-        build_param_skipped = "(skipped)" if self.yugabyte_code_path else ""
+        build_param_skipped = "(skipped)" if self.source_path else ""
 
         connections = f"  Connection - {self.connection}\n"
 
         return f"{connections}" + \
                f"  Using following explain syntax - '{self.explain_clause} /*+ ... */ QUERY'\n" + \
                f"  Running '{self.test}' test on model '{self.model}'\n" + \
-               f"  Repository code path '{self.yugabyte_code_path}', revisions to test {self.revision}\n" + \
+               f"  Repository code path '{self.source_path}', revisions to test {self.revision}\n" + \
                f"  Additional properties defined:\n" + \
                f"    --num_nodes: {self.num_nodes}\n" + \
                f"    --tserver_flags: {self.tserver_flags} {build_param_skipped}\n" + \

@@ -49,38 +49,38 @@ if __name__ == "__main__":
     parser.add_argument('--results',
                         default=None,
                         help='Path to previous execution results. May be used in regression and comparison reports')
-    parser.add_argument('--pg_results',
+    parser.add_argument('--pg-results',
                         default=None,
                         help='Path to previous execution results. May be used in regression and comparison reports')
 
     # Regression
-    parser.add_argument('--v1_results',
+    parser.add_argument('--v1-results',
                         default=None,
                         help='Path to previous execution results. May be used in regression and comparison reports')
-    parser.add_argument('--v2_results',
+    parser.add_argument('--v2-results',
                         help='Path to previous execution results. May be used in regression and comparison reports')
 
     # Selectivity
-    parser.add_argument('--default_results',
+    parser.add_argument('--default-results',
                         default=None,
                         help='Path to previous execution results. May be used in regression and comparison reports')
-    parser.add_argument('--default_analyze_results',
+    parser.add_argument('--default-analyze-results',
                         default=None,
                         help='Path to previous execution results. May be used in regression and comparison reports')
-    parser.add_argument('--ta_results',
+    parser.add_argument('--ta-results',
                         default=None,
                         help='Path to previous execution results. May be used in regression and comparison reports')
-    parser.add_argument('--ta_analyze_results',
+    parser.add_argument('--ta-analyze-results',
                         default=None,
                         help='Path to previous execution results. May be used in regression and comparison reports')
-    parser.add_argument('--stats_results',
+    parser.add_argument('--stats-results',
                         default=None,
                         help='Path to previous execution results. May be used in regression and comparison reports')
-    parser.add_argument('--stats_analyze_results',
+    parser.add_argument('--stats-analyze-results',
                         default=None,
                         help='Path to previous execution results. May be used in regression and comparison reports')
 
-    parser.add_argument('--ddl_prefix',
+    parser.add_argument('--ddl-prefix',
                         default="",
                         help='DDL file prefix (default empty, might be postgres)')
 
@@ -92,29 +92,33 @@ if __name__ == "__main__":
                         default="simple",
                         help='Test model to use - complex, tpch, subqueries, any other custom model')
 
-    parser.add_argument('--basic_multiplier',
+    parser.add_argument('--basic-multiplier',
                         default=10,
                         help='Basic model data multiplier (Default 10)')
-    parser.add_argument('--yugabyte_code_path',
-                        help='Code path to yugabyte-db repository')
+    parser.add_argument('--source-path',
+                        help='Path to yugabyte-db source code')
     parser.add_argument('--revision',
                         help='Git revision or path to release build')
     parser.add_argument('--ddls',
                         default="create,analyze,import,drop",
                         help='Model creation queries, comma separated: create,analyze,import,drop')
-    parser.add_argument('--destroy_database',
+    parser.add_argument('--destroy-db',
                         action=argparse.BooleanOptionalAction,
                         default=True,
                         help='Destroy database after test')
+    parser.add_argument('--clean-build',
+                        action=argparse.BooleanOptionalAction,
+                        default=True,
+                        help='Build yb_build with clean flag')
 
-    parser.add_argument('--num_nodes',
+    parser.add_argument('--num-nodes',
                         default=0,
                         help='Number of nodes')
 
-    parser.add_argument('--tserver_flags',
+    parser.add_argument('--tserver-flags',
                         default=None,
                         help='Comma separated tserver flags')
-    parser.add_argument('--master_flags',
+    parser.add_argument('--master-flags',
                         default=None,
                         help='Comma separated master flags')
 
@@ -134,14 +138,14 @@ if __name__ == "__main__":
                         default="taqo",
                         help='Target database in postgres compatible database')
 
-    parser.add_argument('--enable_statistics',
+    parser.add_argument('--enable-statistics',
                         action=argparse.BooleanOptionalAction,
                         default=False,
                         help='Evaluate yb_enable_optimizer_statistics before running queries')
-    parser.add_argument('--explain_clause',
+    parser.add_argument('--explain-clause',
                         default=None,
                         help='Explain clause that will be placed before query. Default "EXPLAIN"')
-    parser.add_argument('--num_queries',
+    parser.add_argument('--num-queries',
                         default=-1,
                         help='Number of queries to evaluate')
     parser.add_argument('--parametrized',
@@ -170,14 +174,14 @@ if __name__ == "__main__":
     config = Config(
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
 
-        yugabyte_code_path=args.yugabyte_code_path or configuration.get("yugab"
-                                                                        "yte_code_path", None),
-        num_nodes=int(args.num_nodes) or configuration.get("num_nodes", 3),
+        source_path=args.source_path or configuration.get("source-path", None),
+        num_nodes=int(args.num_nodes) or configuration.get("num-nodes", 3),
 
         revision=args.revision or None,
         tserver_flags=args.tserver_flags,
         master_flags=args.master_flags,
-        destroy_database=args.destroy_database,
+        destroy_db=args.destroy_db,
+        clean_build=args.clean_build,
 
         connection=ConnectionConfig(host=args.host,
                                     port=args.port,
@@ -192,21 +196,21 @@ if __name__ == "__main__":
         with_optimizations=args.optimizations,
 
         enable_statistics=args.enable_statistics or get_bool_from_str(
-            configuration.get("enable_statistics", False)),
-        explain_clause=args.explain_clause or configuration.get("explain_clause", "EXPLAIN"),
-        session_props=configuration.get("session_props", []),
+            configuration.get("enable-statistics", False)),
+        explain_clause=args.explain_clause or configuration.get("explain-clause", "EXPLAIN"),
+        session_props=configuration.get("session-props", []),
         basic_multiplier=int(args.basic_multiplier),
 
-        random_seed=configuration.get("random_seed", 2022),
-        skip_percentage_delta=configuration.get("skip_percentage_delta", 0.05),
-        skip_timeout_delta=configuration.get("skip_timeout_delta", 1),
-        look_near_best_plan=configuration.get("look_near_best_plan", True),
-        all_pairs_threshold=configuration.get("all_pairs_threshold", 3),
+        random_seed=configuration.get("random-seed", 2022),
+        skip_percentage_delta=configuration.get("skip-percentage-delta", 0.05),
+        skip_timeout_delta=configuration.get("skip-timeout-delta", 1),
+        look_near_best_plan=configuration.get("look-near-best-plan", True),
+        all_pairs_threshold=configuration.get("all-pairs-threshold", 3),
 
         num_queries=int(args.num_queries)
-        if int(args.num_queries) > 0 else configuration.get("num_queries", -1),
-        num_retries=configuration.get("num_retries", 5),
-        num_warmup=configuration.get("num_warmup", 2),
+        if int(args.num_queries) > 0 else configuration.get("num-queries", -1),
+        num_retries=configuration.get("num-retries", 5),
+        num_warmup=configuration.get("num-warmup", 2),
 
         parametrized=args.parametrized,
 

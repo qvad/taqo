@@ -28,7 +28,7 @@ class Scenario():
     def get_commit_message(self, commit_hash):
         output = str(subprocess.check_output(
             f"echo `git log -n 1 --pretty=format:%s {commit_hash}`",
-            cwd=self.config.yugabyte_code_path,
+            cwd=self.config.source_path,
             shell=True)).rstrip('\n')
         return f"{output} ({commit_hash})" if commit_hash else ""
 
