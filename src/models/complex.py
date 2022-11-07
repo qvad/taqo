@@ -23,8 +23,8 @@ class ComplexModel(QTFModel):
                   Field('c_real', True),
                   Field('c_money', True)
               ], num) for num in
-        [1_000_000, 500_000, 50_000, 100]
-        # [50_000, 5_000, 100]
+        # [1_000_000, 500_000, 50_000, 100]
+        [50_000, 5_000, 100]
     ]
     COLUMNS = [
         'c_int',
@@ -58,7 +58,7 @@ class ComplexModel(QTFModel):
             for table in tqdm(self.TABLES):
                 colocation = "" if db_prefix else "WITH (colocated = true)"
 
-                if DDLStep.TEARDOWN:
+                if DDLStep.DROP:
                     evaluate_sql(cur, f"DROP TABLE IF EXISTS {table.name} CASCADE")
 
                 if DDLStep.CREATE and DDLStep.IMPORT:

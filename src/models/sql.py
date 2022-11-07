@@ -42,6 +42,8 @@ class SQLModel(QTFModel):
 
     def evaluate_ddl_queries(self, conn, step_prefix: DDLStep, skip_analyze=False,
                              db_prefix=None):
+        self.logger.info(f"Evaluating DDL {step_prefix.name} step")
+
         created_tables: List[Table] = []
         file_name = step_prefix.name.lower()
 

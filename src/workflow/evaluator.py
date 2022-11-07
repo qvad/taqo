@@ -4,8 +4,7 @@ from difflib import SequenceMatcher
 import psycopg2
 from tqdm import tqdm
 
-from database import ENABLE_STATISTICS_HINT, ExecutionPlan, store_queries_to_file, Query, \
-    ListOfOptimizations
+from database import ENABLE_STATISTICS_HINT, ExecutionPlan, Query, ListOfOptimizations
 from models.factory import get_test_model
 from utils import evaluate_sql, get_optimizer_score_from_plan, calculate_avg_execution_time, \
     get_md5, allowed_diff
@@ -59,6 +58,7 @@ class QueryEvaluator:
                                                  num_retries=int(self.config.num_retries))
 
                     if evaluate_optimizations:
+                        self.logger.debug("Evaluating optimizations...")
                         self.evaluate_optimizations(cur, original_query)
                         self.plan_heatmap(original_query)
 
@@ -77,6 +77,7 @@ class QueryEvaluator:
             self.config, original_query) \
             .get_all_optimizations(int(self.config.max_optimizations))
 
+        self.logger.debug(f"{len(list_of_optimizations)} optimizations generated")
         progress_bar = tqdm(list_of_optimizations)
         num_skipped = 0
         min_execution_time = original_query.execution_time_ms

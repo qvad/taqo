@@ -72,8 +72,6 @@ class Config(metaclass=Singleton):
     basic_multiplier: int = None
 
     random_seed: int = None
-    use_allpairs: bool = None
-    skip_table_scan_hints: bool = None
     ddls: Set[DDLStep] = None
     destroy_database: bool = None
     skip_percentage_delta: bool = None
@@ -84,7 +82,7 @@ class Config(metaclass=Singleton):
     num_retries: int = None
     num_warmup: int = None
     skip_timeout_delta: int = None
-    max_optimizations: int = None
+    all_pairs_threshold: int = None
 
     asciidoctor_path: str = None
     clear: bool = False
@@ -104,14 +102,12 @@ class Config(metaclass=Singleton):
                f"    --master_flags: {self.master_flags} {build_param_skipped}\n" + \
                f"    --num_queries: {self.num_queries}\n" + \
                f"    --num_retries: {self.num_retries}\n" + \
-               f"    --use_allpairs: {self.use_allpairs}\n" + \
                f"    --random_seed: {self.random_seed}\n" + \
                f"    --basic_multiplier: x{self.basic_multiplier}\n" + \
                f"    --skip_timeout_delta: ±{self.skip_timeout_delta}s\n" + \
-               f"    --skip_table_scan_hints: {self.skip_table_scan_hints}\n" + \
-               f"    --model_creation: {[m.value for m in self.ddls]}\n" + \
+               f"    --model_creation: {[m.name for m in self.ddls]}\n" + \
                f"    --output: {self.output}.json\n" + \
                f"    --look_near_best_plan: {self.look_near_best_plan}\n" + \
-               f"    --max_optimizations: {self.max_optimizations}\n" + \
+               f"    --all_pairs_threshold: {self.all_pairs_threshold}\n" + \
                f"    --asciidoctor_path: '{self.asciidoctor_path}'\n" + \
                f"    --clear: '{self.clear}'\n"

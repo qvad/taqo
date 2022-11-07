@@ -9,7 +9,7 @@ from reports.regression import RegressionReport
 from reports.selectivity import SelectivityReport
 from reports.taqo import TaqoReport
 
-from tests.scenario import Scenario
+from workflow.scenario import Scenario
 from utils import get_bool_from_str
 
 
@@ -196,12 +196,10 @@ if __name__ == "__main__":
         basic_multiplier=int(args.basic_multiplier),
 
         random_seed=configuration.get("random_seed", 2022),
-        use_allpairs=configuration.get("use_allpairs", True),
-        skip_table_scan_hints=configuration.get("skip_table_scan_hints", False),
         skip_percentage_delta=configuration.get("skip_percentage_delta", 0.05),
         skip_timeout_delta=configuration.get("skip_timeout_delta", 1),
         look_near_best_plan=configuration.get("look_near_best_plan", True),
-        max_optimizations=configuration.get("max_optimizations", 1000),
+        all_pairs_threshold=configuration.get("all_pairs_threshold", 3),
 
         num_queries=int(args.num_queries)
         if int(args.num_queries) > 0 else configuration.get("num_queries", -1),

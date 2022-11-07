@@ -3,6 +3,7 @@ import itertools
 import json
 import re
 from enum import Enum
+from math import factorial
 from typing import List, Dict
 
 import psycopg2
@@ -99,10 +100,12 @@ class Leading:
         self.table_scan_hints = []
 
     def construct(self):
-        if self.config.use_allpairs:
-            self.fill_joins_with_pairwise()
-        else:
+        if self.config.all_pairs_threshold == -1:
             self.get_all_combinations()
+        elif len(self.tables) > self.config.all_pairs_threshold:
+            self.get_all_combinations()
+        else:
+            self.get_all_pairs_combinations()
 
     def get_all_combinations(self):
         # algorithm with all possible combinations
@@ -134,15 +137,18 @@ class Leading:
             tables_and_idxs.append(f"{Scans.SEQ.value}({table.name})")
             self.table_scan_hints.append(tables_and_idxs)
 
-    def fill_joins_with_pairwise(self):
+    def get_all_pairs_combinations(self):
         if len(self.tables) <= 1:
             return
 
-        table_permutations = list(itertools.permutations(self.tables))
-        join_product = list(itertools.product(Joins, repeat=len(self.tables) - 1))
-        scan_product = list(itertools.product(Scans, repeat=len(self.tables)))
+        # todo to reduce number of pairs combinations used here
+        # while its not produce overwhelming amount of optimizations
+        # it should provide enough number of combinations
+        table_combinations = list(itertools.combinations(self.tables, len(self.tables)))
+        join_product = list(AllPairs([list(Joins) for _ in range(len(self.tables) - 1)]))
+        scan_product = list(AllPairs([list(Scans) for _ in range(len(self.tables))]))
 
-        for tables, joins, scans in AllPairs([table_permutations, join_product, scan_product]):
+        for tables, joins, scans in AllPairs([table_combinations, join_product, scan_product]):
             prev_el = None
             joins = itertools.cycle(joins)
             query_joins = ""
@@ -212,8 +218,8 @@ class Query:
             for join in Joins)
 
     def compare_plans(self, execution_plan: 'ExecutionPlan'):
-        return self.execution_plan.get_clean_plan() == self.execution_plan.get_clean_plan(
-            execution_plan)
+        return self.execution_plan.get_clean_plan() == \
+               self.execution_plan.get_clean_plan(execution_plan)
 
     def __str__(self):
         return f"Query - \"{self.query}\"\n" \
@@ -357,16 +363,13 @@ class ListOfOptimizations:
     def get_all_optimizations(self, max_optimizations) -> List[Optimization]:
         optimizations = []
         for leading_join in self.leading.joins:
-            if Config().skip_table_scan_hints or Config().use_allpairs:
-                self.add_optimization(leading_join, optimizations)
-            else:
-                for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
-                    if len(optimizations) >= max_optimizations:
-                        break
+            for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
+                if len(optimizations) >= max_optimizations:
+                    break
 
-                    explain_hints = f"{leading_join} {' '.join(table_scan_hint)}"
+                explain_hints = f"{leading_join} {' '.join(table_scan_hint)}"
 
-                    self.add_optimization(explain_hints, optimizations)
+                self.add_optimization(explain_hints, optimizations)
 
         if not optimizations:
             # case w/o any joins

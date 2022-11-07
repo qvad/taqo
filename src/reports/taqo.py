@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
 
 from database import Query, ListOfQueries
-from tests.abstract import Report
+from reports.abstract import Report
 from utils import allowed_diff, get_md5
 
 
@@ -27,6 +27,10 @@ class TaqoReport(Report):
         report.report_model(loq.model_queries)
 
         for qid, query in enumerate(loq.queries):
+            if not query.optimizations:
+                raise AttributeError("There is no optimizations found in result file. "
+                                     "Evaluate collect with --optimizations flag")
+
             self.add_query(query, pg_loq.queries[qid] if pg_loq else None)
 
         report.build_report()

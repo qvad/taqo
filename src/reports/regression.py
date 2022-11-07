@@ -1,7 +1,7 @@
 from sql_formatter.core import format_sql
 
 from database import Query, ListOfQueries
-from tests.abstract import Report
+from reports.abstract import Report
 from utils import get_md5
 
 

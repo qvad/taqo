@@ -2,7 +2,7 @@ import subprocess
 
 from database import store_queries_to_file, ListOfQueries
 from db.yugabyte import factory
-from tests.evaluator import QueryEvaluator
+from workflow.evaluator import QueryEvaluator
 from utils import evaluate_sql
 
 
