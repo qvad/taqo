@@ -1,6 +1,6 @@
 from sql_formatter.core import format_sql
 
-from database import Query
+from database import Query, ListOfQueries
 from tests.abstract import Report
 from utils import get_md5
 
@@ -10,6 +10,20 @@ class RegressionReport(Report):
         super().__init__()
 
         self.queries = {}
+
+    def generate_report(self,
+                        loq_v1: ListOfQueries,
+                        loq_v2: ListOfQueries):
+        report = RegressionReport()
+
+        report.define_version(loq_v1.db_version, loq_v2.db_version)
+        report.report_model(loq_v1.model_queries)
+
+        for query in zip(loq_v1.queries, loq_v2.queries):
+            self.add_query(*query)
+
+        report.build_report()
+        report.publish_report("regression")
 
     def get_report_name(self):
         return "Regression"

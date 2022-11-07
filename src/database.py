@@ -235,6 +235,7 @@ class Optimization(Query):
 class ListOfQueries:
     db_version: str = ""
     git_message: str = ""
+    model_queries: List[str] = None
     queries: List[Query] = None
 
     def append(self, new_element):
@@ -413,6 +414,6 @@ def get_queries_from_previous_result(previous_execution_path):
         return from_dict(ListOfQueries, json.load(prev_result), DaciteConfig(check_types=False))
 
 
-def store_queries_to_file(queries, output_json_name):
+def store_queries_to_file(queries: ListOfQueries, output_json_name: str):
     with open(f"report/{output_json_name}.json", "w") as result_file:
         result_file.write(json.dumps(queries, cls=EnhancedJSONEncoder))

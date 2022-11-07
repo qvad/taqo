@@ -3,7 +3,7 @@ import os
 from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
 
-from database import Query
+from database import Query, ListOfQueries
 from tests.abstract import Report
 from utils import allowed_diff, get_md5
 
@@ -19,6 +19,18 @@ class TaqoReport(Report):
         self.failed_validation = []
         self.same_execution_plan = []
         self.better_plan_found = []
+
+    def generate_report(self, loq: ListOfQueries):
+        report = TaqoReport()
+
+        report.define_version(loq.db_version)
+        report.report_model(loq.model_queries)
+
+        for query in loq.queries:
+            self.add_query(query)
+
+        report.build_report()
+        report.publish_report("taqo")
 
     def get_report_name(self):
         return "TAQO"

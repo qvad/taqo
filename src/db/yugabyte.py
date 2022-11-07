@@ -13,9 +13,9 @@ JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]
 
 
 def factory(config):
-    if len(config.revisions_or_paths) > 0 and config.yugabyte_code_path:
+    if config.yugabyte_code_path:
         return YugabyteLocalRepository(config)
-    elif config.revisions_or_paths:
+    elif config.revision:
         return YugabyteLocalCluster(config)
     else:
         return Yugabyte(config)
@@ -25,8 +25,14 @@ class Yugabyte(Postgres):
     def __init__(self, config):
         super().__init__(config)
 
-    def establish_connection(self):
-        self.connection = Connection(self.config.yugabyte)
+    def establish_connection(self, database: str):
+        config = ConnectionConfig(
+            self.config.yugabyte.host,
+            self.config.yugabyte.port,
+            self.config.yugabyte.username,
+            self.config.yugabyte.password,
+            database,)
+        self.connection = Connection(config)
 
         self.connection.connect()
 
@@ -38,7 +44,7 @@ class Yugabyte(Postgres):
         self.config.yugabyte = ConnectionConfig(host=parsing[0], port=parsing[4],
                                                 username=parsing[7] or DEFAULT_USERNAME,
                                                 password=parsing[8] or DEFAULT_PASSWORD,
-                                                database=parsing[5], )
+                                                database=self.config.yugabyte.database or parsing[5], )
 
         self.logger.info(f"Connection - {self.config.yugabyte}")
 

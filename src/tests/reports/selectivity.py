@@ -1,13 +1,11 @@
-import hashlib
-
 from sql_formatter.core import format_sql
 
-from database import Query
+from database import Query, ListOfQueries
 from tests.abstract import Report
 from utils import allowed_diff, get_md5
 
 
-class ApproachReport(Report):
+class SelectivityReport(Report):
     def __init__(self):
         super().__init__()
 
@@ -20,25 +18,47 @@ class ApproachReport(Report):
     def get_report_name(self):
         return "Default/Analyze/Analyze+Statistics"
 
+    def generate_report(self,
+                        loq_default: ListOfQueries,
+                        loq_default_analyze: ListOfQueries,
+                        loq_ta: ListOfQueries,
+                        loq_ta_analyze: ListOfQueries,
+                        loq_stats: ListOfQueries,
+                        loq_stats_analyze: ListOfQueries):
+        report = SelectivityReport()
+
+        report.report_model(loq_default.model_queries)
+
+        for query in zip(loq_default.queries,
+                         loq_default_analyze.queries,
+                         loq_ta.queries,
+                         loq_ta_analyze.queries,
+                         loq_stats.queries,
+                         loq_stats_analyze.queries):
+            self.add_query(*query)
+
+        report.build_report()
+        report.publish_report("taqo")
+
     def add_query(self,
                   default: Query,
                   default_analyze: Query,
-                  analyze: Query,
-                  analyze_analyze: Query,
-                  all: Query,
-                  all_analyze: Query
+                  ta: Query,
+                  ta_analyze: Query,
+                  stats: Query,
+                  stats_analyze: Query
                   ):
-        queries_tuple = [default, default_analyze, analyze, analyze_analyze, all, all_analyze]
+        queries_tuple = [default, default_analyze, ta, ta_analyze, stats, stats_analyze]
         if not default.compare_plans(default_analyze.execution_plan) or \
-                not analyze.compare_plans(analyze_analyze.execution_plan) or \
-                not all.compare_plans(all_analyze.execution_plan):
+                not ta.compare_plans(ta_analyze.execution_plan) or \
+                not stats.compare_plans(stats_analyze.execution_plan):
             self.different_explain_plans.append(queries_tuple)
 
-        if default.compare_plans(all_analyze.execution_plan):
+        if default.compare_plans(stats_analyze.execution_plan):
             self.same_execution_plan.append(queries_tuple)
-        elif allowed_diff(self.config, default.execution_time_ms, all_analyze.execution_time_ms):
+        elif allowed_diff(self.config, default.execution_time_ms, stats_analyze.execution_time_ms):
             self.almost_same_execution_time.append(queries_tuple)
-        elif default.execution_time_ms < all_analyze.execution_time_ms:
+        elif default.execution_time_ms < stats_analyze.execution_time_ms:
             self.worse_execution_time.append(queries_tuple)
         else:
             self.improved_execution_time.append(queries_tuple)

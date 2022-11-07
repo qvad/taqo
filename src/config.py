@@ -51,10 +51,10 @@ class Config(metaclass=Singleton):
     logger: logging.Logger = None
 
     ddl_prefix: str = ""
+    with_optimizations: bool = False
     yugabyte_code_path: str = None
-    previous_results_path: str = None
     output: str = None
-    revisions_or_paths: List[str] = None
+    revision: str = None
 
     num_nodes: int = None
     tserver_flags: List[str] = None
@@ -67,8 +67,6 @@ class Config(metaclass=Singleton):
     enable_statistics: bool = False
     explain_clause: bool = False
     session_props: List[str] = None
-    session_props_v1: List[str] = None
-    session_props_v2: List[str] = None
 
     test: str = None
     model: str = None
@@ -102,9 +100,8 @@ class Config(metaclass=Singleton):
         return f"{connections}" + \
                f"  Using following explain syntax - '{self.explain_clause} /*+ ... */ QUERY'\n" + \
                f"  Running '{self.test}' test on model '{self.model}'\n" + \
-               f"  Repository code path '{self.yugabyte_code_path}', revisions to test {self.revisions_or_paths}\n" + \
+               f"  Repository code path '{self.yugabyte_code_path}', revisions to test {self.revision}\n" + \
                f"  Additional properties defined:\n" + \
-               f"    --previous_results_path: {self.previous_results_path}\n" + \
                f"    --num_nodes: {self.num_nodes} {build_param_skipped}\n" + \
                f"    --tserver_flags: {self.tserver_flags} {build_param_skipped}\n" + \
                f"    --master_flags: {self.master_flags} {build_param_skipped}\n" + \
@@ -115,7 +112,7 @@ class Config(metaclass=Singleton):
                f"    --basic_multiplier: x{self.basic_multiplier}\n" + \
                f"    --skip_timeout_delta: ±{self.skip_timeout_delta}s\n" + \
                f"    --skip_table_scan_hints: {self.skip_table_scan_hints}\n" + \
-               f"    --model_creation: {self.model_creation}\n" + \
+               f"    --model_creation: {[m.value for m in self.model_creation]}\n" + \
                f"    --output: {self.output}.json\n" + \
                f"    --look_near_best_plan: {self.look_near_best_plan}\n" + \
                f"    --max_optimizations: {self.max_optimizations}\n" + \

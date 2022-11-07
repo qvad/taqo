@@ -2,7 +2,7 @@ import hashlib
 
 from sql_formatter.core import format_sql
 
-from database import Query
+from database import Query, ListOfQueries
 from tests.abstract import Report
 from utils import get_md5
 
@@ -12,6 +12,20 @@ class ComparisonReport(Report):
         super().__init__()
 
         self.queries = {}
+
+    def generate_report(self,
+                        loq_yb: ListOfQueries,
+                        loq_pg: ListOfQueries):
+        report = ComparisonReport()
+
+        report.define_version(loq_yb.db_version, loq_pg.db_version)
+        report.report_model(loq_yb.model_queries)
+
+        for query in zip(loq_yb.queries, loq_pg.queries):
+            self.add_query(*query)
+
+        report.build_report()
+        report.publish_report("regression")
 
     def get_report_name(self):
         return "Comparison"
