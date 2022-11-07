@@ -20,14 +20,14 @@ class TaqoReport(Report):
         self.same_execution_plan = []
         self.better_plan_found = []
 
-    def generate_report(self, loq: ListOfQueries):
+    def generate_report(self, loq: ListOfQueries, pg_loq: ListOfQueries = None):
         report = TaqoReport()
 
         report.define_version(loq.db_version)
         report.report_model(loq.model_queries)
 
-        for query in loq.queries:
-            self.add_query(query)
+        for qid, query in enumerate(loq.queries):
+            self.add_query(query, pg_loq.queries[qid] if pg_loq else None)
 
         report.build_report()
         report.publish_report("taqo")
@@ -63,22 +63,22 @@ class TaqoReport(Report):
 
         return file_name
 
-    def add_query(self, query: Query):
+    def add_query(self, query: Query, pg: Query):
         best_optimization = query.get_best_optimization()
 
         if len(query.optimizations) > 1:
-            if self.config.compare_with_pg and query.result_hash != query.postgres_query.result_hash:
-                self.failed_validation.append(query)
+            if self.config.compare_with_pg and query.result_hash != pg.result_hash:
+                self.failed_validation.append([query, pg])
             if not self.config.compare_with_pg and query.result_hash != best_optimization.result_hash:
-                self.failed_validation.append(query)
+                self.failed_validation.append([query, pg])
 
             if allowed_diff(self.config, query.execution_time_ms,
                             best_optimization.execution_time_ms):
-                self.same_execution_plan.append(query)
+                self.same_execution_plan.append([query, pg])
             else:
-                self.better_plan_found.append(query)
+                self.better_plan_found.append([query, pg])
         else:
-            self.same_execution_plan.append(query)
+            self.same_execution_plan.append([query, pg])
 
     def build_report(self):
         # link to top
@@ -90,15 +90,15 @@ class TaqoReport(Report):
 
         self.report += f"\n[#result]\n== Result validation failure ({len(self.failed_validation)})\n\n"
         for query in self.failed_validation:
-            self.__report_query(query, True)
+            self.__report_query(query[0], query[1], True)
 
         self.report += f"\n[#better]\n== Better plan found queries ({len(self.better_plan_found)})\n\n"
         for query in self.better_plan_found:
-            self.__report_query(query, True)
+            self.__report_query(query[0], query[1], True)
 
         self.report += f"\n[#found]\n== No better plan found ({len(self.same_execution_plan)})\n\n"
         for query in self.same_execution_plan:
-            self.__report_query(query, False)
+            self.__report_query(query[0], query[1], False)
 
     def __report_near_queries(self, query: Query):
         best_optimization = query.get_best_optimization()
@@ -158,7 +158,7 @@ class TaqoReport(Report):
         return result
 
     # noinspection InsecureHash
-    def __report_query(self, query: Query, show_best: bool):
+    def __report_query(self, query: Query, pg_query: Query, show_best: bool):
         best_optimization = query.get_best_optimization()
 
         self.reported_queries_counter += 1
@@ -195,9 +195,9 @@ class TaqoReport(Report):
         if 'order by' in query.query:
             if self.config.compare_with_pg:
                 self.report += \
-                    f"!! Result hash|{query.result_hash}|{best_optimization.result_hash} (yb) != {query.postgres_query.result_hash} (pg)" \
-                    if query.postgres_query.result_hash != query.result_hash else \
-                    f"Result hash|`{query.result_hash}|{best_optimization.result_hash} (yb) != {query.postgres_query.result_hash} (pg)"
+                    f"!! Result hash|{query.result_hash}|{best_optimization.result_hash} (yb) != {pg_query.result_hash} (pg)" \
+                    if pg_query.result_hash != query.result_hash else \
+                    f"Result hash|`{query.result_hash}|{best_optimization.result_hash} (yb) != {pg_query.result_hash} (pg)"
             elif best_optimization.result_hash != query.result_hash:
                 self.report += f"!! Result hash|{query.result_hash}|{best_optimization.result_hash}"
             else:
@@ -221,14 +221,14 @@ class TaqoReport(Report):
         if self.config.compare_with_pg:
             self._start_collapsible("Postgres plan")
             self._start_source(["diff"])
-            self.report += query.postgres_query.execution_plan
+            self.report += pg_query.execution_plan
             self._end_source()
             self._end_collapsible()
 
             self._start_collapsible("Postgres plan diff")
             self._start_source(["diff"])
             # postgres plan should be red
-            self.report += self._get_plan_diff(query.postgres_query.execution_plan.full_str,
+            self.report += self._get_plan_diff(pg_query.execution_plan.full_str,
                                                query.execution_plan.full_str, )
             self._end_source()
             self._end_collapsible()

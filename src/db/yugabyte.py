@@ -5,7 +5,6 @@ import subprocess
 from time import sleep
 
 from config import ConnectionConfig
-from database import Connection
 from database import DEFAULT_USERNAME, DEFAULT_PASSWORD
 from db.postgres import Postgres
 
@@ -25,28 +24,17 @@ class Yugabyte(Postgres):
     def __init__(self, config):
         super().__init__(config)
 
-    def establish_connection(self, database: str):
-        config = ConnectionConfig(
-            self.config.yugabyte.host,
-            self.config.yugabyte.port,
-            self.config.yugabyte.username,
-            self.config.yugabyte.password,
-            database,)
-        self.connection = Connection(config)
-
-        self.connection.connect()
-
     def establish_connection_from_output(self, out: str):
         self.logger.info("Reinitializing connection based on cluster creation output")
         # parsing jdbc:postgresql://127.0.0.1:5433/yugabyte
         parsing = re.findall(JDBC_STRING_PARSE, out)[0]
 
-        self.config.yugabyte = ConnectionConfig(host=parsing[0], port=parsing[4],
+        self.config.connection = ConnectionConfig(host=parsing[0], port=parsing[4],
                                                 username=parsing[7] or DEFAULT_USERNAME,
                                                 password=parsing[8] or DEFAULT_PASSWORD,
-                                                database=self.config.yugabyte.database or parsing[5], )
+                                                database=self.config.connection.database or parsing[5], )
 
-        self.logger.info(f"Connection - {self.config.yugabyte}")
+        self.logger.info(f"Connection - {self.config.connection}")
 
     def change_version_and_compile(self, revision_or_path=None):
         pass

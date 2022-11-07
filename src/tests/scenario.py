@@ -40,7 +40,7 @@ class Scenario():
 
         commit_message = self.start_db()
         try:
-            test_database = self.config.yugabyte.database
+            test_database = self.config.connection.database
             self.create_test_database(test_database)
 
             self.yugabyte.establish_connection(test_database)

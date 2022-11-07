@@ -28,10 +28,10 @@ def init_logger(level="INFO") -> logging.Logger:
     return _logger
 
 
-class ModelSteps(Enum):
+class DDLStep(Enum):
     CREATE = 0
     IMPORT = 1
-    TEARDOWN = 2
+    DROP = 2
 
 
 @dataclasses.dataclass
@@ -60,8 +60,7 @@ class Config(metaclass=Singleton):
     tserver_flags: List[str] = None
     master_flags: List[str] = None
 
-    postgres: ConnectionConfig = None
-    yugabyte: ConnectionConfig = None
+    connection: ConnectionConfig = None
 
     compare_with_pg: bool = False
     enable_statistics: bool = False
@@ -75,7 +74,7 @@ class Config(metaclass=Singleton):
     random_seed: int = None
     use_allpairs: bool = None
     skip_table_scan_hints: bool = None
-    model_creation: Set[ModelSteps] = None
+    ddls: Set[DDLStep] = None
     destroy_database: bool = None
     skip_percentage_delta: bool = None
     look_near_best_plan: bool = None
@@ -93,16 +92,14 @@ class Config(metaclass=Singleton):
     def __str__(self):
         build_param_skipped = "(skipped)" if self.yugabyte_code_path else ""
 
-        connections = f"  Yugabyte Connection - {self.yugabyte}\n"
-        if self.compare_with_pg:
-            connections += f"  Postgres Connection - {self.postgres}\n"
+        connections = f"  Connection - {self.connection}\n"
 
         return f"{connections}" + \
                f"  Using following explain syntax - '{self.explain_clause} /*+ ... */ QUERY'\n" + \
                f"  Running '{self.test}' test on model '{self.model}'\n" + \
                f"  Repository code path '{self.yugabyte_code_path}', revisions to test {self.revision}\n" + \
                f"  Additional properties defined:\n" + \
-               f"    --num_nodes: {self.num_nodes} {build_param_skipped}\n" + \
+               f"    --num_nodes: {self.num_nodes}\n" + \
                f"    --tserver_flags: {self.tserver_flags} {build_param_skipped}\n" + \
                f"    --master_flags: {self.master_flags} {build_param_skipped}\n" + \
                f"    --num_queries: {self.num_queries}\n" + \
@@ -112,7 +109,7 @@ class Config(metaclass=Singleton):
                f"    --basic_multiplier: x{self.basic_multiplier}\n" + \
                f"    --skip_timeout_delta: ±{self.skip_timeout_delta}s\n" + \
                f"    --skip_table_scan_hints: {self.skip_table_scan_hints}\n" + \
-               f"    --model_creation: {[m.value for m in self.model_creation]}\n" + \
+               f"    --model_creation: {[m.value for m in self.ddls]}\n" + \
                f"    --output: {self.output}.json\n" + \
                f"    --look_near_best_plan: {self.look_near_best_plan}\n" + \
                f"    --max_optimizations: {self.max_optimizations}\n" + \

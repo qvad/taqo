@@ -4,7 +4,7 @@ import random
 
 from tqdm import tqdm
 
-from config import ModelSteps
+from config import DDLStep
 from database import Query, Table, Field
 from models.abstract import QTFModel, QueryJoins
 from utils import evaluate_sql, get_md5
@@ -48,7 +48,7 @@ class ComplexModel(QTFModel):
     # IS NOT NULL
 
     def create_tables(self, conn, skip_analyze=False, db_prefix=None):
-        if len(self.config.model_creation) == 0:
+        if len(self.config.ddls) == 0:
             return self.TABLES
 
         self.logger.info("Creating simple model tables and run analyze")
@@ -58,10 +58,10 @@ class ComplexModel(QTFModel):
             for table in tqdm(self.TABLES):
                 colocation = "" if db_prefix else "WITH (colocated = true)"
 
-                if ModelSteps.TEARDOWN:
+                if DDLStep.TEARDOWN:
                     evaluate_sql(cur, f"DROP TABLE IF EXISTS {table.name} CASCADE")
 
-                if ModelSteps.CREATE and ModelSteps.IMPORT:
+                if DDLStep.CREATE and DDLStep.IMPORT:
                     create_table = f"CREATE TABLE {table.name} {colocation} AS " \
                                    f"SELECT c_int, " \
                                    f"(case when c_int % 2 = 0 then true else false end) as c_bool, " \

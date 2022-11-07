@@ -2,29 +2,29 @@ import argparse
 
 from pyhocon import ConfigFactory
 
-from config import Config, init_logger, ConnectionConfig, ModelSteps
+from config import Config, init_logger, ConnectionConfig, DDLStep
 from database import DEFAULT_USERNAME, DEFAULT_PASSWORD, get_queries_from_previous_result
-from tests.reports.comparison import ComparisonReport
-from tests.reports.regression import RegressionReport
-from tests.reports.selectivity import SelectivityReport
-from tests.reports.taqo import TaqoReport
+from reports.comparison import ComparisonReport
+from reports.regression import RegressionReport
+from reports.selectivity import SelectivityReport
+from reports.taqo import TaqoReport
 
 from tests.scenario import Scenario
 from utils import get_bool_from_str
 
 
-def parse_model_creation(model_creation_arg):
+def parse_ddls(ddl_ops):
     result = set()
 
-    if model_creation_arg == "none":
+    if ddl_ops == "none":
         return result
 
-    if "create" in model_creation_arg:
-        result.add(ModelSteps.CREATE)
-    if "import" in model_creation_arg:
-        result.add(ModelSteps.IMPORT)
-    if "teardown" in model_creation_arg:
-        result.add(ModelSteps.TEARDOWN)
+    if "create" in ddl_ops:
+        result.add(DDLStep.CREATE)
+    if "import" in ddl_ops:
+        result.add(DDLStep.IMPORT)
+    if "drop" in ddl_ops:
+        result.add(DDLStep.DROP)
 
     return result
 
@@ -78,7 +78,6 @@ if __name__ == "__main__":
                         default=None,
                         help='Path to previous execution results. May be used in regression and comparison reports')
 
-
     parser.add_argument('--ddl_prefix',
                         default="",
                         help='DDL file prefix (default empty, might be postgres)')
@@ -91,10 +90,6 @@ if __name__ == "__main__":
                         default="simple",
                         help='Test model to use - complex, tpch, subqueries, any other custom model')
 
-    parser.add_argument('--compare_with_pg',
-                        action=argparse.BooleanOptionalAction,
-                        default=False,
-                        help='Add compare with postgres to report')
     parser.add_argument('--basic_multiplier',
                         default=10,
                         help='Basic model data multiplier (Default 10)')
@@ -102,9 +97,9 @@ if __name__ == "__main__":
                         help='Code path to yugabyte-db repository')
     parser.add_argument('--revision',
                         help='Git revision or path to release build')
-    parser.add_argument('--model_creation',
-                        default="create,import,teardown",
-                        help='Model creation queries, comma separated: create, import, teardown')
+    parser.add_argument('--ddls',
+                        default="create,import,drop",
+                        help='Model creation queries, comma separated: create, import, drop')
     parser.add_argument('--destroy_database',
                         action=argparse.BooleanOptionalAction,
                         default=True,
@@ -134,7 +129,7 @@ if __name__ == "__main__":
                         default=DEFAULT_PASSWORD,
                         help='Password for user for connection')
     parser.add_argument('--database',
-                        default="postgres",
+                        default="taqo",
                         help='Target database in postgres compatible database')
 
     parser.add_argument('--enable_statistics',
@@ -168,21 +163,40 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     configuration = ConfigFactory.parse_file(args.config)
-    model_creation_args = parse_model_creation(args.model_creation)
+    ddls = parse_ddls(args.ddls)
 
     config = Config(
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
 
+        yugabyte_code_path=args.yugabyte_code_path or configuration.get("yugab"
+                                                                        "yte_code_path", None),
+        num_nodes=int(args.num_nodes) or configuration.get("num_nodes", 3),
+
+        revision=args.revision or None,
+        tserver_flags=args.tserver_flags,
+        master_flags=args.master_flags,
+        destroy_database=args.destroy_database,
+
+        connection=ConnectionConfig(host=args.host,
+                                    port=args.port,
+                                    username=args.username,
+                                    password=args.password,
+                                    database=args.database),
+
+        model=args.model,
+        output=args.output,
+        ddls=ddls,
         ddl_prefix=args.ddl_prefix,
         with_optimizations=args.optimizations,
 
-        # configuration file properties
-        yugabyte_code_path=args.yugabyte_code_path or configuration.get("yugabyte_code_path", None),
-        num_nodes=int(args.num_nodes) or configuration.get("num_nodes", 3),
+        enable_statistics=args.enable_statistics or get_bool_from_str(
+            configuration.get("enable_statistics", False)),
+        explain_clause=args.explain_clause or configuration.get("explain_clause", "EXPLAIN"),
+        session_props=configuration.get("session_props", []),
+        basic_multiplier=int(args.basic_multiplier),
 
         random_seed=configuration.get("random_seed", 2022),
         use_allpairs=configuration.get("use_allpairs", True),
-
         skip_table_scan_hints=configuration.get("skip_table_scan_hints", False),
         skip_percentage_delta=configuration.get("skip_percentage_delta", 0.05),
         skip_timeout_delta=configuration.get("skip_timeout_delta", 1),
@@ -191,38 +205,14 @@ if __name__ == "__main__":
 
         num_queries=int(args.num_queries)
         if int(args.num_queries) > 0 else configuration.get("num_queries", -1),
-        parametrized=args.parametrized,
         num_retries=configuration.get("num_retries", 5),
-        num_warmup=configuration.get("num_warmup", 5),
+        num_warmup=configuration.get("num_warmup", 2),
+
+        parametrized=args.parametrized,
 
         asciidoctor_path=configuration.get("asciidoctor_path", "asciidoc"),
 
-        # args properties
-        revision=args.revision if args.revision else None,
-        tserver_flags=args.tserver_flags,
-        master_flags=args.master_flags,
-
-        yugabyte=ConnectionConfig(host=args.host,
-                                  port=args.port,
-                                  username=args.username,
-                                  password=args.password,
-                                  database=args.database),
-
-        compare_with_pg=args.compare_with_pg,
-        model_creation=model_creation_args,
-        destroy_database=args.destroy_database,
-        output=args.output,
-
-        enable_statistics=args.enable_statistics or get_bool_from_str(
-            configuration.get("enable_statistics", False)),
-        explain_clause=args.explain_clause or configuration.get("explain_clause", "EXPLAIN"),
-        session_props=configuration.get("session_props", []),
-
-        model=args.model,
-        basic_multiplier=int(args.basic_multiplier),
-
-        clear=args.clear,
-    )
+        clear=args.clear)
 
     config.logger.info("------------------------------------------------------------")
     config.logger.info("Query Optimizer Testing Framework for Postgres compatible DBs")
@@ -233,6 +223,10 @@ if __name__ == "__main__":
     config.logger.info("------------------------------------------------------------")
 
     if args.action == "collect":
+        if args.output is None:
+            print("ARGUMENTS VALIDATION ERROR: --output arg is required for collect task")
+            exit(1)
+
         sc = Scenario(config)
         sc.evaluate()
     elif args.action == "report":
@@ -240,9 +234,10 @@ if __name__ == "__main__":
             report = TaqoReport()
 
             yb_queries = get_queries_from_previous_result(args.results)
-            pg_queries = get_queries_from_previous_result(args.pg_results) if args.pg_results else None
+            pg_queries = get_queries_from_previous_result(
+                args.pg_results) if args.pg_results else None
 
-            report.generate_report(yb_queries)
+            report.generate_report(yb_queries, pg_queries)
         elif args.report == "regression":
             report = RegressionReport()
 
@@ -254,7 +249,8 @@ if __name__ == "__main__":
             report = ComparisonReport()
 
             yb_queries = get_queries_from_previous_result(args.results)
-            pg_queries = get_queries_from_previous_result(args.pg_results) if args.pg_results else None
+            pg_queries = get_queries_from_previous_result(
+                args.pg_results) if args.pg_results else None
 
             report.generate_report(yb_queries, pg_queries)
         elif args.report == "approach":
@@ -267,6 +263,7 @@ if __name__ == "__main__":
             stats_queries = get_queries_from_previous_result(args.stats_results)
             stats_analyze_queries = get_queries_from_previous_result(args.stats_analyze_results)
 
-            report.generate_report(default_queries, default_analyze_queries, ta_queries, ta_analyze_queries, stats_queries, stats_analyze_queries)
+            report.generate_report(default_queries, default_analyze_queries, ta_queries,
+                                   ta_analyze_queries, stats_queries, stats_analyze_queries)
         else:
             raise AttributeError(f"Unknown test type defined {config.test}")

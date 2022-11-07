@@ -167,18 +167,22 @@ class Leading:
 class Query:
     tag: str = ""
     query: str = ""
-    explain_hints: str = ""
     tables: List[Table] = None
-    execution_plan: 'ExecutionPlan' = None
-    execution_plan_heatmap: Dict[int, Dict[str, str]] = None
-    optimizer_score: float = 1
+
     optimizer_tips: QueryTips = None
+    explain_hints: str = ""
+
+    execution_plan: 'ExecutionPlan' = None
     execution_time_ms: float = 0
+    optimizer_score: float = 1
     result_cardinality: int = 0
-    optimizations: List['Query'] = None
-    parameters: List = None
-    postgres_query: 'Query' = None
     result_hash: str = None
+
+    parameters: List = None
+
+    optimizations: List['Query'] = None
+
+    execution_plan_heatmap: Dict[int, Dict[str, str]] = None
 
     def get_query(self):
         return self.query
