@@ -19,6 +19,8 @@ def parse_ddls(ddl_ops):
     if ddl_ops == "none":
         return result
 
+    if "database" in ddl_ops:
+        result.add(DDLStep.DATABASE)
     if "create" in ddl_ops:
         result.add(DDLStep.CREATE)
     if "import" in ddl_ops:
