@@ -102,14 +102,19 @@ if __name__ == "__main__":
     parser.add_argument('--ddls',
                         default="create,analyze,import,drop",
                         help='Model creation queries, comma separated: create,analyze,import,drop')
-    parser.add_argument('--destroy-db',
+
+    parser.add_argument('--clean-db',
                         action=argparse.BooleanOptionalAction,
                         default=True,
-                        help='Destroy database after test')
+                        help='Keep database after test')
+    parser.add_argument('--allow-destroy-db',
+                        action=argparse.BooleanOptionalAction,
+                        default=True,
+                        help='Allow to run yb-ctl/yugabyted destory')
     parser.add_argument('--clean-build',
                         action=argparse.BooleanOptionalAction,
                         default=True,
-                        help='Build yb_build with clean flag')
+                        help='Build yb_build with --clean-force flag')
 
     parser.add_argument('--num-nodes',
                         default=0,
@@ -180,7 +185,8 @@ if __name__ == "__main__":
         revision=args.revision or None,
         tserver_flags=args.tserver_flags,
         master_flags=args.master_flags,
-        destroy_db=args.destroy_db,
+        clean_db=args.clean_db,
+        allow_destroy_db=args.allow_destroy_db,
         clean_build=args.clean_build,
 
         connection=ConnectionConfig(host=args.host,

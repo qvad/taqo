@@ -12,12 +12,12 @@ JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]
 
 
 def factory(config):
-    if config.source_path:
-        return YugabyteLocalRepository(config)
+    if not config.revision:
+        return Yugabyte(config)
     elif 'tar' in config.revision:
         return YugabyteLocalCluster(config)
     else:
-        return Yugabyte(config)
+        return YugabyteLocalRepository(config)
 
 
 class Yugabyte(Postgres):
@@ -100,7 +100,7 @@ class YugabyteLocalCluster(Yugabyte):
         sleep(15)
 
     def destroy(self):
-        if self.config.destroy_db:
+        if self.config.allow_destroy_db:
             self.logger.info("Destroying existing Yugabyte var/ directory")
 
             out = subprocess.check_output(['python3', 'bin/yb-ctl', 'destroy'],
@@ -164,6 +164,7 @@ class YugabyteLocalRepository(Yugabyte):
         subprocess.call(['./yb_build.sh',
                          'release',
                          '--clean-force' if self.config.clean_build else '',
+                         '--build-yugabyted-ui',
                          '--no-tests',
                          '--skip-java-build'],
                         stdout=subprocess.DEVNULL,
@@ -174,7 +175,7 @@ class YugabyteLocalRepository(Yugabyte):
         pass
 
     def destroy(self):
-        if self.config.destroy_db:
+        if self.config.allow_destroy_db:
             self.logger.info("Destroying existing Yugabyte var/ directory")
 
             out = subprocess.check_output(['python3', 'bin/yugabyted', 'destroy'],
@@ -187,11 +188,16 @@ class YugabyteLocalRepository(Yugabyte):
     def start_database(self):
         self.logger.info("Starting Yugabyte node")
 
-        out = subprocess.check_output(['python3', 'bin/yugabyted', 'start'],
+        subprocess.call(['python3', 'bin/yugabyted', 'start'],
+                        # stdout=subprocess.DEVNULL,
+                        stderr=subprocess.STDOUT,
+                        cwd=self.path)
+
+        out = subprocess.check_output(['python3', 'bin/yugabyted', 'status'],
                                       stderr=subprocess.PIPE,
                                       cwd=self.path, )
 
-        if 'YugabyteDB started successfully!' not in str(out):
+        if 'Running.' not in str(out):
             self.logger.error(f"Failed to start Yugabyte\n{str(out)}")
             exit(1)
 

@@ -21,7 +21,7 @@ while getopts ":c:m:r:" opt; do
 done
 
 echo "Evaluating default test against $rev"
-python3 src/runner.py collect --no-destroy-db --model=$model --config=$config --revision=$rev --output=d_$model$rev --ddls=create,drop,import --explain-clause="explain"
+python3 src/runner.py collect --no-clean-db --model=$model --config=$config --revision=$rev --output=d_$model$rev --ddls=create,drop,import --explain-clause="explain"
 echo "Evaluating default test against $rev with table analyze"
 python3 src/runner.py collect --model=$model --config=$config --output=da_$model$rev --ddls=none --explain-clause="explain analyze"
 

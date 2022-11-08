@@ -56,7 +56,8 @@ class Scenario():
             self.logger.exception(e)
             raise e
         finally:
-            self.stop_db()
+            if self.config.clean_db:
+                self.stop_db()
 
     def create_test_database(self, test_database):
         self.yugabyte.establish_connection("postgres")

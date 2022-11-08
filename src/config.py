@@ -74,7 +74,8 @@ class Config(metaclass=Singleton):
 
     random_seed: int = None
     ddls: Set[DDLStep] = None
-    destroy_db: bool = None
+    clean_db: bool = None
+    allow_destroy_db: bool = None
     clean_build: bool = None
     skip_percentage_delta: bool = None
     look_near_best_plan: bool = None
@@ -111,5 +112,8 @@ class Config(metaclass=Singleton):
                f"    --output: {self.output}.json\n" + \
                f"    --look_near_best_plan: {self.look_near_best_plan}\n" + \
                f"    --all_pairs_threshold: {self.all_pairs_threshold}\n" + \
+               f"    --clean_db: {self.clean_db}\n" + \
+               f"    --allow_destroy_db: {self.allow_destroy_db}\n" + \
+               f"    --clean_build: {self.clean_build}\n" + \
                f"    --asciidoctor_path: '{self.asciidoctor_path}'\n" + \
                f"    --clear: '{self.clear}'\n"
