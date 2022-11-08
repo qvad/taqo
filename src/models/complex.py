@@ -23,8 +23,8 @@ class ComplexModel(QTFModel):
                   Field('c_real', True),
                   Field('c_money', True)
               ], num) for num in
-        # [1_000_000, 500_000, 50_000, 100]
-        [50_000, 5_000, 100]
+        [1_000_000, 500_000, 50_000, 100]
+        # [50_000, 5_000, 100]
     ]
     COLUMNS = [
         'c_int',

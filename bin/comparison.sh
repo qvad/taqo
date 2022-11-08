@@ -21,10 +21,10 @@ while getopts ":c:m:r:" opt; do
 done
 
 echo "Evaluating test against YB $rev"
-python3 src/runner.py collect --model=$model --config=$config --revision=$rev --output=yb_$model$rev --optimizations
+python3 src/runner.py collect --model=$model --config=$config --revision=$rev --output=yb_$model$rev --optimizations --yes
 
 echo "Evaluating test against PG $rev (localhost:5432)"
-python3 src/runner.py collect --model=$model --config=$config --output=pg_$model$rev --optimizations --port=5432
+python3 src/runner.py collect --model=$model --config=$config --output=pg_$model$rev --optimizations --port=5432 --yes
 
 echo "Generating TAQO report"
 python3 src/runner.py report --type=taqo --config=$config --results=report/yb_$model$rev.json --pg-results=report/pg_$model$rev.json

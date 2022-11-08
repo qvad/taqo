@@ -29,10 +29,11 @@ def init_logger(level="INFO") -> logging.Logger:
 
 
 class DDLStep(Enum):
-    CREATE = 0
-    ANALYZE = 1
-    IMPORT = 2
-    DROP = 3
+    DATABASE = 0
+    CREATE = 1
+    ANALYZE = 2
+    IMPORT = 3
+    DROP = 4
 
 
 @dataclasses.dataclass

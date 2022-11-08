@@ -100,8 +100,8 @@ if __name__ == "__main__":
     parser.add_argument('--revision',
                         help='Git revision or path to release build')
     parser.add_argument('--ddls',
-                        default="create,analyze,import,drop",
-                        help='Model creation queries, comma separated: create,analyze,import,drop')
+                        default="database,create,analyze,import,drop",
+                        help='Model creation queries, comma separated: database,create,analyze,import,drop')
 
     parser.add_argument('--clean-db',
                         action=argparse.BooleanOptionalAction,
@@ -166,6 +166,10 @@ if __name__ == "__main__":
                         default=False,
                         help='Clear logs directory')
 
+    parser.add_argument('--yes',
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help='Confirm test start')
     parser.add_argument('--verbose',
                         action=argparse.BooleanOptionalAction,
                         default=False,
@@ -236,6 +240,9 @@ if __name__ == "__main__":
         if args.output is None:
             print("ARGUMENTS VALIDATION ERROR: --output arg is required for collect task")
             exit(1)
+
+        if args.yes:
+            input("Validate configuration carefully and press Enter...")
 
         sc = Scenario(config)
         sc.evaluate()

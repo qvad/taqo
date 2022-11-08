@@ -1,5 +1,6 @@
 import subprocess
 
+from config import DDLStep
 from database import store_queries_to_file, ListOfQueries
 from db.yugabyte import factory
 from workflow.evaluator import QueryEvaluator
@@ -60,11 +61,12 @@ class Scenario():
                 self.stop_db()
 
     def create_test_database(self, test_database):
-        self.yugabyte.establish_connection("postgres")
-        conn = self.yugabyte.connection.conn
-        try:
-            with conn.cursor() as cur:
-                colocated = " WITH COLOCATED = true" if self.config.ddl_prefix is not None else ""
-                evaluate_sql(cur, f'CREATE DATABASE {test_database} {colocated};')
-        except Exception as e:
-            self.logger.exception(f"Failed to create testing database {e}")
+        if DDLStep.DATABASE in self.config.ddls:
+            self.yugabyte.establish_connection("postgres")
+            conn = self.yugabyte.connection.conn
+            try:
+                with conn.cursor() as cur:
+                    colocated = " WITH COLOCATED = true" if self.config.ddl_prefix is not None else ""
+                    evaluate_sql(cur, f'CREATE DATABASE {test_database} {colocated};')
+            except Exception as e:
+                self.logger.exception(f"Failed to create testing database {e}")
