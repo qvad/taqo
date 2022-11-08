@@ -4,87 +4,29 @@ from difflib import SequenceMatcher
 import psycopg2
 from tqdm import tqdm
 
-from database import ListOfOptimizations, ENABLE_STATISTICS_HINT, Query, ExecutionPlan, \
-    store_queries_to_file
-from db.postgres import Postgres
+from database import ENABLE_STATISTICS_HINT, ExecutionPlan, Query, ListOfOptimizations
 from models.factory import get_test_model
-from tests.abstract import AbstractTest
-from tests.taqo.report import TaqoReport
-from utils import get_optimizer_score_from_plan, calculate_avg_execution_time, evaluate_sql, \
-    allowed_diff, get_md5
+from utils import evaluate_sql, get_optimizer_score_from_plan, calculate_avg_execution_time, \
+    get_md5, allowed_diff
 
 
-class TaqoTest(AbstractTest):
-    def __init__(self):
-        super().__init__()
-        self.report = TaqoReport()
+class QueryEvaluator:
+    def __init__(self, config):
+        self.config = config
+        self.logger = self.config.logger
 
-    def evaluate(self):
-        self.start_db()
+    def evaluate(self,
+                 connection,
+                 evaluate_optimizations=False):
+        model = get_test_model()
+        created_tables, model_queries = model.create_tables(connection)
+        queries = model.get_queries(created_tables)
 
-        conn = None
+        self.evaluate_queries_against_yugabyte(connection, queries, evaluate_optimizations)
 
-        try:
-            self.yugabyte.establish_connection()
-            conn = self.yugabyte.connection.conn
+        return queries
 
-            self.report.define_version(self.yugabyte.connection.get_version())
-
-            # evaluate original query
-            model = get_test_model()
-            created_tables, model_queries = model.create_tables(conn)
-            queries = model.get_queries(created_tables)
-            self.report.report_model(model_queries)
-
-            time.sleep(10)
-
-            if self.config.compare_with_pg:
-                self.logger.info("Evaluating queries against Postgres DB")
-
-                postgres = Postgres(self.config)
-                postgres.establish_connection()
-                pg_conn = postgres.connection.conn
-
-                model.create_tables(pg_conn, db_prefix="postgres")
-
-                self.evaluate_queries_against_postgres(pg_conn, queries)
-
-            self.evaluate_queries_against_yugabyte(conn, queries)
-        finally:
-            # publish current report
-            self.report.build_report()
-            self.report.publish_report("taqo")
-
-            # close connection
-            if conn:
-                conn.close()
-
-            # stop yugabyte
-            self.stop_db()
-
-    def evaluate_queries_against_postgres(self, conn, queries):
-        with conn.cursor() as cur:
-            for query in self.config.session_props:
-                evaluate_sql(cur, query)
-
-            for original_query in tqdm(queries):
-                original_query.postgres_query = Query(
-                    query=original_query.query
-                )
-                pg_query = original_query.postgres_query
-
-                evaluate_sql(cur, "SET statement_timeout = '1200s'")
-
-                evaluate_sql(cur, pg_query.get_explain())
-                pg_query.execution_plan = '\n'.join(
-                    str(item[0]) for item in cur.fetchall())
-                pg_query.optimizer_score = get_optimizer_score_from_plan(
-                    pg_query.execution_plan)
-
-                calculate_avg_execution_time(cur, pg_query,
-                                             num_retries=int(self.config.num_retries))
-
-    def evaluate_queries_against_yugabyte(self, conn, queries):
+    def evaluate_queries_against_yugabyte(self, conn, queries, evaluate_optimizations):
         with conn.cursor() as cur:
             counter = 1
 
@@ -113,11 +55,11 @@ class TaqoTest(AbstractTest):
                     calculate_avg_execution_time(cur, original_query,
                                                  num_retries=int(self.config.num_retries))
 
-                    self.evaluate_optimizations(cur, original_query)
+                    if evaluate_optimizations:
+                        self.logger.debug("Evaluating optimizations...")
+                        self.evaluate_optimizations(cur, original_query)
+                        self.plan_heatmap(original_query)
 
-                    self.plan_heatmap(original_query)
-
-                    self.report.add_query(original_query)
                 except psycopg2.Error as pe:
                     # do not raise exception
                     self.logger.exception(f"{original_query}\nFailed because of {pe}")
@@ -127,14 +69,13 @@ class TaqoTest(AbstractTest):
                 finally:
                     counter += 1
 
-        store_queries_to_file(queries, self.config.output)
-
     def evaluate_optimizations(self, cur, original_query):
         # build all possible optimizations
         list_of_optimizations = ListOfOptimizations(
             self.config, original_query) \
-            .get_all_optimizations(int(self.config.max_optimizations))
+            .get_all_optimizations()
 
+        self.logger.debug(f"{len(list_of_optimizations)} optimizations generated")
         progress_bar = tqdm(list_of_optimizations)
         num_skipped = 0
         min_execution_time = original_query.execution_time_ms

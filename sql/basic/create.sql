@@ -23,10 +23,10 @@ CREATE TABLE ts2(k1 int,
                  k2 text,
                  v1 int,
                  v2 text,
-                 PRIMARY KEY(k1 HASH, k2 ASC)) WITH (colocated = true);
+                 PRIMARY KEY(k1 DESC, k2 DESC)) WITH (colocated = true);
 
 CREATE TABLE ts3(k1 int,
                  k2 text,
                  v1 int,
                  v2 text,
-                 PRIMARY KEY(k1 HASH)) WITH (colocated = true);
+                 PRIMARY KEY(k1 DESC)) WITH (colocated = true);

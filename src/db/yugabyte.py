@@ -5,7 +5,6 @@ import subprocess
 from time import sleep
 
 from config import ConnectionConfig
-from database import Connection
 from database import DEFAULT_USERNAME, DEFAULT_PASSWORD
 from db.postgres import Postgres
 
@@ -13,34 +12,30 @@ JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]
 
 
 def factory(config):
-    if len(config.revisions_or_paths) > 0 and config.yugabyte_code_path:
-        return YugabyteLocalRepository(config)
-    elif config.revisions_or_paths:
+    if not config.revision:
+        return Yugabyte(config)
+    elif 'tar' in config.revision:
         return YugabyteLocalCluster(config)
     else:
-        return Yugabyte(config)
+        return YugabyteLocalRepository(config)
 
 
 class Yugabyte(Postgres):
     def __init__(self, config):
         super().__init__(config)
 
-    def establish_connection(self):
-        self.connection = Connection(self.config.yugabyte)
-
-        self.connection.connect()
-
     def establish_connection_from_output(self, out: str):
         self.logger.info("Reinitializing connection based on cluster creation output")
         # parsing jdbc:postgresql://127.0.0.1:5433/yugabyte
         parsing = re.findall(JDBC_STRING_PARSE, out)[0]
 
-        self.config.yugabyte = ConnectionConfig(host=parsing[0], port=parsing[4],
-                                                username=parsing[7] or DEFAULT_USERNAME,
-                                                password=parsing[8] or DEFAULT_PASSWORD,
-                                                database=parsing[5], )
+        self.config.connection = ConnectionConfig(host=parsing[0], port=parsing[4],
+                                                  username=parsing[7] or DEFAULT_USERNAME,
+                                                  password=parsing[8] or DEFAULT_PASSWORD,
+                                                  database=self.config.connection.database or
+                                                           parsing[5], )
 
-        self.logger.info(f"Connection - {self.config.yugabyte}")
+        self.logger.info(f"Connection - {self.config.connection}")
 
     def change_version_and_compile(self, revision_or_path=None):
         pass
@@ -49,7 +44,7 @@ class Yugabyte(Postgres):
         pass
 
     def start_database(self):
-        input("Upgrade target DB and press Enter to continue test...")
+        pass
 
     def stop_database(self):
         pass
@@ -105,10 +100,10 @@ class YugabyteLocalCluster(Yugabyte):
         sleep(15)
 
     def destroy(self):
-        if self.config.destroy_database:
+        if self.config.allow_destroy_db:
             self.logger.info("Destroying existing Yugabyte var/ directory")
 
-            out = subprocess.check_output(['bin/yb-ctl', 'destroy'],
+            out = subprocess.check_output(['python3', 'bin/yb-ctl', 'destroy'],
                                           stderr=subprocess.PIPE,
                                           cwd=self.path, )
 
@@ -117,7 +112,7 @@ class YugabyteLocalCluster(Yugabyte):
 
     def stop_database(self):
         self.logger.info("Stopping Yugabyte node if exists")
-        out = subprocess.check_output(['bin/yb-ctl', 'stop'],
+        out = subprocess.check_output(['python3', 'bin/yb-ctl', 'stop'],
                                       stderr=subprocess.PIPE,
                                       cwd=self.path, )
 
@@ -143,7 +138,7 @@ class YugabyteLocalRepository(Yugabyte):
     def __init__(self, config):
         super().__init__(config)
 
-        self.path = self.config.yugabyte_code_path
+        self.path = self.config.source_path
 
     def change_version_and_compile(self, revision_or_path=None):
         if revision_or_path:
@@ -168,7 +163,8 @@ class YugabyteLocalRepository(Yugabyte):
         self.logger.info(f"Building yugabyte from source code '{self.path}'")
         subprocess.call(['./yb_build.sh',
                          'release',
-                         # '--clean',
+                         '--clean-force' if self.config.clean_build else '',
+                         '--build-yugabyted-ui',
                          '--no-tests',
                          '--skip-java-build'],
                         stdout=subprocess.DEVNULL,
@@ -179,7 +175,7 @@ class YugabyteLocalRepository(Yugabyte):
         pass
 
     def destroy(self):
-        if self.config.destroy_database:
+        if self.config.allow_destroy_db:
             self.logger.info("Destroying existing Yugabyte var/ directory")
 
             out = subprocess.check_output(['python3', 'bin/yugabyted', 'destroy'],
@@ -192,11 +188,16 @@ class YugabyteLocalRepository(Yugabyte):
     def start_database(self):
         self.logger.info("Starting Yugabyte node")
 
-        out = subprocess.check_output(['python3', 'bin/yugabyted', 'start'],
+        subprocess.call(['python3', 'bin/yugabyted', 'start'],
+                        # stdout=subprocess.DEVNULL,
+                        stderr=subprocess.STDOUT,
+                        cwd=self.path)
+
+        out = subprocess.check_output(['python3', 'bin/yugabyted', 'status'],
                                       stderr=subprocess.PIPE,
                                       cwd=self.path, )
 
-        if 'YugabyteDB started successfully!' not in str(out):
+        if 'Running.' not in str(out):
             self.logger.error(f"Failed to start Yugabyte\n{str(out)}")
             exit(1)
 

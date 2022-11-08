@@ -140,14 +140,14 @@ def evaluate_sql(cur, sql):
 
         changed_var_name = '%s'
         sql = changed_var_name.join(
-            [sql[:str_param_skew + match.start(0)],
-             sql[str_param_skew + match.end(0):]])
-        str_param_skew += len(changed_var_name) - (match.end(0) - match.start(0))
+            [sql[:str_param_skew + match.start(1)],
+             sql[str_param_skew + match.end(1):]])
+        str_param_skew += len(changed_var_name) - (match.end(1) - match.start(1))
 
         sql_wo_parameters = var_value.join(
-            [sql_wo_parameters[:str_wo_param_skew + match.start(0)],
-             sql_wo_parameters[str_wo_param_skew + match.end(0):]])
-        str_wo_param_skew += len(var_value) - (match.end(0) - match.start(0))
+            [sql_wo_parameters[:str_wo_param_skew + match.start(1)],
+             sql_wo_parameters[str_wo_param_skew + match.end(1):]])
+        str_wo_param_skew += len(var_value) - (match.end(1) - match.start(1))
 
         parameters.append(correct_value)
 
