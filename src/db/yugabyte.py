@@ -30,9 +30,10 @@ class Yugabyte(Postgres):
         parsing = re.findall(JDBC_STRING_PARSE, out)[0]
 
         self.config.connection = ConnectionConfig(host=parsing[0], port=parsing[4],
-                                                username=parsing[7] or DEFAULT_USERNAME,
-                                                password=parsing[8] or DEFAULT_PASSWORD,
-                                                database=self.config.connection.database or parsing[5], )
+                                                  username=parsing[7] or DEFAULT_USERNAME,
+                                                  password=parsing[8] or DEFAULT_PASSWORD,
+                                                  database=self.config.connection.database or
+                                                           parsing[5], )
 
         self.logger.info(f"Connection - {self.config.connection}")
 
@@ -162,7 +163,7 @@ class YugabyteLocalRepository(Yugabyte):
         self.logger.info(f"Building yugabyte from source code '{self.path}'")
         subprocess.call(['./yb_build.sh',
                          'release',
-                         '--clean' if self.config.clean_build else '',
+                         '--clean-force' if self.config.clean_build else '',
                          '--no-tests',
                          '--skip-java-build'],
                         stdout=subprocess.DEVNULL,
@@ -173,7 +174,7 @@ class YugabyteLocalRepository(Yugabyte):
         pass
 
     def destroy(self):
-        if self.config.destroy_database:
+        if self.config.destroy_db:
             self.logger.info("Destroying existing Yugabyte var/ directory")
 
             out = subprocess.check_output(['python3', 'bin/yugabyted', 'destroy'],
