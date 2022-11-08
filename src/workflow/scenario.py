@@ -27,11 +27,14 @@ class Scenario():
         return self.get_commit_message(commit_hash)
 
     def get_commit_message(self, commit_hash):
-        output = str(subprocess.check_output(
-            f"echo `git log -n 1 --pretty=format:%s {commit_hash}`",
-            cwd=self.config.source_path,
-            shell=True)).rstrip('\n')
-        return f"{output} ({commit_hash})" if commit_hash else ""
+        if commit_hash:
+            output = str(subprocess.check_output(
+                f"echo `git log -n 1 --pretty=format:%s {commit_hash}`",
+                cwd=self.config.source_path,
+                shell=True)).rstrip('\n')
+            return f"{output} ({commit_hash})"
+        else:
+            return ""
 
     def stop_db(self):
         self.yugabyte.stop_database()

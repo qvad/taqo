@@ -243,7 +243,7 @@ if __name__ == "__main__":
             print("ARGUMENTS VALIDATION ERROR: --output arg is required for collect task")
             exit(1)
 
-        if args.yes:
+        if not args.yes:
             input("Validate configuration carefully and press Enter...")
 
         sc = Scenario(config)
