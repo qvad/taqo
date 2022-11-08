@@ -207,190 +207,143 @@ Here is all possible values that can be defined:
 
 ```hocon
 # optional if local code test run
-yugabyte_code_path = "/yugabyte-db"
+source-path = "/yugabyte-db"
 # optional if local code or archive test run
-num_nodes = 3
+num-nodes = 3
 
 # default explain clause
 # will be used in TAQO, regression, comparison tests as a plan extraction command
-explain_clause = "explain (analyze)"
+explain-clause = "explain (analyze)"
 # session properties before executing set of testing queries
-session_props = [
+session-props = [
    "SET pg_hint_plan.enable_hint = ON;",
    "SET pg_hint_plan.debug_print = ON;",
    "SET client_min_messages TO log;",
    "SET pg_hint_plan.message_level = debug;",
 ]
-# regression test session props, can compare same version with different session properties
-session_props_v1 = []
-session_props_v2 = []
 
 # default random seed, used in all tests
-random_seed = 2022
+random-seed = 2022
 # allowed diff between queries (all tests included)
-skip_percentage_delta = 0.25
+skip_percentage-delta = 0.25
 
 # TAQO related options
-skip_timeout_delta = 1 # skip queries if they exceed (min+1) seconds
-use_allpairs = true # reduce number of generated optimizations
-max_optimizations = 1000 # limit maximum number of optimizations
-report_near_queries = true # report best optimization plans
-look_near_best_plan = true # evaluate only queries that are near current best optimization
-skip_table_scans_hints = false # use only join hints
+skip-timeout-delta = 1 # skip queries if they exceed (min+1) seconds
+all-pairs-threshold = 3 # maximum number of tables after which all_pairs will be used, -1 to use all combinations always
+look-near-best-plan = true # evaluate only queries that are near current best optimization
 
 # limit number of queries in model, needed for debug
-num_queries = -1
+num-queries = -1
 # number of retries to get query execution time
-num_retries = 5
+num-retries = 5
 
 # path to asciidoctor, can be different in brew
-asciidoctor_path = "asciidoctor"
-
-# postgres connection configuration
-postgres = {
-   host = "127.0.0.1"
-   port = 5432
-   username = "postgres"
-   password = "postgres"
-   database = "postgres"
-}
+asciidoctor-path = "asciidoctor"
 ```
 
 ## Runner
 
 ```
-usage: runner.py [-h] [--config CONFIG] 
-                 [--test TEST] 
-                 [--model MODEL]
-                 [--previous_results_path PREVIOUS_RESULTS_PATH] 
-                 [--basic_multiplier BASIC_MULTIPLIER] 
-                 [--yugabyte_code_path YUGABYTE_CODE_PATH]
-                 [--revisions REVISIONS] 
-                 [--num_nodes NUM_NODES] 
-                 [--tserver_flags TSERVER_FLAGS] 
-                 [--master_flags MASTER_FLAGS] 
-                 [--explain_clause EXPLAIN_CLAUSE] 
-                 [--host HOST] 
-                 [--port PORT]
-                 [--username USERNAME] 
-                 [--password PASSWORD] 
-                 [--database DATABASE] 
-                 [--enable_statistics | --no-enable_statistics] 
-                 [--num_queries NUM_QUERIES] 
-                 [--parametrized | --no-parametrized]
-                 [--compare_with_pg | --no-compare_with_pg] 
-                 [--model_creation MODEL_CREATION] 
-                 [--destroy_database | --no-destroy_database] 
-                 [--clear | --no-clear] 
-                 [--verbose | --no-verbose]
-                 [--output OUTPUT] 
+usage: runner.py [-h] [--config CONFIG] [--type TYPE] [--results RESULTS] [--pg-results PG_RESULTS] [--v1-results V1_RESULTS] [--v2-results V2_RESULTS] [--default-results DEFAULT_RESULTS]
+                 [--default-analyze-results DEFAULT_ANALYZE_RESULTS] [--ta-results TA_RESULTS] [--ta-analyze-results TA_ANALYZE_RESULTS] [--stats-results STATS_RESULTS]
+                 [--stats-analyze-results STATS_ANALYZE_RESULTS] [--ddl-prefix DDL_PREFIX] [--optimizations | --no-optimizations] [--model MODEL] [--basic-multiplier BASIC_MULTIPLIER]
+                 [--source-path SOURCE_PATH] [--revision REVISION] [--ddls DDLS] [--clean-db | --no-clean-db] [--allow-destroy-db | --no-allow-destroy-db] [--clean-build | --no-clean-build]
+                 [--num-nodes NUM_NODES] [--tserver-flags TSERVER_FLAGS] [--master-flags MASTER_FLAGS] [--host HOST] [--port PORT] [--username USERNAME] [--password PASSWORD] [--database DATABASE]
+                 [--enable-statistics | --no-enable-statistics] [--explain-clause EXPLAIN_CLAUSE] [--num-queries NUM_QUERIES] [--parametrized | --no-parametrized] [--output OUTPUT] [--clear | --no-clear]
+                 [--yes | --no-yes] [--verbose | --no-verbose]
+                 action
 
 Query Optimizer Testing framework for PostgreSQL compatible DBs
+
+positional arguments:
+  action                Action to perform - collect or report
 
 options:
   -h, --help            show this help message and exit
   --config CONFIG       Configuration file path
-  --test TEST           Type of test to evaluate - taqo (default) or regression
+  --type TYPE           Report type - taqo, regression, comparison or selectivity
+  --results RESULTS     TAQO/Comparison: Path to results with optimizations for YB
+  --pg-results PG_RESULTS
+                        TAQO/Comparison: Path to results for PG, optimizations are optional
+  --v1-results V1_RESULTS
+                        Regression: Results for first version
+  --v2-results V2_RESULTS
+                        Regression: Results for second version
+  --default-results DEFAULT_RESULTS
+                        Results for no optimizer tuned DB
+  --default-analyze-results DEFAULT_ANALYZE_RESULTS
+                        Results for no optimizer tuned DB with EXPLAIN ANALYZE
+  --ta-results TA_RESULTS
+                        Results with table analyze
+  --ta-analyze-results TA_ANALYZE_RESULTS
+                        Results with table analyze with EXPLAIN ANALYZE
+  --stats-results STATS_RESULTS
+                        Results with table analyze and enabled statistics
+  --stats-analyze-results STATS_ANALYZE_RESULTS
+                        Results with table analyze and enabled statistics and EXPLAIN ANALYZE
+  --ddl-prefix DDL_PREFIX
+                        DDL file prefix (default empty, might be postgres)
+  --optimizations, --no-optimizations
+                        Evaluate optimizations for each query (default: False)
   --model MODEL         Test model to use - complex, tpch, subqueries, any other custom model
-  --previous_results_path PREVIOUS_RESULTS_PATH
-                        Path to previous execution results. May be used in regression and comparison reports
-  --basic_multiplier BASIC_MULTIPLIER
+  --basic-multiplier BASIC_MULTIPLIER
                         Basic model data multiplier (Default 10)
-  --yugabyte_code_path YUGABYTE_CODE_PATH
-                        Code path to yugabyte-db repository
-  --revisions REVISIONS
-                        Comma separated git revisions or paths to release builds
-  --num_nodes NUM_NODES
+  --source-path SOURCE_PATH
+                        Path to yugabyte-db source code
+  --revision REVISION   Git revision or path to release build
+  --ddls DDLS           Model creation queries, comma separated: database,create,analyze,import,drop
+  --clean-db, --no-clean-db
+                        Keep database after test (default: True)
+  --allow-destroy-db, --no-allow-destroy-db
+                        Allow to run yb-ctl/yugabyted destory (default: True)
+  --clean-build, --no-clean-build
+                        Build yb_build with --clean-force flag (default: True)
+  --num-nodes NUM_NODES
                         Number of nodes
-  --tserver_flags TSERVER_FLAGS
+  --tserver-flags TSERVER_FLAGS
                         Comma separated tserver flags
-  --master_flags MASTER_FLAGS
+  --master-flags MASTER_FLAGS
                         Comma separated master flags
-  --explain_clause EXPLAIN_CLAUSE
-                        Explain clause that will be placed before query. Default "EXPLAIN"
   --host HOST           Target host IP for postgres compatible database
   --port PORT           Target port for postgres compatible database
   --username USERNAME   Username for connection
   --password PASSWORD   Password for user for connection
   --database DATABASE   Target database in postgres compatible database
-  --enable_statistics, --no-enable_statistics
+  --enable-statistics, --no-enable-statistics
                         Evaluate yb_enable_optimizer_statistics before running queries (default: False)
-  --num_queries NUM_QUERIES
+  --explain-clause EXPLAIN_CLAUSE
+                        Explain clause that will be placed before query. Default "EXPLAIN"
+  --num-queries NUM_QUERIES
                         Number of queries to evaluate
   --parametrized, --no-parametrized
                         Run parametrized query instead of normal (default: False)
-  --compare_with_pg, --no-compare_with_pg
-                        Add compare with postgres to report (default: False)
-  --model_creation MODEL_CREATION
-                        Model creation queries, comma separated: create, import, teardown
-  --destroy_database, --no-destroy_database
-                        Destroy database after test (default: True)
-  --output OUTPUT       Output JSON file name in report folder, default: output [.json]
+  --output OUTPUT       Output JSON file name in report folder, [.json] will be added
   --clear, --no-clear   Clear logs directory (default: False)
+  --yes, --no-yes       Confirm test start (default: False)
   --verbose, --no-verbose
                         Enable DEBUG logging (default: False)
 ```
 
 # Launch command examples
 
-Evaluate regression test for specific revision using basic model. Note that it’s a regression test, but only one revision is defined. In this case the regression scenario will create a json output file (with name basic_regression_parametrized). Queries will be evaluated in parametrized context, if it’s possible
+See prepared scenarios in `bin/` directory
+
+Collect queries results for basic model for localhost cluster
 ```
-src/runner.py
+collect
+--optimizations
 --model=basic
---test=regression
---revisions=3f570d4605934b30919578bf0be23a14bb49a75f
---config=config/dmitry.conf
---output=basic_regression_parametrized
---parametrized
+--config=config/qo.conf
+--output=taqo_complex_yb
+--database=taqo
 ```
 
-Evaluate the same scenario as before, but the output file is different and we evaluate common queries (not parameterized!)
+Generate comparison report for 2 previous collect runs
 ```
 src/runner.py
---model=basic
---test=regression
---revisions=3f570d4605934b30919578bf0be23a14bb49a75f
+report
+--type=comparison
 --config=config/dmitry.conf
---output=basic_regression_real
+--results=report/basic_taqo_new_runner.json
+--pg_results=report/basic_taqo_new_runner_2.json
 ```
-
-Evaluate comparison (with PG) test using basic model. Note that here we don’t need to define output file, since it’s other test
-```
-src/runner.py
---model=basic
---test=comparison
---revisions=3f570d4605934b30919578bf0be23a14bb49a75f
---config=config/dmitry.conf
-```
-
-Evaluate TAQO test using subqueries model.
-```
-src/runner.py
---model=subqueries
---test=taqo
---revisions=3f570d4605934b30919578bf0be23a14bb49a75f
---config=config/dmitry.conf
-```
-
-Evaluate regression test using basic model, but against remote cluster
-```
-src/runner.py
---model=subqueries
---test=regression
---host=127.0.0.2
---config=config/dmitry.conf
---output=basic_regression_remote
-```
-
-Create regression report using previously generated json files
-```
-src/runner.py
---model=basic
---test=regression
---previous_results_path=report/basic_regression_real.json,report/basic_regression_parametrized.json
-```
-
-
-
-
-

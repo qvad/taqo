@@ -50,37 +50,37 @@ if __name__ == "__main__":
     # TAQO or Comparison
     parser.add_argument('--results',
                         default=None,
-                        help='Path to previous execution results. May be used in regression and comparison reports')
+                        help='TAQO/Comparison: Path to results with optimizations for YB')
     parser.add_argument('--pg-results',
                         default=None,
-                        help='Path to previous execution results. May be used in regression and comparison reports')
+                        help='TAQO/Comparison: Path to results for PG, optimizations are optional')
 
     # Regression
     parser.add_argument('--v1-results',
                         default=None,
-                        help='Path to previous execution results. May be used in regression and comparison reports')
+                        help='Regression: Results for first version')
     parser.add_argument('--v2-results',
-                        help='Path to previous execution results. May be used in regression and comparison reports')
+                        help='Regression: Results for second version')
 
     # Selectivity
     parser.add_argument('--default-results',
                         default=None,
-                        help='Path to previous execution results. May be used in regression and comparison reports')
+                        help='Results for no optimizer tuned DB')
     parser.add_argument('--default-analyze-results',
                         default=None,
-                        help='Path to previous execution results. May be used in regression and comparison reports')
+                        help='Results for no optimizer tuned DB with EXPLAIN ANALYZE')
     parser.add_argument('--ta-results',
                         default=None,
-                        help='Path to previous execution results. May be used in regression and comparison reports')
+                        help='Results with table analyze')
     parser.add_argument('--ta-analyze-results',
                         default=None,
-                        help='Path to previous execution results. May be used in regression and comparison reports')
+                        help='Results with table analyze with EXPLAIN ANALYZE')
     parser.add_argument('--stats-results',
                         default=None,
-                        help='Path to previous execution results. May be used in regression and comparison reports')
+                        help='Results with table analyze and enabled statistics')
     parser.add_argument('--stats-analyze-results',
                         default=None,
-                        help='Path to previous execution results. May be used in regression and comparison reports')
+                        help='Results with table analyze and enabled statistics and EXPLAIN ANALYZE')
 
     parser.add_argument('--ddl-prefix',
                         default="",
