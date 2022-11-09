@@ -193,8 +193,12 @@ class SQLModel(QTFModel):
         return queries
 
     def apply_variables(self, queries_str):
-        return queries_str.replace("$DATA_PATH",
-                                   f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}")
+        if self.config.remote_data_path:
+            return queries_str.replace("$DATA_PATH",
+                                       self.config.remote_data_path)
+        else:
+            return queries_str.replace("$DATA_PATH",
+                                       f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data")
 
 
 class BasicOpsModel(SQLModel):

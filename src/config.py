@@ -52,6 +52,7 @@ class ConnectionConfig:
 class Config(metaclass=Singleton):
     logger: logging.Logger = None
 
+    remote_data_path: str = None
     ddl_prefix: str = ""
     with_optimizations: bool = False
     source_path: str = None

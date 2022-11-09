@@ -85,6 +85,9 @@ if __name__ == "__main__":
     parser.add_argument('--ddl-prefix',
                         default="",
                         help='DDL file prefix (default empty, might be postgres)')
+    parser.add_argument('--remote-data-path',
+                        default=None,
+                        help='Path to remote data files ($DATA_PATH/*.csv)')
 
     parser.add_argument('--optimizations',
                         action=argparse.BooleanOptionalAction,
@@ -204,6 +207,7 @@ if __name__ == "__main__":
         model=args.model,
         output=args.output,
         ddls=ddls,
+        remote_data_path=args.remote_data_path,
         ddl_prefix=args.ddl_prefix,
         with_optimizations=args.optimizations,
 
