@@ -69,7 +69,7 @@ class Scenario():
             conn = self.yugabyte.connection.conn
             try:
                 with conn.cursor() as cur:
-                    colocated = " WITH COLOCATED = true" if self.config.ddl_prefix is not None else ""
-                    evaluate_sql(cur, f'CREATE DATABASE {test_database} {colocated};')
+                    colocated = "" if self.config.ddl_prefix else " WITH COLOCATED = true"
+                    evaluate_sql(cur, f'CREATE DATABASE {test_database}{colocated};')
             except Exception as e:
                 self.logger.exception(f"Failed to create testing database {e}")
