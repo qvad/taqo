@@ -56,7 +56,7 @@ class ComplexModel(QTFModel):
         model_queries = []
         with conn.cursor() as cur:
             for table in tqdm(self.TABLES):
-                colocation = "" if db_prefix else "WITH (colocated = true)"
+                colocation = "" if self.config.ddl_prefix else "WITH (colocated = true)"
 
                 if DDLStep.DROP:
                     evaluate_sql(cur, f"DROP TABLE IF EXISTS {table.name} CASCADE")
