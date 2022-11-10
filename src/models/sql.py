@@ -33,14 +33,14 @@ class SQLModel(QTFModel):
                                                                        db_prefix)
             create_queries.insert(0, "-- CREATE QUERIES")
 
+        if DDLStep.IMPORT in self.config.ddls:
+            _, import_queries = self.evaluate_ddl_queries(conn, DDLStep.IMPORT, db_prefix)
+            import_queries.insert(0, "-- IMPORT QUERIES")
+
         if DDLStep.ANALYZE in self.config.ddls:
             analyzed_tables, analyze_queries = self.evaluate_ddl_queries(conn, DDLStep.ANALYZE,
                                                                          db_prefix)
             create_queries.insert(0, "-- ANALYZE QUERIES")
-
-        if DDLStep.IMPORT in self.config.ddls:
-            _, import_queries = self.evaluate_ddl_queries(conn, DDLStep.IMPORT, db_prefix)
-            import_queries.insert(0, "-- IMPORT QUERIES")
 
         return created_tables, teardown_queries + create_queries + analyze_queries + import_queries
 
