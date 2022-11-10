@@ -230,7 +230,7 @@ if __name__ == "__main__":
 
         parametrized=args.parametrized,
 
-        asciidoctor_path=configuration.get("asciidoctor_path", "asciidoc"),
+        asciidoctor_path=configuration.get("asciidoctor-path", "asciidoc"),
 
         clear=args.clear)
 
