@@ -56,6 +56,8 @@ class ComplexModel(QTFModel):
         model_queries = []
         with conn.cursor() as cur:
             for table in tqdm(self.TABLES):
+                evaluate_sql(cur, "SET statement_timeout = '1200s'")
+
                 colocation = "" if self.config.ddl_prefix else "WITH (colocated = true)"
 
                 if DDLStep.DROP:
