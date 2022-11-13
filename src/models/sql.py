@@ -5,6 +5,7 @@ import string
 from os.path import exists
 from typing import List
 
+import psycopg2
 import sqlparse
 from sqlparse.sql import Comment
 from tqdm import tqdm
@@ -73,7 +74,7 @@ class SQLModel(QTFModel):
                                 if cleaned := query.lstrip():
                                     model_queries.append(cleaned)
                                     evaluate_sql(cur, cleaned)
-                            except Exception as e:
+                            except psycopg2.Error as e:
                                 self.logger.exception(e)
                                 raise e
                 if step_prefix == DDLStep.CREATE:
