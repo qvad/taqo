@@ -18,9 +18,14 @@ class QueryEvaluator:
     def evaluate(self,
                  connection,
                  evaluate_optimizations=False):
-        model = get_test_model()
-        created_tables, model_queries = model.create_tables(connection)
-        queries = model.get_queries(created_tables)
+        queries = []
+        try:
+            model = get_test_model()
+            created_tables, model_queries = model.create_tables(connection)
+            queries = model.get_queries(created_tables)
+        except Exception as e:
+            self.logger.exception("Failed to evaluate DDL queries", e)
+            exit(1)
 
         self.evaluate_queries_against_yugabyte(connection, queries, evaluate_optimizations)
 
