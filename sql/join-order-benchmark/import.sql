@@ -9,7 +9,7 @@ COPY complete_cast FROM '$DATA_PATH/complete_cast.csv' with (delimiter ',', FORM
 COPY info_type FROM '$DATA_PATH/info_type.csv' with (delimiter ',', FORMAT csv, ROWS_PER_TRANSACTION 100000, DISABLE_FK_CHECK);
 COPY keyword FROM '$DATA_PATH/keyword.csv' with (delimiter ',', FORMAT csv, ROWS_PER_TRANSACTION 100000, DISABLE_FK_CHECK);
 COPY kind_type FROM '$DATA_PATH/kind_type.csv' with (delimiter ',', FORMAT csv, ROWS_PER_TRANSACTION 100000, DISABLE_FK_CHECK);
-COPY link_type FROM '$DATA_PATH/link_type.csv' with (delimiter ',', FORMAT csv, ROWS_PER_TRANSACTION100000, DISABLE_FK_CHECK);
+COPY link_type FROM '$DATA_PATH/link_type.csv' with (delimiter ',', FORMAT csv, ROWS_PER_TRANSACTION 100000, DISABLE_FK_CHECK);
 COPY movie_companies FROM '$DATA_PATH/movie_companies.csv' with (delimiter ',', FORMAT csv, ROWS_PER_TRANSACTION 100000, DISABLE_FK_CHECK);
 COPY movie_info FROM '$DATA_PATH/movie_info.csv' with (delimiter ',', FORMAT csv, ROWS_PER_TRANSACTION 100000, DISABLE_FK_CHECK);
 COPY movie_info_idx FROM '$DATA_PATH/movie_info_idx.csv' with (delimiter ',', FORMAT csv, ROWS_PER_TRANSACTION 100000, DISABLE_FK_CHECK);
