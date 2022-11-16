@@ -39,7 +39,7 @@ class QueryEvaluator:
                 evaluate_sql(cur, query)
 
             if self.config.enable_statistics:
-                self.logger.info("Enable yb_enable_optimizer_statistics flag")
+                self.logger.debug("Enable yb_enable_optimizer_statistics flag")
 
                 evaluate_sql(cur, ENABLE_STATISTICS_HINT)
 
