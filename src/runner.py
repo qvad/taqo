@@ -6,6 +6,7 @@ from config import Config, init_logger, ConnectionConfig, DDLStep
 from database import DEFAULT_USERNAME, DEFAULT_PASSWORD, get_queries_from_previous_result
 from reports.comparison import ComparisonReport
 from reports.regression import RegressionReport
+from reports.score import ScoreReport
 from reports.selectivity import SelectivityReport
 from reports.taqo import TaqoReport
 
@@ -259,6 +260,12 @@ if __name__ == "__main__":
                 args.pg_results) if args.pg_results else None
 
             TaqoReport.generate_report(yb_queries, pg_queries)
+        elif args.type == "score":
+            yb_queries = get_queries_from_previous_result(args.results)
+            pg_queries = get_queries_from_previous_result(
+                args.pg_results) if args.pg_results else None
+
+            ScoreReport.generate_report(yb_queries, pg_queries)
         elif args.type == "regression":
             report = RegressionReport()
 

@@ -180,7 +180,7 @@ table {
     width: 100%;
     max-width: 100%;
     margin-bottom: 21px;
-    border-collapse: collapse;
+    border-collapse: separate;
 }
 table col[class*="col-"] {
     position: static;

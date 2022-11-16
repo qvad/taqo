@@ -39,7 +39,7 @@ class QueryEvaluator:
                 evaluate_sql(cur, query)
 
             if self.config.enable_statistics:
-                self.logger.debug("Enable yb_enable_optimizer_statistics flag")
+                self.logger.info("Enable yb_enable_optimizer_statistics flag")
 
                 evaluate_sql(cur, ENABLE_STATISTICS_HINT)
 
@@ -148,7 +148,7 @@ class QueryEvaluator:
                         for line_id, execution_plan_line in
                         enumerate(query.execution_plan.get_no_cost_plan().split("->"))}
 
-        best_optimization = query.get_best_optimization()
+        best_optimization = query.get_best_optimization(self.config)
         for optimization in query.optimizations:
             if allowed_diff(self.config, best_optimization.execution_time_ms,
                             optimization.execution_time_ms):

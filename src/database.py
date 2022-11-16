@@ -12,7 +12,7 @@ from dacite import Config as DaciteConfig
 from dacite import from_dict
 
 from config import Config
-from utils import get_explain_clause, evaluate_sql
+from utils import get_explain_clause, evaluate_sql, allowed_diff
 
 DEFAULT_USERNAME = 'postgres'
 DEFAULT_PASSWORD = 'postgres'
@@ -203,10 +203,12 @@ class Query:
     def get_explain_analyze(self):
         return f"EXPLAIN ANALYZE {self.query}"
 
-    def get_best_optimization(self):
+    def get_best_optimization(self, config):
         best_optimization = self
         for optimization in best_optimization.optimizations:
-            if best_optimization.execution_time_ms > optimization.execution_time_ms != 0:
+            if not allowed_diff(config, best_optimization.execution_time_ms,
+                                optimization.execution_time_ms) and \
+                    best_optimization.execution_time_ms > optimization.execution_time_ms != 0:
                 best_optimization = optimization
 
         return best_optimization
