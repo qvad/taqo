@@ -45,7 +45,7 @@ class QueryEvaluator:
 
             for original_query in queries:
                 try:
-                    evaluate_sql(cur, "SET statement_timeout = '1200s'")
+                    evaluate_sql(cur, "SET statement_timeout = '3600s'")
 
                     short_query = original_query.query.replace('\n', '')[:40]
                     self.logger.info(
