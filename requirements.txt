@@ -7,3 +7,4 @@ sqlparse
 sql_metadata
 sql_formatter
 allpairspy
+xlsxwriter

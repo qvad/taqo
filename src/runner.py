@@ -7,6 +7,7 @@ from database import DEFAULT_USERNAME, DEFAULT_PASSWORD, get_queries_from_previo
 from reports.comparison import ComparisonReport
 from reports.regression import RegressionReport
 from reports.score import ScoreReport
+from reports.score_xls import ScoreXlsReport
 from reports.selectivity import SelectivityReport
 from reports.taqo import TaqoReport
 
@@ -221,6 +222,7 @@ if __name__ == "__main__":
         random_seed=configuration.get("random-seed", 2022),
         skip_percentage_delta=configuration.get("skip-percentage-delta", 0.05),
         skip_timeout_delta=configuration.get("skip-timeout-delta", 1),
+        max_query_timeout=configuration.get("max-query-timeout", 1200),
         look_near_best_plan=configuration.get("look-near-best-plan", True),
         all_pairs_threshold=configuration.get("all-pairs-threshold", 3),
 
@@ -266,6 +268,12 @@ if __name__ == "__main__":
                 args.pg_results) if args.pg_results else None
 
             ScoreReport.generate_report(yb_queries, pg_queries)
+        elif args.type == "score_xls":
+            yb_queries = get_queries_from_previous_result(args.results)
+            pg_queries = get_queries_from_previous_result(
+                args.pg_results) if args.pg_results else None
+
+            ScoreXlsReport.generate_report(yb_queries, pg_queries)
         elif args.type == "regression":
             report = RegressionReport()
 
