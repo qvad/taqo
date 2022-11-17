@@ -1,4 +1,3 @@
-import time
 from difflib import SequenceMatcher
 
 import psycopg2

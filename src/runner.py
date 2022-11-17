@@ -4,12 +4,12 @@ from pyhocon import ConfigFactory
 
 from config import Config, init_logger, ConnectionConfig, DDLStep
 from database import DEFAULT_USERNAME, DEFAULT_PASSWORD, get_queries_from_previous_result
-from reports.comparison import ComparisonReport
-from reports.regression import RegressionReport
-from reports.score import ScoreReport
-from reports.score_xls import ScoreXlsReport
-from reports.selectivity import SelectivityReport
-from reports.taqo import TaqoReport
+from reports.adoc.comparison import ComparisonReport
+from reports.adoc.regression import RegressionReport
+from reports.adoc.score import ScoreReport
+from reports.xls.score import ScoreXlsReport
+from reports.adoc.selectivity import SelectivityReport
+from reports.adoc.taqo import TaqoReport
 
 from workflow.scenario import Scenario
 from utils import get_bool_from_str

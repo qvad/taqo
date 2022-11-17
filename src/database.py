@@ -3,7 +3,6 @@ import itertools
 import json
 import re
 from enum import Enum
-from math import factorial
 from typing import List, Dict
 
 import psycopg2
