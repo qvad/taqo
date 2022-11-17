@@ -1,4 +1,3 @@
-import xlsxwriter
 from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
 
@@ -65,6 +64,8 @@ class ScoreXlsReport(Report):
             self.queries[query.tag].append([query, pg])
 
     def build_report(self):
+        import xlsxwriter
+
         workbook = xlsxwriter.Workbook(f'report/{self.start_date}/report_score.xls')
         worksheet = workbook.add_worksheet()
 
