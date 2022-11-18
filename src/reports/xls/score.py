@@ -77,6 +77,10 @@ class ScoreXlsReport(Report):
         eq_format.set_bold()
         eq_format.set_bg_color('#d9ead3')
 
+        eq_comparison_format = workbook.add_format()
+        eq_comparison_format.set_bold()
+        eq_comparison_format.set_bg_color('#fff2cc')
+
         bm_format = workbook.add_format()
         bm_format.set_bold()
         bm_format.set_bg_color('#cfe2f3')
@@ -124,6 +128,9 @@ class ScoreXlsReport(Report):
                 default_yb_equality = yb_query.compare_plans(yb_best.execution_plan)
                 default_pg_equality = pg_query.compare_plans(pg_best.execution_plan)
 
+                default_yb_pg_equality = yb_query.compare_plans(pg_query.execution_plan)
+                best_yb_pg_equality = yb_best.compare_plans(pg_best.execution_plan)
+
                 ratio_x3 = yb_query.execution_time_ms / (
                         3 * pg_query.execution_time_ms) if pg_query.execution_time_ms != 0 else 99999999
                 ratio_x3_str = "{:.2f}".format(
@@ -138,6 +145,18 @@ class ScoreXlsReport(Report):
 
                 bitmap_flag = "bitmap" in pg_query.execution_plan.full_str.lower()
 
+                best_pg_format = None
+                if ratio_best_color and best_yb_pg_equality:
+                    best_pg_format = eq_comparison_format
+                elif ratio_best_color:
+                    best_pg_format = pg_comparison_format
+
+                df_pf_format = None
+                if ratio_color and default_yb_pg_equality:
+                    df_pf_format = eq_comparison_format
+                elif ratio_color:
+                    df_pf_format = pg_comparison_format
+
                 worksheet.write(row, 0, '{:.2f}'.format(yb_query.execution_time_ms))
                 worksheet.write(row, 1,
                                 f"{'{:.2f}'.format(yb_best.execution_time_ms)}", eq_format if default_yb_equality else None)
@@ -145,8 +164,8 @@ class ScoreXlsReport(Report):
                                 f"{'{:.2f}'.format(pg_query.execution_time_ms)}", bm_format if bitmap_flag else None)
                 worksheet.write(row, 3,
                                 f"{'{:.2f}'.format(pg_best.execution_time_ms)}", eq_format if default_pg_equality else None)
-                worksheet.write(row, 4, f"{ratio_x3_str}", pg_comparison_format if ratio_color else None)
-                worksheet.write(row, 5, f"{ratio_best_x3_str}", pg_comparison_format if ratio_best_color else None)
+                worksheet.write(row, 4, f"{ratio_x3_str}", df_pf_format)
+                worksheet.write(row, 5, f"{ratio_best_x3_str}", best_pg_format)
                 worksheet.write(row, 6, f'{format_sql(pg_query.query)}')
                 worksheet.write(row, 7, f'{pg_query.query_hash}')
                 row += 1
