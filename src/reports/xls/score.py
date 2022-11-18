@@ -77,9 +77,13 @@ class ScoreXlsReport(Report):
         eq_format.set_bold()
         eq_format.set_bg_color('#d9ead3')
 
-        eq_comparison_format = workbook.add_format()
-        eq_comparison_format.set_bold()
-        eq_comparison_format.set_bg_color('#fff2cc')
+        eq_bad_format = workbook.add_format()
+        eq_bad_format.set_bold()
+        eq_bad_format.set_bg_color('#fff2cc')
+
+        eq_good_format = workbook.add_format()
+        eq_good_format.set_bold()
+        eq_good_format.set_bg_color('#d9ead3')
 
         bm_format = workbook.add_format()
         bm_format.set_bold()
@@ -147,13 +151,17 @@ class ScoreXlsReport(Report):
 
                 best_pg_format = None
                 if ratio_best_color and best_yb_pg_equality:
-                    best_pg_format = eq_comparison_format
+                    best_pg_format = eq_bad_format
+                elif best_yb_pg_equality:
+                    best_pg_format = eq_good_format
                 elif ratio_best_color:
                     best_pg_format = pg_comparison_format
 
                 df_pf_format = None
                 if ratio_color and default_yb_pg_equality:
-                    df_pf_format = eq_comparison_format
+                    df_pf_format = eq_bad_format
+                elif default_yb_pg_equality:
+                    df_pf_format = eq_good_format
                 elif ratio_color:
                     df_pf_format = pg_comparison_format
 

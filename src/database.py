@@ -24,7 +24,9 @@ ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
 
 PLAN_CLEANUP_REGEX = r"\s\(actual time.*\)|\s\(never executed\)|\s\(cost.*\)|" \
                      r"\sMemory:.*|Planning Time.*|Execution Time.*|Peak Memory Usage.*|" \
-                     r"Read RPC Count:.*|Read RPC Wait Time:.*|DocDB Scanned Rows:.*|"
+                     r"Read RPC Count:.*|Read RPC Wait Time:.*|DocDB Scanned Rows:.*|" \
+                     r".*Partial Aggregate:.*|YB\s|" \ 
+                     r"JIT:.*|\s+Functions:.*|\s+Options:.*|\s+Timing:.*"  # PG14 JIT info
 PLAN_RPC_CALLS = r"\nRead RPC Count:\s(\d+)"
 PLAN_RPC_WAIT_TIMES = r"\nRead RPC Wait Time:\s([+-]?([0-9]*[.])?[0-9]+)"
 PLAN_DOCDB_SCANNED_ROWS = r"\nDocDB Scanned Rows:\s(\d+)"
