@@ -209,7 +209,7 @@ class Query:
         for optimization in best_optimization.optimizations:
             if not allowed_diff(config, best_optimization.execution_time_ms,
                                 optimization.execution_time_ms) and \
-                    best_optimization.execution_time_ms > optimization.execution_time_ms != 0:
+                    best_optimization.execution_time_ms > optimization.execution_time_ms > 0:
                 best_optimization = optimization
 
         return best_optimization

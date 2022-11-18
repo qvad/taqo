@@ -86,7 +86,7 @@ class QueryEvaluator:
         self.logger.debug(f"{len(list_of_optimizations)} optimizations generated")
         progress_bar = tqdm(list_of_optimizations)
         num_skipped = 0
-        min_execution_time = original_query.execution_time_ms
+        min_execution_time = original_query.execution_time_ms if original_query.execution_time_ms > 0 else 999999999999
         original_query.optimizations = []
         execution_plans_checked = set()
 
