@@ -64,6 +64,7 @@ class QueryEvaluator:
                             original_query.optimizer_score = get_optimizer_score_from_plan(
                                 original_query.execution_plan)
                         except psycopg2.errors.QueryCanceled:
+                            self.logger.error("Unable to get execution plan even w/o analyze")
                             original_query.execution_plan = ExecutionPlan('')
                             original_query.optimizer_score = -1
 

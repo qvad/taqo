@@ -82,7 +82,7 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
                 query.result_hash = get_md5(result)
         except psycopg2.errors.QueryCanceled:
             # failed by timeout - it's ok just skip optimization
-            query.execution_time_ms = 0
+            query.execution_time_ms = -1
             config.logger.debug(
                 f"Skipping optimization due to timeout limitation:\n{query_str}")
             return False
