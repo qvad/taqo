@@ -25,7 +25,7 @@ ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
 PLAN_CLEANUP_REGEX = r"\s\(actual time.*\)|\s\(never executed\)|\s\(cost.*\)|" \
                      r"\sMemory:.*|Planning Time.*|Execution Time.*|Peak Memory Usage.*|" \
                      r"Read RPC Count:.*|Read RPC Wait Time:.*|DocDB Scanned Rows:.*|" \
-                     r".*Partial Aggregate:.*|YB\s|" \
+                     r".*Partial Aggregate:.*|YB\s|Remote\s|" \
                      r"JIT:.*|\s+Functions:.*|\s+Options:.*|\s+Timing:.*"  # PG14 JIT info
 PLAN_RPC_CALLS = r"\nRead RPC Count:\s(\d+)"
 PLAN_RPC_WAIT_TIMES = r"\nRead RPC Wait Time:\s([+-]?([0-9]*[.])?[0-9]+)"
@@ -207,10 +207,13 @@ class Query:
     def get_best_optimization(self, config):
         best_optimization = self
         for optimization in best_optimization.optimizations:
-            if not allowed_diff(config, best_optimization.execution_time_ms,
-                                optimization.execution_time_ms) and \
-                    best_optimization.execution_time_ms > optimization.execution_time_ms > 0:
+            if best_optimization.execution_time_ms < 0:
                 best_optimization = optimization
+            elif 0 < optimization.execution_time_ms < best_optimization.execution_time_ms:
+                best_optimization = optimization
+
+        if allowed_diff(config, best_optimization.execution_time_ms, self.execution_time_ms):
+            return self
 
         return best_optimization
 

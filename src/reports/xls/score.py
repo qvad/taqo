@@ -3,6 +3,7 @@ from sql_formatter.core import format_sql
 
 from database import Query, ListOfQueries
 from reports.abstract import Report
+from utils import allowed_diff
 
 
 class ScoreXlsReport(Report):
@@ -167,11 +168,14 @@ class ScoreXlsReport(Report):
 
                 worksheet.write(row, 0, '{:.2f}'.format(yb_query.execution_time_ms))
                 worksheet.write(row, 1,
-                                f"{'{:.2f}'.format(yb_best.execution_time_ms)}", eq_format if default_yb_equality else None)
+                                f"{'{:.2f}'.format(yb_best.execution_time_ms)}",
+                                eq_format if default_yb_equality else None)
                 worksheet.write(row, 2,
-                                f"{'{:.2f}'.format(pg_query.execution_time_ms)}", bm_format if bitmap_flag else None)
+                                f"{'{:.2f}'.format(pg_query.execution_time_ms)}",
+                                bm_format if bitmap_flag else None)
                 worksheet.write(row, 3,
-                                f"{'{:.2f}'.format(pg_best.execution_time_ms)}", eq_format if default_pg_equality else None)
+                                f"{'{:.2f}'.format(pg_best.execution_time_ms)}",
+                                eq_format if default_pg_equality else None)
                 worksheet.write(row, 4, f"{ratio_x3_str}", df_pf_format)
                 worksheet.write(row, 5, f"{ratio_best_x3_str}", best_pg_format)
                 worksheet.write(row, 6, f'{format_sql(pg_query.query)}')
