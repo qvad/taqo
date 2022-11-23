@@ -65,7 +65,7 @@ class QueryTips:
 class Scans(Enum):
     SEQ = "SeqScan"
     INDEX = "IndexScan"
-    # INDEX_ONLY = "IndexOnlyScan"
+    INDEX_ONLY = "IndexOnlyScan"
     # BITMAP = "BitmapScan"
 
 
