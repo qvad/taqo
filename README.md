@@ -7,7 +7,7 @@
     3. [Other models](#other-models)
         1. [Complex model](#complex-model)
         2. [ClickBench OLAP model](#clickbench-olap-model)
-3. [Tests](#tests)
+3. [Tests(outdated)](#tests)
     1. [TAQO-inspired test](#taqo-inspired-test)
     1. [Regression test](#regression-test)
     1. [Custom tests](#custom-tests)
