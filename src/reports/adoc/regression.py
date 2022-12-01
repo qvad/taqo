@@ -1,7 +1,7 @@
 from sql_formatter.core import format_sql
 
 from database import ListOfQueries
-from db.postgres import PostgresQuery
+from database import Query
 from reports.abstract import Report
 
 
@@ -35,7 +35,7 @@ class RegressionReport(Report):
     def define_version(self, first_version, second_version):
         self.report += f"[GIT COMMIT/VERSION]\n====\nFirst:\n{first_version}\n\nSecond:\n{second_version}\n====\n\n"
 
-    def add_query(self, first_query: PostgresQuery, second_query: PostgresQuery):
+    def add_query(self, first_query: Query, second_query: Query):
         if first_query.tag not in self.queries:
             self.queries[first_query.tag] = [[first_query, second_query], ]
         else:
@@ -156,7 +156,7 @@ class RegressionReport(Report):
         self._end_collapsible()
 
     # noinspection InsecureHash
-    def __report_query(self, first_query: PostgresQuery, second_query: PostgresQuery):
+    def __report_query(self, first_query: Query, second_query: Query):
         self.reported_queries_counter += 1
 
         self.report += f"\n[#{first_query.query_hash}]\n"
