@@ -3,7 +3,8 @@ import argparse
 from pyhocon import ConfigFactory
 
 from config import Config, init_logger, ConnectionConfig, DDLStep
-from database import DEFAULT_USERNAME, DEFAULT_PASSWORD, get_queries_from_previous_result
+from database import get_queries_from_previous_result
+from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD
 from reports.adoc.comparison import ComparisonReport
 from reports.adoc.regression import RegressionReport
 from reports.adoc.score import ScoreReport

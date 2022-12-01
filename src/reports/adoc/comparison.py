@@ -1,6 +1,7 @@
 from sql_formatter.core import format_sql
 
-from database import Query, ListOfQueries
+from database import ListOfQueries
+from db.postgres import PostgresQuery
 from reports.abstract import Report
 
 
@@ -31,7 +32,7 @@ class ComparisonReport(Report):
     def define_version(self, first_version, second_version):
         self.report += f"[VERSION]\n====\nYugabyte:\n{first_version}\n\nPostgres:\n{second_version}\n====\n\n"
 
-    def add_query(self, first_query: Query, second_query: Query):
+    def add_query(self, first_query: PostgresQuery, second_query: PostgresQuery):
         if first_query.tag not in self.queries:
             self.queries[first_query.tag] = [[first_query, second_query], ]
         else:
@@ -73,7 +74,7 @@ class ComparisonReport(Report):
                 self.__report_query(query[0], query[1])
 
     # noinspection InsecureHash
-    def __report_query(self, yb_query: Query, pg_query: Query):
+    def __report_query(self, yb_query: PostgresQuery, pg_query: PostgresQuery):
         self.reported_queries_counter += 1
 
         self.report += f"\n[#{yb_query.query_hash}]\n"

@@ -1,11 +1,10 @@
-import hashlib
 import itertools
 import random
 
 from tqdm import tqdm
 
 from config import DDLStep
-from database import Query, Table, Field
+from db.postgres import PostgresQuery, Table, Field
 from models.abstract import QTFModel, QueryJoins
 from utils import evaluate_sql, get_md5
 
@@ -158,7 +157,7 @@ class ComplexModel(QTFModel):
                 if offset := next(offset_clauses):
                     query += f" OFFSET {offset}"
 
-                queries.append(Query(
+                queries.append(PostgresQuery(
                     query=query,
                     query_hash=get_md5(query),
                     tables=list(perm)

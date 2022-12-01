@@ -3,7 +3,8 @@ import os
 from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
 
-from database import Query, ListOfQueries
+from database import ListOfQueries, Query
+from db.postgres import PostgresQuery
 from reports.abstract import Report
 from utils import allowed_diff
 
@@ -104,7 +105,7 @@ class TaqoReport(Report):
         for query in self.same_execution_plan:
             self.__report_query(query[0], query[1], False)
 
-    def __report_near_queries(self, query: Query):
+    def __report_near_queries(self, query: PostgresQuery):
         best_optimization = query.get_best_optimization(self.config)
         if add_to_report := "".join(
                 f"`{optimization.explain_hints}`\n\n"
@@ -162,7 +163,7 @@ class TaqoReport(Report):
         return result
 
     # noinspection InsecureHash
-    def __report_query(self, query: Query, pg_query: Query, show_best: bool):
+    def __report_query(self, query: PostgresQuery, pg_query: PostgresQuery, show_best: bool):
         best_optimization = query.get_best_optimization(self.config)
 
         self.reported_queries_counter += 1

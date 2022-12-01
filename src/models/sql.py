@@ -11,7 +11,7 @@ from sqlparse.sql import Comment
 from tqdm import tqdm
 
 from config import DDLStep
-from database import Query, QueryTips, Table, Field
+from db.postgres import PostgresQuery, QueryTips, Table, Field
 from models.abstract import QTFModel
 from utils import get_alias_table_names, evaluate_sql, get_md5
 
@@ -188,7 +188,7 @@ class SQLModel(QTFModel):
                 for file_query in full_queries.split(";"):
                     if cleaned := sqlparse.format(file_query.lstrip(), strip_comments=True).strip():
                         tables_list = get_alias_table_names(cleaned, table_names)
-                        queries.append(Query(
+                        queries.append(PostgresQuery(
                             tag=os.path.basename(query).replace(".sql", ""),
                             query=cleaned,
                             query_hash=get_md5(cleaned),

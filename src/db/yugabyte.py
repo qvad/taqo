@@ -5,8 +5,7 @@ import subprocess
 from time import sleep
 
 from config import ConnectionConfig
-from database import DEFAULT_USERNAME, DEFAULT_PASSWORD
-from db.postgres import Postgres
+from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD, Postgres
 
 JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)):(\d+)\/([a-z]+)(\?user=([a-z]+)&password=([a-z]+))?'
 

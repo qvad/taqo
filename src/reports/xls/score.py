@@ -1,7 +1,8 @@
 from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
 
-from database import Query, ListOfQueries
+from database import ListOfQueries, Query
+from db.postgres import PostgresQuery
 from reports.abstract import Report
 
 
@@ -123,8 +124,8 @@ class ScoreXlsReport(Report):
         # Iterate over the data and write it out row by row.
         for tag, queries in self.queries.items():
             for query in queries:
-                yb_query: Query = query[0]
-                pg_query: Query = query[1]
+                yb_query: PostgresQuery = query[0]
+                pg_query: PostgresQuery = query[1]
 
                 yb_best = yb_query.get_best_optimization(self.config)
                 pg_best = pg_query.get_best_optimization(self.config)

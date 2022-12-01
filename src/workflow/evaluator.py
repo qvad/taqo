@@ -3,7 +3,7 @@ from difflib import SequenceMatcher
 import psycopg2
 from tqdm import tqdm
 
-from database import ENABLE_STATISTICS_HINT, ExecutionPlan, Query, ListOfOptimizations
+from db.postgres import ENABLE_STATISTICS_HINT, ExecutionPlan, PostgresQuery, ListOfOptimizations
 from models.factory import get_test_model
 from utils import evaluate_sql, get_optimizer_score_from_plan, calculate_avg_execution_time, \
     get_md5, allowed_diff
@@ -154,7 +154,7 @@ class QueryEvaluator:
 
         return list_of_optimizations
 
-    def plan_heatmap(self, query: Query):
+    def plan_heatmap(self, query: PostgresQuery):
         plan_heatmap = {line_id: {'weight': 0, 'str': execution_plan_line}
                         for line_id, execution_plan_line in
                         enumerate(query.execution_plan.get_no_cost_plan().split("->"))}
