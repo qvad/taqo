@@ -3,7 +3,6 @@ from sql_formatter.core import format_sql
 
 from database import Query, ListOfQueries
 from reports.abstract import Report
-from utils import allowed_diff
 
 
 class ScoreXlsReport(Report):

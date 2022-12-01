@@ -43,6 +43,11 @@ class SQLModel(QTFModel):
                                                                          db_prefix)
             create_queries.insert(0, "-- ANALYZE QUERIES")
 
+        if not created_tables:
+            # try to load current tables
+            with conn.cursor() as cur:
+                self.load_tables_from_public(created_tables, cur)
+
         return created_tables, teardown_queries + create_queries + analyze_queries + import_queries
 
     def evaluate_ddl_queries(self, conn, step_prefix: DDLStep,
