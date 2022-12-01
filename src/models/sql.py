@@ -11,7 +11,8 @@ from sqlparse.sql import Comment
 from tqdm import tqdm
 
 from config import DDLStep
-from db.postgres import PostgresQuery, QueryTips, Table, Field
+from database import QueryTips, Field
+from db.postgres import PostgresQuery, Table
 from models.abstract import QTFModel
 from utils import get_alias_table_names, evaluate_sql, get_md5
 

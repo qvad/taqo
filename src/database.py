@@ -6,7 +6,26 @@ from dacite import Config as DaciteConfig
 from dacite import from_dict
 
 from config import Config
-from db.postgres import Table, QueryTips
+
+
+@dataclasses.dataclass
+class Field:
+    name: str = None
+    is_index: bool = None
+
+
+@dataclasses.dataclass
+class Table:
+    name: str = None
+    fields: List[Field] = None
+    size: int = 0
+
+
+@dataclasses.dataclass
+class QueryTips:
+    accept: List[str] = dataclasses.field(default_factory=list)
+    reject: List[str] = dataclasses.field(default_factory=list)
+    max_timeout: str = dataclasses.field(default_factory=str)
 
 
 @dataclasses.dataclass
@@ -71,6 +90,7 @@ class ExecutionPlan:
     def get_clean_plan(self, execution_plan=None):
         # todo get plan tree instead here to support plan comparison between DBs
         pass
+
 
 class ListOfOptimizations:
     query = None

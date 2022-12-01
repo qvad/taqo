@@ -4,7 +4,8 @@ import random
 from tqdm import tqdm
 
 from config import DDLStep
-from db.postgres import PostgresQuery, Table, Field
+from database import Field
+from db.postgres import PostgresQuery, Table
 from models.abstract import QTFModel, QueryJoins
 from utils import evaluate_sql, get_md5
 

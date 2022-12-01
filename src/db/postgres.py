@@ -8,7 +8,7 @@ import psycopg2
 from allpairspy import AllPairs
 
 from config import Config, ConnectionConfig
-from database import Query, EPNode, ExecutionPlan, ListOfOptimizations
+from database import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table
 from utils import get_explain_clause, evaluate_sql, allowed_diff
 
 DEFAULT_USERNAME = 'postgres'
@@ -71,13 +71,6 @@ class Connection:
             return cur.fetchone()[0]
 
 
-@dataclasses.dataclass
-class QueryTips:
-    accept: List[str] = dataclasses.field(default_factory=list)
-    reject: List[str] = dataclasses.field(default_factory=list)
-    max_timeout: str = dataclasses.field(default_factory=str)
-
-
 class Scans(Enum):
     SEQ = "SeqScan"
     INDEX = "IndexScan"
@@ -92,19 +85,6 @@ class Joins(Enum):
 
     def construct(self, tables: List[str]):
         return f"{self.value[0]}({' '.join(tables)})"
-
-
-@dataclasses.dataclass
-class Field:
-    name: str = None
-    is_index: bool = None
-
-
-@dataclasses.dataclass
-class Table:
-    name: str = None
-    fields: List[Field] = None
-    size: int = 0
 
 
 class Leading:
