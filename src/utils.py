@@ -226,28 +226,3 @@ def calculate_taqo_score(query):
     print("{:.2f}".format(score))
 
     return "{:.2f}".format(score)
-
-
-if __name__ == "__main__":
-    get_optimizer_score_from_plan("""
-        Limit  (cost=20000016889.27..20000016889.29 rows=1 width=20) (actual time=54.906..54.906 rows=0 loops=1)
-  ->  Unique  (cost=20000016889.26..20000016889.27 rows=1 width=20) (actual time=54.904..54.905 rows=1 loops=1)
-        ->  Sort  (cost=20000016889.26..20000016889.27 rows=1 width=20) (actual time=54.904..54.904 rows=1 loops=1)
-              Sort Key: t1000000.c_float, t50000.c_real, t100.c_money DESC
-              Sort Method: quicksort  Memory: 25kB
-              ->  Nested Loop  (cost=20000000000.00..20000016889.25 rows=1 width=20) (actual time=53.378..53.385 rows=1 loops=1)
-                    ->  Nested Loop  (cost=10000000000.00..10000016239.25 rows=1 width=24) (actual time=3.187..3.192 rows=1 loops=1)
-                          Join Filter: (t1000000.c_money = t100.c_money)
-                          Rows Removed by Join Filter: 99
-                          ->  Index Scan using t1000000_aaa91a68835857043941c91fdea230df_idx on t1000000  (cost=0.00..1229.00 rows=10000 width=16) (actual time=1.513..1.514 rows=1 loops=1)
-                                Index Cond: (c_int < 2)
-                          ->  Materialize  (cost=0.00..10.50 rows=100 width=8) (actual time=1.645..1.669 rows=100 loops=1)
-                                ->  YB Seq Scan on t100  (cost=0.00..10.00 rows=100 width=8) (actual time=1.640..1.653 rows=100 loops=1)
-                    ->  Index Scan using t50000_54ea4c8a5dbce7da0b6edde063a1d84c_idx on t50000  (cost=0.00..600.00 rows=5000 width=12) (actual time=50.188..50.190 rows=1 loops=1)
-                          Index Cond: (c_money = t1000000.c_money)
-Planning Time: 0.234 ms
-Execution Time: 54.949 ms
-Peak Memory Usage: 122 kB
-        """
-
-    )
