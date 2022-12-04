@@ -1,5 +1,6 @@
 import dataclasses
 import itertools
+import json
 import re
 from enum import Enum
 from typing import List
@@ -19,7 +20,6 @@ ENABLE_PLAN_HINTING = "SET pg_hint_plan.enable_hint = ON;"
 ENABLE_DEBUG_HINTING = "SET pg_hint_plan.debug_print = ON;"
 CLIENT_MESSAGES_TO_LOG = "SET client_min_messages TO log;"
 DEBUG_MESSAGE_LEVEL = "SET pg_hint_plan.message_level = debug;"
-ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
 
 PLAN_CLEANUP_REGEX = r"\s\(actual time.*\)|\s\(never executed\)|\s\(cost.*\)|" \
                      r"\sMemory:.*|Planning Time.*|Execution Time.*|Peak Memory Usage.*|" \
@@ -210,7 +210,7 @@ class PostgresQuery(Query):
 
 
 @dataclasses.dataclass
-class Optimization(PostgresQuery):
+class PostgresOptimization(Optimization):
     def get_query(self):
         return f"/*+ {self.explain_hints} */ {self.query}"
 
@@ -308,10 +308,13 @@ class PostgresExecutionPlan(ExecutionPlan):
         return re.sub(PLAN_CLEANUP_REGEX, '', no_tree_plan).strip()
 
 
+@dataclasses.dataclass
 class PGListOfOptimizations(ListOfOptimizations):
     def __init__(self, config: Config, query: PostgresQuery):
-        self.query = query
-        self.leading = Leading(config, query.tables)
+        super().__init__(config, query)
+
+        # todo rework this
+        self.leading = Leading(self.config, query.tables)
         self.leading.construct()
 
     def get_all_optimizations(self) -> List[Optimization]:
@@ -356,3 +359,14 @@ class PGListOfOptimizations(ListOfOptimizations):
                         break
 
         return skip_optimization
+
+
+class PostgresListOfQueries(ListOfQueries):
+    queries: List[PostgresQuery] = None
+
+
+class PostgresResultsLoaded(ResultsLoaded):
+
+    def __init__(self):
+        super().__init__()
+        self.clazz = PostgresListOfQueries

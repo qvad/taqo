@@ -1,7 +1,6 @@
 from sql_formatter.core import format_sql
 
-from objects import ListOfQueries
-from db.postgres import PostgresQuery
+from objects import ListOfQueries, Query
 from reports.abstract import Report
 
 
@@ -35,7 +34,7 @@ class RegressionReport(Report):
     def define_version(self, first_version, second_version):
         self.report += f"[GIT COMMIT/VERSION]\n====\nFirst:\n{first_version}\n\nSecond:\n{second_version}\n====\n\n"
 
-    def add_query(self, first_query: PostgresQuery, second_query: PostgresQuery):
+    def add_query(self, first_query: Query, second_query: Query):
         if first_query.tag not in self.queries:
             self.queries[first_query.tag] = [[first_query, second_query], ]
         else:
@@ -43,11 +42,11 @@ class RegressionReport(Report):
 
     def build_report(self):
         # link to top
-        # self.add_plan_comparison()
-        # self.add_rpc_calls()
-        # self.add_rpc_wait_times()
-        # self.add_scanned_rows()
-        # self.add_peak_memory_collapsible()
+        self.add_plan_comparison()
+        self.add_rpc_calls()
+        self.add_rpc_wait_times()
+        self.add_scanned_rows()
+        self.add_peak_memory_collapsible()
 
         self.report += "\n[#query_summary]\n== Query Summary\n"
         num_columns = 4
@@ -156,7 +155,7 @@ class RegressionReport(Report):
         self._end_collapsible()
 
     # noinspection InsecureHash
-    def __report_query(self, first_query: PostgresQuery, second_query: PostgresQuery):
+    def __report_query(self, first_query: Query, second_query: Query):
         self.reported_queries_counter += 1
 
         self.report += f"\n[#{first_query.query_hash}]\n"
@@ -191,7 +190,7 @@ class RegressionReport(Report):
 
         self._start_collapsible("First version plan")
         self._start_source(["diff"])
-        self.report += first_query.execution_plan.full_str if first_query.execution_plan else "NONE"
+        self.report += first_query.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
@@ -203,7 +202,7 @@ class RegressionReport(Report):
 
         self._start_source(["diff"])
 
-        diff = self._get_plan_diff(first_query.execution_plan.full_str if first_query.execution_plan else "NONE", second_query.execution_plan.full_str)
+        diff = self._get_plan_diff(first_query.execution_plan.full_str, second_query.execution_plan.full_str)
         if not diff:
             diff = first_query.execution_plan.full_str
 

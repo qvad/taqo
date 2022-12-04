@@ -1,8 +1,7 @@
 import subprocess
 
 from config import DDLStep
-from objects import store_queries_to_file, ListOfQueries
-from db.yugabyte import yb_db_factory
+from objects import ListOfQueries
 from workflow.evaluator import QueryEvaluator
 from utils import evaluate_sql
 
@@ -40,6 +39,7 @@ class Scenario:
 
     def evaluate(self):
         evaluator = QueryEvaluator(self.config)
+        loader = PostgresResultsLoaded()
 
         commit_message = self.start_db()
         try:
@@ -54,7 +54,7 @@ class Scenario:
                                                            self.config.with_optimizations))
 
             self.logger.info(f"Storing results to report/{self.config.output}")
-            store_queries_to_file(loq, self.config.output)
+            loader.store_queries_to_file(loq, self.config.output)
         except Exception as e:
             self.logger.exception(e)
             raise e

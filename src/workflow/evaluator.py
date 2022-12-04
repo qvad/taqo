@@ -3,7 +3,8 @@ from difflib import SequenceMatcher
 import psycopg2
 from tqdm import tqdm
 
-from db.postgres import ENABLE_STATISTICS_HINT, ExecutionPlan, PostgresQuery, ListOfOptimizations
+from db.postgres import ExecutionPlan, PostgresQuery, ListOfOptimizations
+from db.yugabyte import ENABLE_STATISTICS_HINT
 from models.factory import get_test_model
 from utils import evaluate_sql, get_optimizer_score_from_plan, calculate_avg_execution_time, \
     get_md5, allowed_diff

@@ -1,7 +1,6 @@
 from sql_formatter.core import format_sql
 
-from objects import ListOfQueries
-from db.postgres import PostgresQuery
+from objects import ListOfQueries, Query
 from reports.abstract import Report
 from utils import allowed_diff
 
@@ -43,12 +42,12 @@ class SelectivityReport(Report):
         report.publish_report("sltvty")
 
     def add_query(self,
-                  default: PostgresQuery,
-                  default_analyze: PostgresQuery,
-                  ta: PostgresQuery,
-                  ta_analyze: PostgresQuery,
-                  stats: PostgresQuery,
-                  stats_analyze: PostgresQuery
+                  default: Query,
+                  default_analyze: Query,
+                  ta: Query,
+                  ta_analyze: Query,
+                  stats: Query,
+                  stats_analyze: Query
                   ):
         queries_tuple = [default, default_analyze, ta, ta_analyze, stats, stats_analyze]
         if not default.compare_plans(default_analyze.execution_plan) or \
@@ -97,12 +96,12 @@ class SelectivityReport(Report):
 
     # noinspection InsecureHash
     def __report_query(self,
-                       default: PostgresQuery,
-                       default_analyze: PostgresQuery,
-                       analyze: PostgresQuery,
-                       analyze_analyze: PostgresQuery,
-                       all: PostgresQuery,
-                       all_analyze: PostgresQuery):
+                       default: Query,
+                       default_analyze: Query,
+                       analyze: Query,
+                       analyze_analyze: Query,
+                       all: Query,
+                       all_analyze: Query):
         self.reported_queries_counter += 1
 
         self.report += f"=== Query {default.query_hash}"

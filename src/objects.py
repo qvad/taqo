@@ -1,6 +1,6 @@
 import dataclasses
 import json
-from typing import List, Dict
+from typing import List, Dict, Type
 
 from dacite import Config as DaciteConfig
 from dacite import from_dict
@@ -50,6 +50,9 @@ class Query:
 
     execution_plan_heatmap: Dict[int, Dict[str, str]] = None
 
+    def compare_plans(self, execution_plan):
+        pass
+
     def get_best_optimization(self, config: Config):
         pass
 
@@ -58,11 +61,20 @@ class Query:
 
 
 @dataclasses.dataclass
+class Optimization(Query):
+    def get_query(self):
+        pass
+
+    def get_explain(self):
+        pass
+
+
+@dataclasses.dataclass
 class ListOfQueries:
     db_version: str = ""
     git_message: str = ""
     model_queries: List[str] = None
-    queries: List[Query] = None
+    queries: List[Type[Query]] = None
 
     def append(self, new_element):
         if not self.queries:
@@ -94,9 +106,13 @@ class ExecutionPlan:
         # todo get plan tree instead here to support plan comparison between DBs
         pass
 
-
+@dataclasses.dataclass
 class ListOfOptimizations:
     query = None
+
+    def __init__(self, config: Config, query: Query):
+        self.config = config
+        self.query = query
 
     def filter_optimization_tips(self, explain_hints):
         skip_optimization = False
@@ -121,11 +137,15 @@ class EnhancedJSONEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-def get_queries_from_previous_result(previous_execution_path):
-    with open(previous_execution_path, "r") as prev_result:
-        return from_dict(ListOfQueries, json.load(prev_result), DaciteConfig(check_types=False))
+class ResultsLoaded:
 
+    def __init__(self):
+        self.clazz = ListOfQueries
 
-def store_queries_to_file(queries: ListOfQueries, output_json_name: str):
-    with open(f"report/{output_json_name}.json", "w") as result_file:
-        result_file.write(json.dumps(queries, cls=EnhancedJSONEncoder))
+    def get_queries_from_previous_result(self, previous_execution_path):
+        with open(previous_execution_path, "r") as prev_result:
+            return from_dict(self.clazz, json.load(prev_result), DaciteConfig(check_types=False))
+
+    def store_queries_to_file(self, queries: Type[ListOfQueries], output_json_name: str):
+        with open(f"report/{output_json_name}.json", "w") as result_file:
+            result_file.write(json.dumps(queries, cls=EnhancedJSONEncoder))
