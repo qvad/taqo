@@ -1,6 +1,7 @@
 import subprocess
 
 from config import DDLStep
+from db.postgres import PostgresResultsLoaded
 from objects import ListOfQueries
 from workflow.evaluator import QueryEvaluator
 from utils import evaluate_sql

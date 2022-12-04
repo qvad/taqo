@@ -9,7 +9,7 @@ import psycopg2
 from allpairspy import AllPairs
 
 from config import Config, ConnectionConfig
-from objects import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table
+from objects import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table, Optimization, ListOfQueries, ResultsLoaded
 from db.database import Database
 from utils import get_explain_clause, evaluate_sql, allowed_diff
 

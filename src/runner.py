@@ -4,8 +4,7 @@ from pyhocon import ConfigFactory
 
 from config import Config, init_logger, ConnectionConfig, DDLStep
 from db.factory import create_database
-from objects import get_queries_from_previous_result
-from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD
+from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD, PostgresResultsLoaded
 from reports.adoc.comparison import ComparisonReport
 from reports.adoc.regression import RegressionReport
 from reports.adoc.score import ScoreReport
@@ -288,15 +287,15 @@ if __name__ == "__main__":
         elif args.type == "regression":
             report = RegressionReport()
 
-            v1_queries = get_queries_from_previous_result(args.v1_results)
-            v2_queries = get_queries_from_previous_result(args.v2_results)
+            v1_queries = loader.get_queries_from_previous_result(args.v1_results)
+            v2_queries = loader.get_queries_from_previous_result(args.v2_results)
 
             report.generate_report(v1_queries, v2_queries)
         elif args.type == "regression_xls":
             report = RegressionXlsReport()
 
-            v1_queries = get_queries_from_previous_result(args.v1_results)
-            v2_queries = get_queries_from_previous_result(args.v2_results)
+            v1_queries = loader.get_queries_from_previous_result(args.v1_results)
+            v2_queries = loader.get_queries_from_previous_result(args.v2_results)
 
             report.generate_report(v1_queries, v2_queries)
         elif args.type == "comparison":
