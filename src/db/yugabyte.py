@@ -10,7 +10,7 @@ from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD, Postgres
 JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)):(\d+)\/([a-z]+)(\?user=([a-z]+)&password=([a-z]+))?'
 
 
-def factory(config):
+def yb_db_factory(config):
     if not config.revision:
         return Yugabyte(config)
     elif 'tar' in config.revision:
@@ -20,12 +20,8 @@ def factory(config):
 
 
 class Yugabyte(Postgres):
-    def __init__(self, config):
-        super().__init__(config)
-
     def establish_connection_from_output(self, out: str):
         self.logger.info("Reinitializing connection based on cluster creation output")
-        # parsing jdbc:postgresql://127.0.0.1:5433/yugabyte
         parsing = re.findall(JDBC_STRING_PARSE, out)[0]
 
         self.config.connection = ConnectionConfig(host=parsing[0], port=parsing[4],

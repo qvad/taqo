@@ -1,6 +1,6 @@
 from sql_formatter.core import format_sql
 
-from database import ListOfQueries
+from objects import ListOfQueries
 from db.postgres import PostgresQuery
 from reports.abstract import Report
 
@@ -43,11 +43,11 @@ class RegressionReport(Report):
 
     def build_report(self):
         # link to top
-        self.add_plan_comparison()
-        self.add_rpc_calls()
-        self.add_rpc_wait_times()
-        self.add_scanned_rows()
-        self.add_peak_memory_collapsible()
+        # self.add_plan_comparison()
+        # self.add_rpc_calls()
+        # self.add_rpc_wait_times()
+        # self.add_scanned_rows()
+        # self.add_peak_memory_collapsible()
 
         self.report += "\n[#query_summary]\n== Query Summary\n"
         num_columns = 4
@@ -191,7 +191,7 @@ class RegressionReport(Report):
 
         self._start_collapsible("First version plan")
         self._start_source(["diff"])
-        self.report += first_query.execution_plan.full_str
+        self.report += first_query.execution_plan.full_str if first_query.execution_plan else "NONE"
         self._end_source()
         self._end_collapsible()
 
@@ -203,7 +203,7 @@ class RegressionReport(Report):
 
         self._start_source(["diff"])
 
-        diff = self._get_plan_diff(first_query.execution_plan.full_str, second_query.execution_plan.full_str)
+        diff = self._get_plan_diff(first_query.execution_plan.full_str if first_query.execution_plan else "NONE", second_query.execution_plan.full_str)
         if not diff:
             diff = first_query.execution_plan.full_str
 

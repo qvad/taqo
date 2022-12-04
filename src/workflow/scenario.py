@@ -1,28 +1,27 @@
 import subprocess
 
 from config import DDLStep
-from database import store_queries_to_file, ListOfQueries
-from db.yugabyte import factory
+from objects import store_queries_to_file, ListOfQueries
+from db.yugabyte import yb_db_factory
 from workflow.evaluator import QueryEvaluator
 from utils import evaluate_sql
 
 
-class Scenario():
+class Scenario:
     def __init__(self, config):
         self.config = config
         self.logger = self.config.logger
+        self.sut_database = self.config.database
 
     def start_db(self):
-        self.logger.info("Starting Yugabyte DB")
-
-        self.yugabyte = factory(self.config)
+        self.logger.info(f"Initializing {self.sut_database.__class__.__name__} DB")
 
         commit_hash = self.config.revision
 
-        self.yugabyte.change_version_and_compile(commit_hash)
-        self.yugabyte.stop_database()
-        self.yugabyte.destroy()
-        self.yugabyte.start_database()
+        self.sut_database.change_version_and_compile(commit_hash)
+        self.sut_database.stop_database()
+        self.sut_database.destroy()
+        self.sut_database.start_database()
 
         return self.get_commit_message(commit_hash)
 
@@ -37,7 +36,7 @@ class Scenario():
             return ""
 
     def stop_db(self):
-        self.yugabyte.stop_database()
+        self.sut_database.stop_database()
 
     def evaluate(self):
         evaluator = QueryEvaluator(self.config)
@@ -47,11 +46,11 @@ class Scenario():
             test_database = self.config.connection.database
             self.create_test_database(test_database)
 
-            self.yugabyte.establish_connection(test_database)
+            self.sut_database.establish_connection(test_database)
 
-            loq = ListOfQueries(db_version=self.yugabyte.connection.get_version(),
+            loq = ListOfQueries(db_version=self.sut_database.connection.get_version(),
                                 git_message=commit_message,
-                                queries=evaluator.evaluate(self.yugabyte.connection.conn,
+                                queries=evaluator.evaluate(self.sut_database.connection.conn,
                                                            self.config.with_optimizations))
 
             self.logger.info(f"Storing results to report/{self.config.output}")
@@ -65,8 +64,8 @@ class Scenario():
 
     def create_test_database(self, test_database):
         if DDLStep.DATABASE in self.config.ddls:
-            self.yugabyte.establish_connection("postgres")
-            conn = self.yugabyte.connection.conn
+            self.sut_database.establish_connection("postgres")
+            conn = self.sut_database.connection.conn
             try:
                 with conn.cursor() as cur:
                     colocated = "" if self.config.ddl_prefix else " WITH COLOCATED = true"

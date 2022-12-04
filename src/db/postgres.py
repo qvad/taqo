@@ -8,7 +8,8 @@ import psycopg2
 from allpairspy import AllPairs
 
 from config import Config, ConnectionConfig
-from database import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table
+from objects import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table
+from db.database import Database
 from utils import get_explain_clause, evaluate_sql, allowed_diff
 
 DEFAULT_USERNAME = 'postgres'
@@ -32,11 +33,7 @@ PLAN_PEAK_MEMORY = r"\nPeak memory:\s(\d+)"
 PLAN_TREE_CLEANUP = r"\n\s*->\s*|\n\s*"
 
 
-class Postgres:
-    def __init__(self, config):
-        self.config = config
-        self.logger = self.config.logger
-        self.connection = None
+class Postgres(Database):
 
     def establish_connection(self, database: str = "postgres"):
         config = ConnectionConfig(

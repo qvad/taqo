@@ -3,7 +3,7 @@ import os
 from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
 
-from database import ListOfQueries, Query
+from objects import ListOfQueries, Query
 from db.postgres import PostgresQuery
 from reports.abstract import Report
 from utils import allowed_diff

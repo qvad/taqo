@@ -4,6 +4,8 @@ import sys
 from enum import Enum
 from typing import List, Set
 
+from db.database import Database
+
 
 class Singleton(type):
     _instances = {}
@@ -51,6 +53,8 @@ class ConnectionConfig:
 @dataclasses.dataclass
 class Config(metaclass=Singleton):
     logger: logging.Logger = None
+
+    database: Database = None
 
     remote_data_path: str = None
     ddl_prefix: str = ""

@@ -11,7 +11,6 @@ from config import Config
 
 PARAMETER_VARIABLE = r"[^'](\%\((.*?)\))"
 
-
 def current_milli_time():
     return (time.time_ns() // 1_000) / 1_000
 

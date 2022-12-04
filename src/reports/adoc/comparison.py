@@ -1,6 +1,6 @@
 from sql_formatter.core import format_sql
 
-from database import ListOfQueries
+from objects import ListOfQueries
 from db.postgres import PostgresQuery
 from reports.abstract import Report
 
