@@ -114,6 +114,9 @@ class ListOfOptimizations:
         self.config = config
         self.query = query
 
+    def get_all_optimizations(self):
+        pass
+
     def filter_optimization_tips(self, explain_hints):
         skip_optimization = False
         if self.query.optimizer_tips:

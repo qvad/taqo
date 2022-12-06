@@ -11,6 +11,7 @@ JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]
 
 ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
 
+
 def yb_db_factory(config):
     if not config.revision:
         return Yugabyte(config)

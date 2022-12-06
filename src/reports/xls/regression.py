@@ -13,7 +13,7 @@ class RegressionXlsReport(Report):
         self.queries = {}
 
     @classmethod
-    def generate_report(cls, first_loq: ListOfQueries, second_loq: ListOfQueries = None):
+    def generate_report(cls, first_loq: ListOfQueries, second_loq: ListOfQueries):
         report = RegressionXlsReport()
 
         for qid, query in enumerate(first_loq.queries):
@@ -27,7 +27,7 @@ class RegressionXlsReport(Report):
     def define_version(self, version):
         pass
 
-    def add_query(self, query: Query, pg: Query):
+    def add_query(self, query: Query, pg: Query | None):
         if query.tag not in self.queries:
             self.queries[query.tag] = [[query, pg], ]
         else:

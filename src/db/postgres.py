@@ -1,6 +1,5 @@
 import dataclasses
 import itertools
-import json
 import re
 from enum import Enum
 from typing import List
@@ -9,7 +8,8 @@ import psycopg2
 from allpairspy import AllPairs
 
 from config import Config, ConnectionConfig
-from objects import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table, Optimization, ListOfQueries, ResultsLoaded
+from objects import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table, Optimization, \
+    ListOfQueries, ResultsLoaded
 from db.database import Database
 from utils import get_explain_clause, evaluate_sql, allowed_diff
 
@@ -344,21 +344,6 @@ class PGListOfOptimizations(ListOfOptimizations):
                     explain_hints=explain_hints
                 )
             )
-
-    def filter_optimization_tips(self, explain_hints):
-        skip_optimization = False
-        if self.query.optimizer_tips:
-            for accept_tip in self.query.optimizer_tips.accept:
-                if accept_tip not in explain_hints:
-                    skip_optimization = True
-                    break
-            if not skip_optimization:
-                for reject_tip in self.query.optimizer_tips.reject:
-                    if reject_tip in explain_hints:
-                        skip_optimization = True
-                        break
-
-        return skip_optimization
 
 
 class PostgresListOfQueries(ListOfQueries):

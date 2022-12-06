@@ -58,7 +58,7 @@ class ScoreXlsReport(Report):
 
         return file_name
 
-    def add_query(self, query: Query, pg: Query):
+    def add_query(self, query: Query, pg: Query | None):
         if query.tag not in self.queries:
             self.queries[query.tag] = [[query, pg], ]
         else:
