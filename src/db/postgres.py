@@ -164,64 +164,6 @@ class Leading:
 
 
 @dataclasses.dataclass
-class PostgresQuery(Query):
-    def get_query(self):
-        return self.query
-
-    def get_explain(self):
-        return f"{get_explain_clause()} {self.query}"
-
-    def get_heuristic_explain(self):
-        return f"EXPLAIN {self.query}"
-
-    def get_explain_analyze(self):
-        return f"EXPLAIN ANALYZE {self.query}"
-
-    def get_best_optimization(self, config):
-        best_optimization = self
-        for optimization in best_optimization.optimizations:
-            if best_optimization.execution_time_ms < 0:
-                best_optimization = optimization
-            elif 0 < optimization.execution_time_ms < best_optimization.execution_time_ms:
-                best_optimization = optimization
-
-        if allowed_diff(config, best_optimization.execution_time_ms, self.execution_time_ms):
-            return self
-
-        return best_optimization
-
-    def tips_looks_fair(self, optimization):
-        clean_plan = self.execution_plan.get_clean_plan()
-
-        return not any(
-            join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan
-            for join in Joins)
-
-    def compare_plans(self, execution_plan: 'ExecutionPlan'):
-        return self.execution_plan.get_clean_plan() == \
-               self.execution_plan.get_clean_plan(execution_plan)
-
-    def __str__(self):
-        return f"Query - \"{self.query}\"\n" \
-               f"Tables - \"{self.tables}\"\n" \
-               f"Optimization hints - \"{self.explain_hints}\"\n" \
-               f"Execution plan - \"{self.execution_plan}\"\n" \
-               f"Execution time - \"{self.execution_time_ms}\""
-
-
-@dataclasses.dataclass
-class PostgresOptimization(Optimization):
-    def get_query(self):
-        return f"/*+ {self.explain_hints} */ {self.query}"
-
-    def get_explain(self):
-        return f"{get_explain_clause()}  /*+ {self.explain_hints} */ {self.query}"
-
-    def get_heuristic_explain(self):
-        return f"EXPLAIN /*+ {self.explain_hints} */ {self.query}"
-
-
-@dataclasses.dataclass
 class PostgresExecutionPlan(ExecutionPlan):
     full_str: str
 
@@ -306,6 +248,66 @@ class PostgresExecutionPlan(ExecutionPlan):
         no_tree_plan = re.sub(PLAN_TREE_CLEANUP, '\n',
                               execution_plan.full_str if execution_plan else self.full_str).strip()
         return re.sub(PLAN_CLEANUP_REGEX, '', no_tree_plan).strip()
+
+
+@dataclasses.dataclass
+class PostgresQuery(Query):
+    execution_plan: 'PostgresExecutionPlan' = None
+
+    def get_query(self):
+        return self.query
+
+    def get_explain(self):
+        return f"{get_explain_clause()} {self.query}"
+
+    def get_heuristic_explain(self):
+        return f"EXPLAIN {self.query}"
+
+    def get_explain_analyze(self):
+        return f"EXPLAIN ANALYZE {self.query}"
+
+    def get_best_optimization(self, config):
+        best_optimization = self
+        for optimization in best_optimization.optimizations:
+            if best_optimization.execution_time_ms < 0:
+                best_optimization = optimization
+            elif 0 < optimization.execution_time_ms < best_optimization.execution_time_ms:
+                best_optimization = optimization
+
+        if allowed_diff(config, best_optimization.execution_time_ms, self.execution_time_ms):
+            return self
+
+        return best_optimization
+
+    def tips_looks_fair(self, optimization):
+        clean_plan = self.execution_plan.get_clean_plan()
+
+        return not any(
+            join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan
+            for join in Joins)
+
+    def compare_plans(self, execution_plan: 'ExecutionPlan'):
+        return self.execution_plan.get_clean_plan() == \
+               self.execution_plan.get_clean_plan(execution_plan)
+
+    def __str__(self):
+        return f"Query - \"{self.query}\"\n" \
+               f"Tables - \"{self.tables}\"\n" \
+               f"Optimization hints - \"{self.explain_hints}\"\n" \
+               f"Execution plan - \"{self.execution_plan}\"\n" \
+               f"Execution time - \"{self.execution_time_ms}\""
+
+
+@dataclasses.dataclass
+class PostgresOptimization(Optimization):
+    def get_query(self):
+        return f"/*+ {self.explain_hints} */ {self.query}"
+
+    def get_explain(self):
+        return f"{get_explain_clause()}  /*+ {self.explain_hints} */ {self.query}"
+
+    def get_heuristic_explain(self):
+        return f"EXPLAIN /*+ {self.explain_hints} */ {self.query}"
 
 
 @dataclasses.dataclass
