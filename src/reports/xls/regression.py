@@ -70,9 +70,8 @@ class RegressionXlsReport(Report):
 
                 worksheet.write(row, 0, '{:.2f}'.format(first_query.execution_time_ms))
                 worksheet.write(row, 1,
-                                f"{'{:.2f}'.format(second_query.execution_time_ms)}",
-                                ratio_color)
-                worksheet.write(row, 2, f'{ratio}')
+                                f"{'{:.2f}'.format(second_query.execution_time_ms)}")
+                worksheet.write(row, 2, f'{ratio}', ratio_color)
                 worksheet.write(row, 3, f'{format_sql(first_query.query)}')
                 worksheet.write(row, 4, f'{first_query.query_hash}')
                 row += 1
