@@ -165,6 +165,8 @@ class Leading:
 
 @dataclasses.dataclass
 class PostgresQuery(Query):
+    execution_plan: 'PostgresExecutionPlan' = None
+
     def get_query(self):
         return self.query
 
@@ -197,7 +199,7 @@ class PostgresQuery(Query):
             join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan
             for join in Joins)
 
-    def compare_plans(self, execution_plan: 'ExecutionPlan'):
+    def compare_plans(self, execution_plan: 'PostgresExecutionPlan'):
         return self.execution_plan.get_clean_plan() == \
                self.execution_plan.get_clean_plan(execution_plan)
 
@@ -258,7 +260,7 @@ class PostgresExecutionPlan(ExecutionPlan):
     def __str__(self):
         return self.full_str
 
-    def get_rpc_calls(self, execution_plan: 'ExecutionPlan' = None):
+    def get_rpc_calls(self, execution_plan: 'PostgresExecutionPlan' = None):
         try:
             return int(re.sub(
                 PLAN_RPC_CALLS, '',
@@ -266,7 +268,7 @@ class PostgresExecutionPlan(ExecutionPlan):
         except Exception:
             return 0
 
-    def get_rpc_wait_times(self, execution_plan: 'ExecutionPlan' = None):
+    def get_rpc_wait_times(self, execution_plan: 'PostgresExecutionPlan' = None):
         try:
             return int(
                 re.sub(PLAN_RPC_WAIT_TIMES, '',
@@ -274,7 +276,7 @@ class PostgresExecutionPlan(ExecutionPlan):
         except Exception:
             return 0
 
-    def get_scanned_rows(self, execution_plan: 'ExecutionPlan' = None):
+    def get_scanned_rows(self, execution_plan: 'PostgresExecutionPlan' = None):
         try:
             return int(
                 re.sub(PLAN_DOCDB_SCANNED_ROWS, '',
@@ -282,7 +284,7 @@ class PostgresExecutionPlan(ExecutionPlan):
         except Exception:
             return 0
 
-    def get_peak_memory(self, execution_plan: 'ExecutionPlan' = None):
+    def get_peak_memory(self, execution_plan: 'PostgresExecutionPlan' = None):
         try:
             return int(
                 re.sub(PLAN_PEAK_MEMORY, '',
@@ -290,11 +292,11 @@ class PostgresExecutionPlan(ExecutionPlan):
         except Exception:
             return 0
 
-    def get_no_cost_plan(self, execution_plan: 'ExecutionPlan' = None):
+    def get_no_cost_plan(self, execution_plan: 'PostgresExecutionPlan' = None):
         return re.sub(PLAN_CLEANUP_REGEX, '',
                       execution_plan.full_str if execution_plan else self.full_str).strip()
 
-    def get_no_tree_plan(self, execution_plan: 'ExecutionPlan' = None):
+    def get_no_tree_plan(self, execution_plan: 'PostgresExecutionPlan' = None):
         return self.get_no_tree_plan_str(
             execution_plan.full_str if execution_plan else self.full_str)
 
@@ -302,7 +304,7 @@ class PostgresExecutionPlan(ExecutionPlan):
     def get_no_tree_plan_str(plan_str):
         return re.sub(PLAN_TREE_CLEANUP, '\n', plan_str).strip()
 
-    def get_clean_plan(self, execution_plan: 'ExecutionPlan' = None):
+    def get_clean_plan(self, execution_plan: 'PostgresExecutionPlan' = None):
         no_tree_plan = re.sub(PLAN_TREE_CLEANUP, '\n',
                               execution_plan.full_str if execution_plan else self.full_str).strip()
         return re.sub(PLAN_CLEANUP_REGEX, '', no_tree_plan).strip()

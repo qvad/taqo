@@ -3,13 +3,28 @@ import re
 import shutil
 import subprocess
 from time import sleep
+from typing import List
 
 from config import ConnectionConfig
-from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD, Postgres
+from db.postgres import Postgres, PostgresExecutionPlan, PLAN_TREE_CLEANUP, PostgresQuery
+from objects import ExecutionPlan, ListOfQueries, ResultsLoaded
+
+DEFAULT_USERNAME = 'yugabyte'
+DEFAULT_PASSWORD = 'yugabyte'
 
 JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)):(\d+)\/([a-z]+)(\?user=([a-z]+)&password=([a-z]+))?'
 
 ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
+
+PLAN_CLEANUP_REGEX = r"\s\(actual time.*\)|\s\(never executed\)|\s\(cost.*\)|" \
+                     r"\sMemory:.*|Planning Time.*|Execution Time.*|Peak Memory Usage.*|" \
+                     r"Read RPC Count:.*|Read RPC Wait Time:.*|DocDB Scanned Rows:.*|" \
+                     r".*Partial Aggregate:.*|YB\s|Remote\s|" \
+                     r"JIT:.*|\s+Functions:.*|\s+Options:.*|\s+Timing:.*"  # PG14 JIT info
+PLAN_RPC_CALLS = r"\nRead RPC Count:\s(\d+)"
+PLAN_RPC_WAIT_TIMES = r"\nRead RPC Wait Time:\s([+-]?([0-9]*[.])?[0-9]+)"
+PLAN_DOCDB_SCANNED_ROWS = r"\nDocDB Scanned Rows:\s(\d+)"
+PLAN_PEAK_MEMORY = r"\nPeak memory:\s(\d+)"
 
 
 def yb_db_factory(config):
@@ -48,6 +63,52 @@ class Yugabyte(Postgres):
 
     def call_upgrade_ysql(self):
         pass
+
+
+class YugabyteQuery(PostgresQuery):
+    execution_plan: 'YugabyteExecutionPlan' = None
+
+
+class YugabyteExecutionPlan(PostgresExecutionPlan):
+    def get_rpc_calls(self, execution_plan: 'ExecutionPlan' = None):
+        try:
+            return int(re.sub(
+                PLAN_RPC_CALLS, '',
+                execution_plan.full_str if execution_plan else self.full_str).strip())
+        except Exception:
+            return 0
+
+    def get_rpc_wait_times(self, execution_plan: 'ExecutionPlan' = None):
+        try:
+            return int(
+                re.sub(PLAN_RPC_WAIT_TIMES, '',
+                       execution_plan.full_str if execution_plan else self.full_str).strip())
+        except Exception:
+            return 0
+
+    def get_scanned_rows(self, execution_plan: 'ExecutionPlan' = None):
+        try:
+            return int(
+                re.sub(PLAN_DOCDB_SCANNED_ROWS, '',
+                       execution_plan.full_str if execution_plan else self.full_str).strip())
+        except Exception:
+            return 0
+
+    def get_peak_memory(self, execution_plan: 'ExecutionPlan' = None):
+        try:
+            return int(
+                re.sub(PLAN_PEAK_MEMORY, '',
+                       execution_plan.full_str if execution_plan else self.full_str).strip())
+        except Exception:
+            return 0
+
+    def get_no_tree_plan_str(self, plan_str):
+        return re.sub(PLAN_TREE_CLEANUP, '\n', plan_str).strip()
+
+    def get_clean_plan(self, execution_plan: 'ExecutionPlan' = None):
+        no_tree_plan = re.sub(PLAN_TREE_CLEANUP, '\n',
+                              execution_plan.full_str if execution_plan else self.full_str).strip()
+        return re.sub(PLAN_CLEANUP_REGEX, '', no_tree_plan).strip()
 
 
 class YugabyteLocalCluster(Yugabyte):
@@ -217,3 +278,14 @@ class YugabyteLocalRepository(Yugabyte):
                         shell=True)
         subprocess.call(["pkill yb-tserver"],
                         shell=True)
+
+
+class YugabyteListOfQueries(ListOfQueries):
+    queries: List[YugabyteQuery] = None
+
+
+class YugabyteResultsLoaded(ResultsLoaded):
+
+    def __init__(self):
+        super().__init__()
+        self.clazz = YugabyteListOfQueries
