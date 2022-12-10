@@ -85,13 +85,6 @@ class ListOfQueries:
         # CPUs are cheap in 2022
         self.queries.sort(key=lambda q: q.query_hash)
 
-    def revalidate(self):
-        # fix possible issues in previous runs
-        for query in self.queries:
-            query.optimizer_score = get_optimizer_score_from_plan(query.execution_plan)
-            for optimization in query.optimizations:
-                optimization.optimizer_score = get_optimizer_score_from_plan(optimization.execution_plan)
-
 
 class EPNode:
     def __init__(self):
@@ -157,9 +150,7 @@ class ResultsLoaded:
 
     def get_queries_from_previous_result(self, previous_execution_path):
         with open(previous_execution_path, "r") as prev_result:
-            loq = from_dict(self.clazz, json.load(prev_result), DaciteConfig(check_types=False))
-        loq.revalidate()
-        return loq
+            return from_dict(self.clazz, json.load(prev_result), DaciteConfig(check_types=False))
 
     def store_queries_to_file(self, queries: Type[ListOfQueries], output_json_name: str):
         with open(f"report/{output_json_name}.json", "w") as result_file:
