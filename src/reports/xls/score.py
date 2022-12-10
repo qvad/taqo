@@ -1,3 +1,5 @@
+from typing import Type
+
 from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
 
@@ -58,7 +60,7 @@ class ScoreXlsReport(Report):
 
         return file_name
 
-    def add_query(self, query: Query, pg: Query | None):
+    def add_query(self, query: Type[Query], pg: Query | None):
         if query.tag not in self.queries:
             self.queries[query.tag] = [[query, pg], ]
         else:

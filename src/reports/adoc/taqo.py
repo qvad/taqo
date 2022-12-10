@@ -1,4 +1,5 @@
 import os
+from typing import Type
 
 from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
@@ -67,7 +68,7 @@ class TaqoReport(Report):
 
         return file_name
 
-    def add_query(self, query: Query, pg: Query):
+    def add_query(self, query: Type[Query], pg: Type[Query] | None):
         best_optimization = query.get_best_optimization(self.config)
 
         if len(query.optimizations) > 1:

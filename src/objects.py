@@ -56,9 +56,6 @@ class Query:
     def get_best_optimization(self, config: Config):
         pass
 
-    def compare_plans(self, execution_plan: 'ExecutionPlan'):
-        pass
-
 
 @dataclasses.dataclass
 class Optimization(Query):

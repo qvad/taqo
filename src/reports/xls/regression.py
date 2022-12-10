@@ -1,3 +1,5 @@
+from typing import Type
+
 from sql_formatter.core import format_sql
 
 from objects import ListOfQueries, Query
@@ -27,7 +29,7 @@ class RegressionXlsReport(Report):
     def define_version(self, version):
         pass
 
-    def add_query(self, query: Query, pg: Query | None):
+    def add_query(self, query: Type[Query], pg: Type[Query] | None):
         if query.tag not in self.queries:
             self.queries[query.tag] = [[query, pg], ]
         else:
