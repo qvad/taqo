@@ -178,7 +178,7 @@ class RegressionReport(Report):
         self.report += f"Cardinality|{first_query.result_cardinality}|{second_query.result_cardinality}"
         self._end_table_row()
         self._start_table_row()
-        self.report += f"Optimizer cost|{first_query.optimizer_score}|{second_query.optimizer_score}"
+        self.report += f"Optimizer cost|{first_query.execution_plan.get_estimated_cost()}|{second_query.execution_plan.get_estimated_cost()}"
         self._end_table_row()
         self._start_table_row()
         self.report += f"Execution time|{first_query.execution_time_ms}|{second_query.execution_time_ms}"

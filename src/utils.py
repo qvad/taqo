@@ -16,9 +16,12 @@ def current_milli_time():
 
 
 def get_optimizer_score_from_plan(execution_plan):
-    matches = re.finditer(r"\s\(cost=\d+\.\d+\.\.(\d+\.\d+)\s", execution_plan.full_str, re.MULTILINE)
-    for matchNum, match in enumerate(matches, start=1):
-        return float(match.groups()[0])
+    try:
+        matches = re.finditer(r"\s\(cost=.*\.\.(\d+\.\d+)\s", execution_plan.full_str, re.MULTILINE)
+        for matchNum, match in enumerate(matches, start=1):
+            return float(match.groups()[0])
+    except Exception:
+        return 0
 
 
 def get_result(cur):

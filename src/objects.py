@@ -41,7 +41,6 @@ class Query:
 
     execution_plan: 'ExecutionPlan' = None
     execution_time_ms: float = 0
-    optimizer_score: float = 1
     result_cardinality: int = 0
     result_hash: str = None
 
@@ -109,6 +108,9 @@ class EPNode:
 @dataclasses.dataclass
 class ExecutionPlan:
     full_str: str
+
+    def get_estimated_cost(self):
+        pass
 
     def get_clean_plan(self, execution_plan=None):
         # todo get plan tree instead here to support plan comparison between DBs

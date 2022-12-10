@@ -1,4 +1,5 @@
 import os
+from typing import Type
 
 from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
@@ -53,12 +54,12 @@ class ScoreReport(Report):
         plt.xlabel('Execution time')
         plt.ylabel('Optimizer cost')
 
-        plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms > 0],
-                 [q.optimizer_score for q in optimizations if q.execution_time_ms > 0], 'k.',
+        plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms != 0],
+                 [q.execution_plan.get_estimated_cost() for q in optimizations if q.execution_time_ms != 0], 'k.',
                  [query.execution_time_ms],
-                 [query.optimizer_score], 'r^',
+                 [query.execution_plan.get_estimated_cost()], 'r^',
                  [best_optimization.execution_time_ms],
-                 [best_optimization.optimizer_score], 'go')
+                 [best_optimization.execution_plan.get_estimated_cost()], 'go')
 
         file_name = f'imgs/query_{self.reported_queries_counter}.png'
         plt.savefig(f"report/{self.start_date}/{file_name}")
@@ -66,7 +67,7 @@ class ScoreReport(Report):
 
         return file_name
 
-    def add_query(self, query: Query, pg: Query):
+    def add_query(self, query: Type[Query], pg: Query | None):
         if query.tag not in self.queries:
             self.queries[query.tag] = [[query, pg], ]
         else:
@@ -286,7 +287,7 @@ class ScoreReport(Report):
             self.report += f"Cardinality|{yb_query.result_cardinality}|{yb_best.result_cardinality}|{pg_query.result_cardinality}|{pg_best.result_cardinality}"
             self._end_table_row()
             self._start_table_row()
-            self.report += f"Optimizer cost|{yb_query.optimizer_score}|{default_yb_equality}{yb_best.optimizer_score}|{pg_query.optimizer_score}|{default_pg_equality}{pg_best.optimizer_score}"
+            self.report += f"Optimizer cost|{yb_query.execution_plan.get_estimated_cost()}|{default_yb_equality}{yb_best.execution_plan.get_estimated_cost()}|{pg_query.execution_plan.get_estimated_cost()}|{default_pg_equality}{pg_best.execution_plan.get_estimated_cost()}"
             self._end_table_row()
             self._start_table_row()
             self.report += f"Execution time|{'{:.2f}'.format(yb_query.execution_time_ms)}|{default_yb_equality}{'{:.2f}'.format(yb_best.execution_time_ms)}|{'{:.2f}'.format(pg_query.execution_time_ms)}|{default_pg_equality}{'{:.2f}'.format(pg_best.execution_time_ms)}"
@@ -305,7 +306,7 @@ class ScoreReport(Report):
             self.report += f"Cardinality|{yb_query.result_cardinality}|{yb_best.result_cardinality}"
             self._end_table_row()
             self._start_table_row()
-            self.report += f"Optimizer cost|{yb_query.optimizer_score}|{default_yb_equality}{yb_best.optimizer_score}"
+            self.report += f"Optimizer cost|{yb_query.execution_plan.get_estimated_cost()}|{default_yb_equality}{yb_best.execution_plan.get_estimated_cost()}"
             self._end_table_row()
             self._start_table_row()
             self.report += f"Execution time|{yb_query.execution_time_ms}|{default_yb_equality}{yb_best.execution_time_ms}"
@@ -355,14 +356,14 @@ class ScoreReport(Report):
         self._end_source()
         self._end_collapsible()
 
-        self._start_collapsible(f"{default_yb_equality}YB best plan")
+        self._start_collapsible(f"YB best plan")
         self._start_source(["diff"])
         self.report += yb_best.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
+        self.report += f"{default_yb_equality}YB default vs YB best"
         self._start_source(["diff"])
-
         diff = self._get_plan_diff(yb_query.execution_plan.full_str,
                                    yb_best.execution_plan.full_str)
         if not diff:

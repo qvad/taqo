@@ -11,7 +11,7 @@ from config import Config, ConnectionConfig
 from objects import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table, Optimization, \
     ListOfQueries, ResultsLoaded
 from db.database import Database
-from utils import get_explain_clause, evaluate_sql, allowed_diff
+from utils import get_explain_clause, evaluate_sql, allowed_diff, get_optimizer_score_from_plan
 
 DEFAULT_USERNAME = 'postgres'
 DEFAULT_PASSWORD = 'postgres'
@@ -260,7 +260,10 @@ class PostgresExecutionPlan(ExecutionPlan):
     def __str__(self):
         return self.full_str
 
-    def get_rpc_calls(self, execution_plan: 'PostgresExecutionPlan' = None):
+    def get_estimated_cost(self):
+        return get_optimizer_score_from_plan(self.full_str)
+
+    def get_rpc_calls(self, execution_plan: 'ExecutionPlan' = None):
         try:
             return int(re.sub(
                 PLAN_RPC_CALLS, '',

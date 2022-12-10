@@ -55,11 +55,11 @@ class TaqoReport(Report):
         plt.ylabel('Optimizer cost')
 
         plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms != 0],
-                 [q.optimizer_score for q in optimizations if q.execution_time_ms != 0], 'k.',
+                 [q.execution_plan.get_estimated_cost() for q in optimizations if q.execution_time_ms != 0], 'k.',
                  [query.execution_time_ms],
-                 [query.optimizer_score], 'r^',
+                 [query.execution_plan.get_estimated_cost()], 'r^',
                  [best_optimization.execution_time_ms],
-                 [best_optimization.optimizer_score], 'go')
+                 [best_optimization.execution_plan.get_estimated_cost()], 'go')
 
         file_name = f'imgs/query_{self.reported_queries_counter}.png'
         plt.savefig(f"report/{self.start_date}/{file_name}")
@@ -211,7 +211,7 @@ class TaqoReport(Report):
         self.report += f"Cardinality|{query.result_cardinality}|{best_optimization.result_cardinality}"
         self._end_table_row()
         self._start_table_row()
-        self.report += f"Optimizer cost|{query.optimizer_score}|{best_optimization.optimizer_score}"
+        self.report += f"Optimizer cost|{query.execution_plan.get_estimated_cost()}|{best_optimization.execution_plan.get_estimated_cost()}"
         self._end_table_row()
         self._start_table_row()
         self.report += f"Execution time|{query.execution_time_ms}|{best_optimization.execution_time_ms}"

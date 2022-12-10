@@ -55,19 +55,14 @@ class QueryEvaluator:
                         evaluate_sql(cur, original_query.get_explain())
                         original_query.execution_plan = ExecutionPlan('\n'.join(
                             str(item[0]) for item in cur.fetchall()))
-                        original_query.optimizer_score = get_optimizer_score_from_plan(
-                            original_query.execution_plan)
                     except psycopg2.errors.QueryCanceled:
                         try:
                             evaluate_sql(cur, original_query.get_heuristic_explain())
                             original_query.execution_plan = ExecutionPlan('\n'.join(
                                 str(item[0]) for item in cur.fetchall()))
-                            original_query.optimizer_score = get_optimizer_score_from_plan(
-                                original_query.execution_plan)
                         except psycopg2.errors.QueryCanceled:
                             self.logger.error("Unable to get execution plan even w/o analyze")
                             original_query.execution_plan = ExecutionPlan('')
-                            original_query.optimizer_score = -1
 
                     calculate_avg_execution_time(cur, original_query,
                                                  num_retries=int(self.config.num_retries))
@@ -126,7 +121,6 @@ class QueryEvaluator:
                 num_skipped += 1
                 optimization.execution_time_ms = 0
                 optimization.execution_plan = ExecutionPlan("")
-                optimization.optimizer_score = 0
                 continue
 
             optimization.execution_plan = ExecutionPlan('\n'.join(
@@ -135,9 +129,6 @@ class QueryEvaluator:
             exec_plan_md5 = get_md5(optimization.execution_plan.get_clean_plan())
             not_unique_plan = exec_plan_md5 in execution_plans_checked
             execution_plans_checked.add(exec_plan_md5)
-
-            optimization.optimizer_score = get_optimizer_score_from_plan(
-                optimization.execution_plan)
 
             if not_unique_plan or not calculate_avg_execution_time(
                     cur,
