@@ -15,8 +15,6 @@ class ScoreReport(Report):
 
         os.mkdir(f"report/{self.start_date}/imgs")
 
-        self.logger.info(f"Created report folder for this run at 'report/{self.start_date}'")
-
         self.queries = {}
 
     @classmethod
