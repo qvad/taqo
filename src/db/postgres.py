@@ -2,7 +2,7 @@ import dataclasses
 import itertools
 import re
 from enum import Enum
-from typing import List
+from typing import List, Type
 
 import psycopg2
 from allpairspy import AllPairs
@@ -199,7 +199,7 @@ class PostgresQuery(Query):
             join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan
             for join in Joins)
 
-    def compare_plans(self, execution_plan: 'PostgresExecutionPlan'):
+    def compare_plans(self, execution_plan: Type['ExecutionPlan']):
         return self.execution_plan.get_clean_plan() == \
                self.execution_plan.get_clean_plan(execution_plan)
 
@@ -307,7 +307,7 @@ class PostgresExecutionPlan(ExecutionPlan):
     def get_no_tree_plan_str(plan_str):
         return re.sub(PLAN_TREE_CLEANUP, '\n', plan_str).strip()
 
-    def get_clean_plan(self, execution_plan: 'PostgresExecutionPlan' = None):
+    def get_clean_plan(self, execution_plan: Type['ExecutionPlan'] = None):
         no_tree_plan = re.sub(PLAN_TREE_CLEANUP, '\n',
                               execution_plan.full_str if execution_plan else self.full_str).strip()
         return re.sub(PLAN_CLEANUP_REGEX, '', no_tree_plan).strip()
