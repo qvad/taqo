@@ -212,7 +212,7 @@ class PostgresQuery(Query):
 
 
 @dataclasses.dataclass
-class PostgresOptimization(Optimization):
+class PostgresOptimization(PostgresQuery, Optimization):
     def get_query(self):
         return f"/*+ {self.explain_hints} */ {self.query}"
 
@@ -316,6 +316,7 @@ class PostgresExecutionPlan(ExecutionPlan):
 @dataclasses.dataclass
 class PostgresQuery(Query):
     execution_plan: 'PostgresExecutionPlan' = None
+    optimizations: List['PostgresOptimization'] = None
 
     def get_query(self):
         return self.query
