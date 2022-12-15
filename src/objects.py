@@ -6,7 +6,6 @@ from dacite import Config as DaciteConfig
 from dacite import from_dict
 
 from config import Config
-from utils import get_optimizer_score_from_plan
 
 
 @dataclasses.dataclass
@@ -50,7 +49,7 @@ class Query:
 
     execution_plan_heatmap: Dict[int, Dict[str, str]] = None
 
-    def compare_plans(self, execution_plan):
+    def compare_plans(self, execution_plan: Type['ExecutionPlan']):
         pass
 
     def get_best_optimization(self, config: Config):

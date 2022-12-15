@@ -350,7 +350,7 @@ class PostgresQuery(Query):
             join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan
             for join in Joins)
 
-    def compare_plans(self, execution_plan: 'ExecutionPlan'):
+    def compare_plans(self, execution_plan: Type['ExecutionPlan']):
         return self.execution_plan.get_clean_plan() == \
                self.execution_plan.get_clean_plan(execution_plan)
 
