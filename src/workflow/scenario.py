@@ -1,7 +1,6 @@
 import subprocess
 
 from config import DDLStep
-from db.postgres import PostgresResultsLoaded
 from objects import ListOfQueries
 from workflow.evaluator import QueryEvaluator
 from utils import evaluate_sql
@@ -40,7 +39,7 @@ class Scenario:
 
     def evaluate(self):
         evaluator = QueryEvaluator(self.config)
-        loader = PostgresResultsLoaded()
+        loader = self.config.database.get_results_loader()
 
         commit_message = self.start_db()
         try:
@@ -49,10 +48,10 @@ class Scenario:
 
             self.sut_database.establish_connection(test_database)
 
-            loq = ListOfQueries(db_version=self.sut_database.connection.get_version(),
-                                git_message=commit_message,
-                                queries=evaluator.evaluate(self.sut_database.connection.conn,
-                                                           self.config.with_optimizations))
+            loq = self.config.database.get_list_queries(db_version=self.sut_database.connection.get_version(),
+                                                        git_message=commit_message,
+                                                        queries=evaluator.evaluate(self.sut_database.connection.conn,
+                                                                                   self.config.with_optimizations))
 
             self.logger.info(f"Storing results to report/{self.config.output}")
             loader.store_queries_to_file(loq, self.config.output)

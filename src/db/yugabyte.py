@@ -64,6 +64,9 @@ class Yugabyte(Postgres):
     def call_upgrade_ysql(self):
         pass
 
+    def get_execution_plan(self, execution_plan: str):
+        return YugabyteExecutionPlan(execution_plan)
+
 
 class YugabyteQuery(PostgresQuery):
     execution_plan: 'YugabyteExecutionPlan' = None

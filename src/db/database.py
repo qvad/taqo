@@ -18,3 +18,12 @@ class Database:
 
     def call_upgrade_ysql(self):
         pass
+
+    def get_list_optimizations(self, original_query):
+        pass
+
+    def get_execution_plan(self, execution_plan: str):
+        pass
+
+    def get_results_loader(self):
+        pass

@@ -1,6 +1,7 @@
 import dataclasses
 import itertools
 import re
+from difflib import SequenceMatcher
 from enum import Enum
 from typing import List, Type
 
@@ -45,6 +46,19 @@ class Postgres(Database):
         self.connection = Connection(config)
 
         self.connection.connect()
+
+    def get_list_optimizations(self, original_query):
+        return PGListOfOptimizations(
+            self.config, original_query).get_all_optimizations()
+
+    def get_execution_plan(self, execution_plan: str):
+        return PostgresExecutionPlan(execution_plan)
+
+    def get_results_loader(self):
+        return PostgresResultsLoaded()
+
+    def get_list_queries(self):
+        return PostgresListOfQueries()
 
 
 class Connection:
@@ -166,18 +180,6 @@ class Leading:
 @dataclasses.dataclass
 class PostgresQuery(Query):
     execution_plan: 'PostgresExecutionPlan' = None
-
-    def get_query(self):
-        return self.query
-
-    def get_explain(self):
-        return f"{get_explain_clause()} {self.query}"
-
-    def get_heuristic_explain(self):
-        return f"EXPLAIN {self.query}"
-
-    def get_explain_analyze(self):
-        return f"EXPLAIN ANALYZE {self.query}"
 
     def get_best_optimization(self, config):
         best_optimization = self
@@ -312,7 +314,6 @@ class PostgresExecutionPlan(ExecutionPlan):
                               execution_plan.full_str if execution_plan else self.full_str).strip()
         return re.sub(PLAN_CLEANUP_REGEX, '', no_tree_plan).strip()
 
-
 @dataclasses.dataclass
 class PostgresQuery(Query):
     execution_plan: 'PostgresExecutionPlan' = None
@@ -360,6 +361,27 @@ class PostgresQuery(Query):
                f"Optimization hints - \"{self.explain_hints}\"\n" \
                f"Execution plan - \"{self.execution_plan}\"\n" \
                f"Execution time - \"{self.execution_time_ms}\""
+
+    def heatmap(self):
+        config = Config()
+        plan_heatmap = {line_id: {'weight': 0, 'str': execution_plan_line}
+                        for line_id, execution_plan_line in
+                        enumerate(self.execution_plan.get_no_cost_plan().split("->"))}
+
+        best_optimization = self.get_best_optimization(config)
+        for optimization in self.optimizations:
+            if allowed_diff(config, best_optimization.execution_time_ms,
+                            optimization.execution_time_ms):
+                no_cost_plan = optimization.execution_plan.get_no_cost_plan()
+                for plan_line in plan_heatmap.values():
+                    for optimization_line in no_cost_plan.split("->"):
+                        if SequenceMatcher(
+                                a=optimization.execution_plan.get_no_tree_plan_str(plan_line['str']),
+                                b=optimization.execution_plan.get_no_tree_plan_str(optimization_line)
+                        ).ratio() > 0.9:
+                            plan_line['weight'] += 1
+
+        self.execution_plan_heatmap = plan_heatmap
 
 
 @dataclasses.dataclass

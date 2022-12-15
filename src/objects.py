@@ -49,20 +49,31 @@ class Query:
 
     execution_plan_heatmap: Dict[int, Dict[str, str]] = None
 
+    def get_query(self):
+        return self.query
+
+    def get_explain(self):
+        return f"{Config.explain_clause} {self.query}"
+
+    def get_heuristic_explain(self):
+        return f"EXPLAIN {self.query}"
+
+    def get_explain_analyze(self):
+        return f"EXPLAIN ANALYZE {self.query}"
+
     def compare_plans(self, execution_plan: Type['ExecutionPlan']):
         pass
 
     def get_best_optimization(self, config: Config):
         pass
 
+    def heatmap(self):
+        pass
+
 
 @dataclasses.dataclass
 class Optimization(Query):
-    def get_query(self):
-        pass
-
-    def get_explain(self):
-        pass
+    pass
 
 
 @dataclasses.dataclass
@@ -104,6 +115,7 @@ class ExecutionPlan:
     def get_clean_plan(self, execution_plan=None):
         # todo get plan tree instead here to support plan comparison between DBs
         pass
+
 
 @dataclasses.dataclass
 class ListOfOptimizations:

@@ -71,7 +71,7 @@ class Config(metaclass=Singleton):
 
     compare_with_pg: bool = False
     enable_statistics: bool = False
-    explain_clause: bool = False
+    explain_clause: str = ""
     session_props: List[str] = None
 
     test: str = None
