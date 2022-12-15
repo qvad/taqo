@@ -16,6 +16,7 @@ class QueryEvaluator:
                  connection,
                  evaluate_optimizations=False):
         queries = []
+        model_queries = []
         try:
             model = get_test_model()
             created_tables, model_queries = model.create_tables(connection)
@@ -26,7 +27,7 @@ class QueryEvaluator:
 
         self.evaluate_queries_against_yugabyte(connection, queries, evaluate_optimizations)
 
-        return queries
+        return model_queries, queries
 
     def evaluate_queries_against_yugabyte(self, conn, queries, evaluate_optimizations):
         with conn.cursor() as cur:

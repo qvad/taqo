@@ -48,10 +48,10 @@ class Scenario:
 
             self.sut_database.establish_connection(test_database)
 
-            loq = self.config.database.get_list_queries(db_version=self.sut_database.connection.get_version(),
-                                                        git_message=commit_message,
-                                                        queries=evaluator.evaluate(self.sut_database.connection.conn,
-                                                                                   self.config.with_optimizations))
+            loq = self.config.database.get_list_queries()
+            loq.db_version = self.sut_database.connection.get_version()
+            loq.model_queries, loq.queries = evaluator.evaluate(self.sut_database.connection.conn, self.config.with_optimizations)
+            loq.git_message = commit_message
 
             self.logger.info(f"Storing results to report/{self.config.output}")
             loader.store_queries_to_file(loq, self.config.output)
