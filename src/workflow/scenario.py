@@ -1,7 +1,6 @@
 import subprocess
 
 from config import DDLStep
-from objects import ListOfQueries
 from workflow.evaluator import QueryEvaluator
 from utils import evaluate_sql
 
