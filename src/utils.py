@@ -11,6 +11,7 @@ from config import Config
 
 PARAMETER_VARIABLE = r"[^'](\%\((.*?)\))"
 
+
 def current_milli_time():
     return (time.time_ns() // 1_000) / 1_000
 
@@ -157,9 +158,21 @@ def evaluate_sql(cur, sql):
         sql.replace("\n", "")[:120] + "..." if len(sql) > 120 else sql.replace("\n", ""))
 
     if config.parametrized and parameters:
-        cur.execute(sql, parameters)
+        try:
+            cur.execute(sql, parameters)
+        except psycopg2.errors.QueryCanceled as e:
+            raise e
+        except Exception as e:
+            config.logger.exception(sql, e)
+            raise e
     else:
-        cur.execute(sql_wo_parameters)
+        try:
+            cur.execute(sql_wo_parameters)
+        except psycopg2.errors.QueryCanceled as e:
+            raise e
+        except Exception as e:
+            config.logger.exception(sql_wo_parameters, e)
+            raise e
 
     return parameters
 
