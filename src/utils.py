@@ -17,7 +17,7 @@ def current_milli_time():
 
 def get_optimizer_score_from_plan(execution_plan):
     try:
-        matches = re.finditer(r"\s\(cost=.*\.\.(\d+\.\d+)\s", execution_plan.full_str, re.MULTILINE)
+        matches = re.finditer(r"\s\(cost=\d+\.\d+\.\.(\d+\.\d+)", execution_plan.full_str, re.MULTILINE)
         for matchNum, match in enumerate(matches, start=1):
             return float(match.groups()[0])
     except Exception:
@@ -157,9 +157,17 @@ def evaluate_sql(cur, sql):
         sql.replace("\n", "")[:120] + "..." if len(sql) > 120 else sql.replace("\n", ""))
 
     if config.parametrized and parameters:
-        cur.execute(sql, parameters)
+        try:
+            cur.execute(sql, parameters)
+        except Exception as e:
+            config.logger.exception(sql, e)
+            raise e
     else:
-        cur.execute(sql_wo_parameters)
+        try:
+            cur.execute(sql_wo_parameters)
+        except Exception as e:
+            config.logger.exception(sql_wo_parameters, e)
+            raise e
 
     return parameters
 
