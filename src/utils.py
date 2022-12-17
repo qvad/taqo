@@ -25,7 +25,6 @@ def get_optimizer_score_from_plan(execution_plan):
         return 0
 
 
-
 def get_result(cur):
     result = cur.fetchall()
 
