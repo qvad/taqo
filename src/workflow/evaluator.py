@@ -68,7 +68,6 @@ class QueryEvaluator:
                     if evaluate_optimizations:
                         self.logger.debug("Evaluating optimizations...")
                         self.evaluate_optimizations(cur, original_query)
-                        original_query.heatmap()
 
                 except psycopg2.Error as pe:
                     # do not raise exception

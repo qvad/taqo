@@ -125,10 +125,11 @@ class TaqoReport(Report):
         :param query:
         :return:
         """
-        best_decision = max(row['weight'] for row in query.execution_plan_heatmap.values())
-        last_rowid = max(query.execution_plan_heatmap.keys())
+        execution_plan_heatmap = query.heatmap()
+        best_decision = max(row['weight'] for row in execution_plan_heatmap.values())
+        last_rowid = max(execution_plan_heatmap.keys())
         result = ""
-        for row_id, row in query.execution_plan_heatmap.items():
+        for row_id, row in execution_plan_heatmap.items():
             rows = row['str'].split("\n")
 
             if row['weight'] == best_decision:
