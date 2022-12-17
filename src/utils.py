@@ -160,12 +160,16 @@ def evaluate_sql(cur, sql):
     if config.parametrized and parameters:
         try:
             cur.execute(sql, parameters)
+        except psycopg2.errors.QueryCanceled as e:
+            raise e
         except Exception as e:
             config.logger.exception(sql, e)
             raise e
     else:
         try:
             cur.execute(sql_wo_parameters)
+        except psycopg2.errors.QueryCanceled as e:
+            raise e
         except Exception as e:
             config.logger.exception(sql_wo_parameters, e)
             raise e
