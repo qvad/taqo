@@ -75,14 +75,11 @@ class SQLModel(QTFModel):
                 else:
                     with open(f"sql/{self.config.model}/{file_name}.sql", "r") as sql_file:
                         full_queries = self.apply_variables('\n'.join(sql_file.readlines()))
-                        for query in tqdm(full_queries.split(";")):
-                            try:
-                                if cleaned := query.lstrip():
-                                    model_queries.append(cleaned)
-                                    evaluate_sql(cur, cleaned)
-                            except psycopg2.Error as e:
-                                self.logger.exception(e)
-                                raise e
+                        try:
+                            evaluate_sql(cur, full_queries)
+                        except psycopg2.Error as e:
+                            self.logger.exception(e)
+                            raise e
                 if step_prefix == DDLStep.CREATE:
                     self.load_tables_from_public(created_tables, cur)
         except Exception as e:
