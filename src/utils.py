@@ -180,9 +180,6 @@ def evaluate_sql(cur, sql):
             config.logger.exception(sql_wo_parameters, e)
             raise e
 
-    # check cursor
-    cur.execute("select 1;")
-
     return parameters
 
 

@@ -106,14 +106,14 @@ class SQLModel(QTFModel):
                       if row[1] not in ["pg_catalog", "information_schema"])
 
         self.logger.info("Loading columns and constraints...")
-        for table in tables:
+        for table_name, schema_name in tables:
             evaluate_sql(
                 cur,
                 f"""
                 select column_name
                 from information_schema.columns
-                where table_schema = '{table[1]}'
-                and table_name   = '{table[0]}';
+                where table_schema = '{schema_name}'
+                and table_name  = '{table_name}';
                 """
             )
 
@@ -137,7 +137,7 @@ class SQLModel(QTFModel):
                     and a.attrelid = t.oid
                     and a.attnum = ANY(ix.indkey)
                     and t.relkind = 'r'
-                    and t.relname like '{table[0]}'
+                    and t.relname like '{table_name}'
                 order by
                     t.relname,
                     i.relname;
@@ -154,7 +154,7 @@ class SQLModel(QTFModel):
             except Exception as e:
                 self.logger.exception(result, e)
 
-            created_tables.append(Table(table[0], fields, 0))
+            created_tables.append(Table(table_name, fields, 0))
 
     @staticmethod
     def get_comments(full_query):
