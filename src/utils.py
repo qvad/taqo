@@ -162,6 +162,9 @@ def evaluate_sql(cur, sql):
             cur.execute(sql, parameters)
         except psycopg2.errors.QueryCanceled as e:
             raise e
+        except psycopg2.OperationalError as oe:
+            config.logger.exception(sql, oe)
+            cur = cur.connection.curs()
         except Exception as e:
             config.logger.exception(sql, e)
             raise e
@@ -170,9 +173,15 @@ def evaluate_sql(cur, sql):
             cur.execute(sql_wo_parameters)
         except psycopg2.errors.QueryCanceled as e:
             raise e
+        except psycopg2.OperationalError as oe:
+            config.logger.exception(sql, oe)
+            cur = cur.connection.curs()
         except Exception as e:
             config.logger.exception(sql_wo_parameters, e)
             raise e
+
+    # check cursor
+    cur.execute("select 1;")
 
     return parameters
 
