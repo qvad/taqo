@@ -147,9 +147,12 @@ class SQLModel(QTFModel):
             fields = []
 
             result = list(cur.fetchall())
-            for column in columns:
-                is_indexed = any(column == row[2] for row in result)
-                fields.append(Field(column, is_indexed))
+            try:
+                for column in columns:
+                    is_indexed = any(column == row[2] for row in result)
+                    fields.append(Field(column, is_indexed))
+            except Exception as e:
+                self.logger.exception(result, e)
 
             created_tables.append(Table(table[0], fields, 0))
 
