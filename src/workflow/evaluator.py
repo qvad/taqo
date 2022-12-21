@@ -25,23 +25,25 @@ class QueryEvaluator:
             self.logger.exception("Failed to evaluate DDL queries", e)
             exit(1)
 
-        self.evaluate_queries_against_yugabyte(connection, queries, evaluate_optimizations)
+        self.evaluate_testing_queries(connection, queries, evaluate_optimizations)
 
         return model_queries, queries
 
-    def evaluate_queries_against_yugabyte(self, conn, queries, evaluate_optimizations):
-        with conn.cursor() as cur:
-            counter = 1
+    def evaluate_testing_queries(self, conn, queries, evaluate_optimizations):
+        counter = 1
+        for original_query in queries:
+            if "dml" in original_query.optimizer_tips.tags:
+                conn.autocommit = False
 
-            for query in self.config.session_props:
-                evaluate_sql(cur, query)
+            with conn.cursor() as cur:
+                for query in self.config.session_props:
+                    evaluate_sql(cur, query)
 
-            if self.config.enable_statistics:
-                self.logger.debug("Enable yb_enable_optimizer_statistics flag")
+                if self.config.enable_statistics:
+                    self.logger.debug("Enable yb_enable_optimizer_statistics flag")
 
-                evaluate_sql(cur, ENABLE_STATISTICS_HINT)
+                    evaluate_sql(cur, ENABLE_STATISTICS_HINT)
 
-            for original_query in queries:
                 try:
                     evaluate_sql(cur, f"SET statement_timeout = '{self.config.max_query_timeout}s'")
 
@@ -77,6 +79,10 @@ class QueryEvaluator:
                     raise e
                 finally:
                     counter += 1
+
+            if "dml" in original_query.optimizer_tips.tags:
+                conn.rollback()
+                conn.autocommit = True
 
     def evaluate_optimizations(self, cur, original_query):
         # build all possible optimizations

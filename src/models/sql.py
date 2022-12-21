@@ -170,13 +170,16 @@ class SQLModel(QTFModel):
             if comments := query_comments.split("\n"):
                 for comment_line in comments:
                     if comment_line.startswith("-- accept: "):
-                        tips.accept = [s.lstrip() for s in
+                        tips.accept = [s.strip() for s in
                                        comment_line.replace("-- accept: ", "").split(",")]
                     if comment_line.startswith("-- reject: "):
-                        tips.reject = [s.lstrip() for s in
+                        tips.reject = [s.strip() for s in
                                        comment_line.replace("-- reject: ", "").split(",")]
+                    if comment_line.startswith("-- tags: "):
+                        tips.tags = [s.strip() for s in
+                                       comment_line.replace("-- tags: ", "").split(",")]
                     if comment_line.startswith("-- max_timeout: "):
-                        tips.max_timeout = comment_line.replace("-- max_timeout: ", "").lstrip()
+                        tips.max_timeout = comment_line.replace("-- max_timeout: ", "").strip()
 
         return tips
 

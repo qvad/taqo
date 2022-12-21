@@ -25,6 +25,7 @@ class Table:
 class QueryTips:
     accept: List[str] = dataclasses.field(default_factory=list)
     reject: List[str] = dataclasses.field(default_factory=list)
+    tags: List[str] = dataclasses.field(default_factory=list)
     max_timeout: str = dataclasses.field(default_factory=str)
 
 
