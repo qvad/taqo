@@ -42,7 +42,11 @@ def get_result(cur, is_dml):
     return cardinality, str_result
 
 
-def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 0):
+def calculate_avg_execution_time(cur, query,
+                                 query_str=None,
+                                 num_retries: int = 0,
+                                 connection=None,
+                                 is_dml=False):
     config = Config()
 
     query_str = query_str or query.get_query()
@@ -50,9 +54,6 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
     with_analyze = query_str_lower is not None and \
                    "explain" in query_str_lower and \
                    ("analyze" in query_str_lower or "analyse" in query_str_lower)
-    is_dml = "update" in query_str_lower or \
-             "insert" in query_str_lower or \
-             "delete" in query_str_lower
 
     sum_execution_times = 0
     actual_evaluations = 0
@@ -69,7 +70,13 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
 
             result = None
             if iteration >= num_warmup and with_analyze:
+                if is_dml:
+                    connection.rollback()
+
                 _, result = get_result(cur, is_dml)
+
+                if is_dml:
+                    connection.rollback()
 
                 # get cardinality for queries with analyze
                 evaluate_sql(cur, query.get_query())
@@ -84,10 +91,16 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
             else:
                 sum_execution_times += current_milli_time() - start_time
 
+            if is_dml:
+                connection.rollback()
+
             if iteration == 0:
                 if not result:
                     cardinality, result = get_result(cur, is_dml)
                     query.result_cardinality = cardinality
+
+                    if is_dml:
+                        connection.rollback()
 
                 query.result_hash = get_md5(result)
         except psycopg2.errors.QueryCanceled:

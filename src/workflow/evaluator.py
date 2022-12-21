@@ -25,6 +25,7 @@ class QueryEvaluator:
             self.logger.exception("Failed to evaluate DDL queries", e)
             exit(1)
 
+        connection.autocommit = False
         self.evaluate_testing_queries(connection, queries, evaluate_optimizations)
 
         return model_queries, queries
@@ -32,8 +33,9 @@ class QueryEvaluator:
     def evaluate_testing_queries(self, conn, queries, evaluate_optimizations):
         counter = 1
         for original_query in queries:
-            if "dml" in original_query.optimizer_tips.tags:
-                conn.autocommit = False
+            is_dml = "update" in original_query.query.lower() or \
+                     "insert" in original_query.query.lower() or \
+                     "delete" in original_query.query.lower()
 
             with conn.cursor() as cur:
                 for query in self.config.session_props:
@@ -55,17 +57,25 @@ class QueryEvaluator:
                         evaluate_sql(cur, original_query.get_explain())
                         original_query.execution_plan = self.config.database.get_execution_plan('\n'.join(
                             str(item[0]) for item in cur.fetchall()))
+
+                        if is_dml:
+                            conn.rollback()
                     except psycopg2.errors.QueryCanceled:
                         try:
                             evaluate_sql(cur, original_query.get_heuristic_explain())
                             original_query.execution_plan = self.config.database.get_execution_plan('\n'.join(
                                 str(item[0]) for item in cur.fetchall()))
+
+                            if is_dml:
+                                conn.rollback()
                         except psycopg2.errors.QueryCanceled:
                             self.logger.error("Unable to get execution plan even w/o analyze")
                             original_query.execution_plan = self.config.database.get_execution_plan('')
 
                     calculate_avg_execution_time(cur, original_query,
-                                                 num_retries=int(self.config.num_retries))
+                                                 num_retries=int(self.config.num_retries),
+                                                 connection=conn,
+                                                 is_dml=is_dml)
 
                     if evaluate_optimizations and "dml" not in original_query.optimizer_tips.tags:
                         self.logger.debug("Evaluating optimizations...")
@@ -80,9 +90,7 @@ class QueryEvaluator:
                 finally:
                     counter += 1
 
-            if "dml" in original_query.optimizer_tips.tags:
-                conn.rollback()
-                conn.autocommit = True
+            conn.rollback()
 
     def evaluate_optimizations(self, cur, original_query):
         # build all possible optimizations
