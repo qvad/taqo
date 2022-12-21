@@ -1,11 +1,10 @@
-import hashlib
 import itertools
 import random
 
 from tqdm import tqdm
 
 from config import DDLStep
-from database import Query, Table, Field
+from objects import Field, Query, Table
 from models.abstract import QTFModel, QueryJoins
 from utils import evaluate_sql, get_md5
 
@@ -136,11 +135,11 @@ class ComplexModel(QTFModel):
                 # where clause types
                 next_where_expression_type = next(where_clauses)
                 if next_where_expression_type == "<":
-                    query += f" {first_table.name}.c_int {next_where_expression_type} {random.randint(1, min_size)}"
+                    query += f" {first_table.name}.c_int {next_where_expression_type} {random.randint(1, max_size)}"
                 elif next_where_expression_type == ">":
                     query += f" {first_table.name}.c_int {next_where_expression_type} {random.randint(1, int(min_size / 2))}"
                 elif next_where_expression_type == "IN":
-                    query += f" {first_table.name}.c_int {next_where_expression_type} ({','.join([str(random.randint(1, max_size)) for _ in range(50)])})"
+                    query += f" {first_table.name}.c_int {next_where_expression_type} ({','.join([str(random.randint(1, min_size)) for _ in range(50)])})"
                 else:
                     raise AttributeError(
                         f"Unknown where expression type {next_where_expression_type}")

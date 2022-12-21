@@ -1,0 +1,422 @@
+SELECT DISTINCT t500000.c_int, t50000.c_bool
+FROM t1000000
+         RIGHT OUTER JOIN t500000 ON t1000000.c_text = t500000.c_text
+         RIGHT OUTER JOIN t50000 ON t1000000.c_text = t50000.c_text
+WHERE t1000000.c_int < 474525
+ORDER BY t500000.c_int, t50000.c_bool DESC LIMIT 1000
+OFFSET 10;
+
+SELECT DISTINCT t50000.c_int, t1000000.c_varchar
+FROM t1000000
+         FULL JOIN t500000 ON t1000000.c_decimal = t500000.c_decimal
+         FULL JOIN t50000 ON t1000000.c_decimal = t50000.c_decimal
+WHERE t1000000.c_int IN
+      (2061, 35307, 41436, 21121, 28632, 16797, 233, 28316, 8765, 1829, 45900, 48754, 1727, 27618,
+       44508, 45840, 48218, 21112, 35380, 27691, 18495, 6081, 6981, 37721, 12004, 49657, 6606,
+       27090, 26204, 29330, 36976, 8332, 46467, 17712, 40355, 28486, 10460, 6820, 12766, 8583, 4709,
+       30529, 8322, 26240, 6504, 10828, 35586, 46892, 40674, 3993)
+ORDER BY t50000.c_int, t1000000.c_varchar DESC LIMIT 1000;
+
+SELECT DISTINCT t1000000.c_float, t500000.c_decimal, t100.c_varchar
+FROM t1000000
+         RIGHT OUTER JOIN t500000 ON t1000000.c_real = t500000.c_real
+         RIGHT OUTER JOIN t100 ON t1000000.c_real = t100.c_real
+WHERE t1000000.c_int > 9
+ORDER BY t1000000.c_float, t500000.c_decimal, t100.c_varchar DESC LIMIT 100
+OFFSET 50;
+
+SELECT DISTINCT t1000000.c_int
+FROM t1000000
+         FULL JOIN t500000 ON t1000000.c_int = t500000.c_int
+         FULL JOIN t100 ON t1000000.c_int = t100.c_int
+WHERE t1000000.c_int < 220555
+ORDER BY t1000000.c_int DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t500000.c_int, t1000000.c_text
+FROM t1000000
+         RIGHT OUTER JOIN t50000 ON t1000000.c_varchar = t50000.c_varchar
+         RIGHT OUTER JOIN t500000 ON t1000000.c_varchar = t500000.c_varchar
+WHERE t1000000.c_int IN
+      (44230, 19272, 12828, 180, 9991, 20709, 1098, 42172, 44765, 45031, 18325, 26259, 1676, 44798,
+       45333, 43930, 38855, 26519, 49908, 3679, 38917, 11014, 28247, 44940, 14011, 9782, 9994,
+       20286, 21609, 31704, 23955, 30035, 2875, 12751, 48843, 34983, 44446, 14237, 32621, 45055,
+       22236, 16141, 28109, 32749, 3843, 1890, 782, 31386, 22269, 48606)
+ORDER BY t500000.c_int, t1000000.c_text DESC LIMIT 1000;
+
+SELECT DISTINCT t1000000.c_float, t50000.c_text, t500000.c_varchar
+FROM t1000000
+         FULL JOIN t50000 ON t1000000.c_float = t50000.c_float
+         FULL JOIN t500000 ON t1000000.c_float = t500000.c_float
+WHERE t1000000.c_int > 6777
+ORDER BY t1000000.c_float, t50000.c_text, t500000.c_varchar DESC LIMIT 1000
+OFFSET 50;
+
+SELECT DISTINCT t1000000.c_float, t50000.c_real, t100.c_money
+FROM t1000000
+         RIGHT OUTER JOIN t50000 ON t1000000.c_money = t50000.c_money
+         RIGHT OUTER JOIN t100 ON t1000000.c_money = t100.c_money
+WHERE t1000000.c_int < 738859
+ORDER BY t1000000.c_float, t50000.c_real, t100.c_money DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t50000.c_int, t100.c_bool
+FROM t1000000
+         FULL JOIN t50000 ON t1000000.c_text = t50000.c_text
+         FULL JOIN t100 ON t1000000.c_text = t100.c_text
+WHERE t1000000.c_int IN
+      (86, 28, 23, 34, 96, 55, 7, 33, 51, 29, 1, 17, 36, 37, 28, 37, 44, 31, 56, 7, 24, 34, 8, 86,
+       87, 98, 95, 40, 59, 69, 71, 86, 53, 93, 64, 80, 97, 15, 4, 74, 12, 100, 60, 47, 47, 86, 79,
+       58, 71, 46)
+ORDER BY t50000.c_int, t100.c_bool DESC LIMIT 100;
+
+SELECT DISTINCT t500000.c_int, t1000000.c_varchar
+FROM t1000000
+         RIGHT OUTER JOIN t100 ON t1000000.c_decimal = t100.c_decimal
+         RIGHT OUTER JOIN t500000 ON t1000000.c_decimal = t500000.c_decimal
+WHERE t1000000.c_int > 22
+ORDER BY t500000.c_int, t1000000.c_varchar DESC LIMIT 100
+OFFSET 50;
+
+SELECT DISTINCT t100.c_float, t500000.c_decimal, t1000000.c_varchar
+FROM t1000000
+         FULL JOIN t100 ON t1000000.c_real = t100.c_real
+         FULL JOIN t500000 ON t1000000.c_real = t500000.c_real
+WHERE t1000000.c_int < 28365
+ORDER BY t100.c_float, t500000.c_decimal, t1000000.c_varchar DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t1000000.c_int
+FROM t1000000
+         RIGHT OUTER JOIN t100 ON t1000000.c_int = t100.c_int
+         RIGHT OUTER JOIN t50000 ON t1000000.c_int = t50000.c_int
+WHERE t1000000.c_int IN
+      (13, 67, 67, 81, 78, 10, 56, 85, 77, 85, 52, 99, 4, 28, 66, 24, 59, 56, 34, 29, 59, 30, 11, 2,
+       54, 9, 52, 51, 81, 78, 22, 64, 66, 62, 56, 67, 80, 90, 24, 58, 78, 25, 76, 7, 69, 45, 97, 78,
+       61, 69)
+ORDER BY t1000000.c_int DESC LIMIT 100;
+
+SELECT DISTINCT t1000000.c_int, t100.c_text
+FROM t1000000
+         FULL JOIN t100 ON t1000000.c_varchar = t100.c_varchar
+         FULL JOIN t50000 ON t1000000.c_varchar = t50000.c_varchar
+WHERE t1000000.c_int > 44
+ORDER BY t1000000.c_int, t100.c_text DESC LIMIT 100
+OFFSET 50;
+
+SELECT DISTINCT t50000.c_float, t500000.c_text, t1000000.c_varchar
+FROM t500000
+         RIGHT OUTER JOIN t1000000 ON t500000.c_float = t1000000.c_float
+         RIGHT OUTER JOIN t50000 ON t500000.c_float = t50000.c_float
+WHERE t500000.c_int < 798810
+ORDER BY t50000.c_float, t500000.c_text, t1000000.c_varchar DESC LIMIT 1000
+OFFSET 10;
+
+SELECT DISTINCT t50000.c_float, t500000.c_real, t1000000.c_money
+FROM t500000
+         FULL JOIN t1000000 ON t500000.c_money = t1000000.c_money
+         FULL JOIN t50000 ON t500000.c_money = t50000.c_money
+WHERE t500000.c_int IN
+      (37069, 22408, 40526, 42691, 11190, 21250, 44161, 13245, 7915, 31242, 47642, 25095, 47783,
+       1052, 24289, 49297, 25740, 47509, 7467, 45032, 34258, 3474, 41882, 2241, 31212, 7304, 32135,
+       9583, 34832, 28099, 33079, 39104, 42560, 3520, 5418, 47288, 13753, 41324, 31555, 25419,
+       39655, 24903, 677, 4512, 49403, 42930, 32092, 30835, 38775, 44493)
+ORDER BY t50000.c_float, t500000.c_real, t1000000.c_money DESC LIMIT 1000;
+
+SELECT DISTINCT t1000000.c_int, t100.c_bool
+FROM t500000
+         RIGHT OUTER JOIN t1000000 ON t500000.c_text = t1000000.c_text
+         RIGHT OUTER JOIN t100 ON t500000.c_text = t100.c_text
+WHERE t500000.c_int > 33
+ORDER BY t1000000.c_int, t100.c_bool DESC LIMIT 100
+OFFSET 50;
+
+SELECT DISTINCT t100.c_int, t500000.c_varchar
+FROM t500000
+         FULL JOIN t1000000 ON t500000.c_decimal = t1000000.c_decimal
+         FULL JOIN t100 ON t500000.c_decimal = t100.c_decimal
+WHERE t500000.c_int < 957670
+ORDER BY t100.c_int, t500000.c_varchar DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t500000.c_float, t50000.c_decimal, t1000000.c_varchar
+FROM t500000
+         RIGHT OUTER JOIN t50000 ON t500000.c_real = t50000.c_real
+         RIGHT OUTER JOIN t1000000 ON t500000.c_real = t1000000.c_real
+WHERE t500000.c_int IN
+      (22986, 29586, 17199, 37259, 9736, 34639, 31486, 13578, 47603, 26115, 39282, 11603, 5453,
+       22186, 40795, 28292, 29690, 19060, 12286, 12942, 20621, 25822, 49421, 18621, 19912, 11327,
+       6428, 12567, 45246, 30225, 11864, 18223, 41475, 31921, 1264, 5549, 41218, 45091, 1973, 21517,
+       48692, 3204, 41377, 28713, 44918, 2297, 16465, 38483, 12898, 39423)
+ORDER BY t500000.c_float, t50000.c_decimal, t1000000.c_varchar DESC LIMIT 1000;
+
+SELECT DISTINCT t500000.c_int
+FROM t500000
+         FULL JOIN t50000 ON t500000.c_int = t50000.c_int
+         FULL JOIN t1000000 ON t500000.c_int = t1000000.c_int
+WHERE t500000.c_int > 18654
+ORDER BY t500000.c_int DESC LIMIT 1000
+OFFSET 50;
+
+SELECT DISTINCT t100.c_int, t500000.c_text
+FROM t500000
+         RIGHT OUTER JOIN t50000 ON t500000.c_varchar = t50000.c_varchar
+         RIGHT OUTER JOIN t100 ON t500000.c_varchar = t100.c_varchar
+WHERE t500000.c_int < 457974
+ORDER BY t100.c_int, t500000.c_text DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t500000.c_float, t50000.c_text, t100.c_varchar
+FROM t500000
+         FULL JOIN t50000 ON t500000.c_float = t50000.c_float
+         FULL JOIN t100 ON t500000.c_float = t100.c_float
+WHERE t500000.c_int IN
+      (93, 23, 18, 44, 74, 15, 30, 14, 66, 52, 8, 43, 66, 12, 50, 64, 42, 87, 22, 24, 95, 5, 51, 31,
+       54, 33, 61, 96, 43, 8, 92, 100, 35, 99, 7, 44, 63, 95, 62, 57, 30, 9, 18, 48, 99, 51, 33, 29,
+       16, 35)
+ORDER BY t500000.c_float, t50000.c_text, t100.c_varchar DESC LIMIT 100;
+
+SELECT DISTINCT t500000.c_float, t100.c_real, t1000000.c_money
+FROM t500000
+         RIGHT OUTER JOIN t100 ON t500000.c_money = t100.c_money
+         RIGHT OUTER JOIN t1000000 ON t500000.c_money = t1000000.c_money
+WHERE t500000.c_int > 43
+ORDER BY t500000.c_float, t100.c_real, t1000000.c_money DESC LIMIT 100
+OFFSET 50;
+
+SELECT DISTINCT t100.c_int, t1000000.c_bool
+FROM t500000
+         FULL JOIN t100 ON t500000.c_text = t100.c_text
+         FULL JOIN t1000000 ON t500000.c_text = t1000000.c_text
+WHERE t500000.c_int < 323216
+ORDER BY t100.c_int, t1000000.c_bool DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t50000.c_int, t500000.c_varchar
+FROM t500000
+         RIGHT OUTER JOIN t100 ON t500000.c_decimal = t100.c_decimal
+         RIGHT OUTER JOIN t50000 ON t500000.c_decimal = t50000.c_decimal
+WHERE t500000.c_int IN
+      (13, 17, 74, 93, 76, 8, 82, 44, 26, 40, 96, 42, 3, 38, 98, 60, 1, 81, 62, 6, 1, 63, 29, 62,
+       93, 81, 35, 20, 28, 61, 56, 67, 8, 9, 62, 15, 51, 62, 81, 70, 40, 58, 95, 34, 74, 36, 80, 9,
+       74, 18)
+ORDER BY t50000.c_int, t500000.c_varchar DESC LIMIT 100;
+
+SELECT DISTINCT t100.c_float, t50000.c_decimal, t500000.c_varchar
+FROM t500000
+         FULL JOIN t100 ON t500000.c_real = t100.c_real
+         FULL JOIN t50000 ON t500000.c_real = t50000.c_real
+WHERE t500000.c_int > 29
+ORDER BY t100.c_float, t50000.c_decimal, t500000.c_varchar DESC LIMIT 100
+OFFSET 50;
+
+SELECT DISTINCT t50000.c_int
+FROM t50000
+         RIGHT OUTER JOIN t1000000 ON t50000.c_int = t1000000.c_int
+         RIGHT OUTER JOIN t500000 ON t50000.c_int = t500000.c_int
+WHERE t50000.c_int < 767700
+ORDER BY t50000.c_int DESC LIMIT 1000
+OFFSET 10;
+
+SELECT DISTINCT t50000.c_int, t1000000.c_text
+FROM t50000
+         FULL JOIN t1000000 ON t50000.c_varchar = t1000000.c_varchar
+         FULL JOIN t500000 ON t50000.c_varchar = t500000.c_varchar
+WHERE t50000.c_int IN
+      (8350, 28379, 47239, 24325, 6010, 4225, 15763, 15159, 16284, 8274, 38563, 6505, 9488, 10842,
+       15323, 27790, 27879, 42145, 13447, 28213, 34324, 1420, 21085, 22071, 31922, 33573, 12425,
+       39763, 23738, 14766, 32553, 44810, 2715, 20663, 29, 23015, 46749, 40103, 45914, 9228, 4665,
+       49288, 122, 24821, 22345, 29268, 29325, 46295, 13807, 4182)
+ORDER BY t50000.c_int, t1000000.c_text DESC LIMIT 1000;
+
+SELECT DISTINCT t100.c_float, t50000.c_text, t1000000.c_varchar
+FROM t50000
+         RIGHT OUTER JOIN t1000000 ON t50000.c_float = t1000000.c_float
+         RIGHT OUTER JOIN t100 ON t50000.c_float = t100.c_float
+WHERE t50000.c_int > 15
+ORDER BY t100.c_float, t50000.c_text, t1000000.c_varchar DESC LIMIT 100
+OFFSET 50;
+
+SELECT DISTINCT t100.c_float, t50000.c_real, t1000000.c_money
+FROM t50000
+         FULL JOIN t1000000 ON t50000.c_money = t1000000.c_money
+         FULL JOIN t100 ON t50000.c_money = t100.c_money
+WHERE t50000.c_int < 47696
+ORDER BY t100.c_float, t50000.c_real, t1000000.c_money DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t500000.c_int, t1000000.c_bool
+FROM t50000
+         RIGHT OUTER JOIN t500000 ON t50000.c_text = t500000.c_text
+         RIGHT OUTER JOIN t1000000 ON t50000.c_text = t1000000.c_text
+WHERE t50000.c_int IN
+      (18364, 7210, 7504, 22300, 38151, 2186, 19938, 36264, 23477, 16459, 37513, 5567, 30425, 25204,
+       21564, 16628, 28375, 29636, 32878, 43376, 40724, 46878, 24496, 49782, 11714, 14430, 39288,
+       1706, 8884, 31303, 20642, 3877, 3465, 25141, 34802, 9640, 4334, 20572, 12879, 41407, 28148,
+       39745, 41974, 4029, 31631, 4941, 33228, 49040, 20404, 46817)
+ORDER BY t500000.c_int, t1000000.c_bool DESC LIMIT 1000;
+
+SELECT DISTINCT t1000000.c_int, t50000.c_varchar
+FROM t50000
+         FULL JOIN t500000 ON t50000.c_decimal = t500000.c_decimal
+         FULL JOIN t1000000 ON t50000.c_decimal = t1000000.c_decimal
+WHERE t50000.c_int > 24230
+ORDER BY t1000000.c_int, t50000.c_varchar DESC LIMIT 1000
+OFFSET 50;
+
+SELECT DISTINCT t50000.c_float, t500000.c_decimal, t100.c_varchar
+FROM t50000
+         RIGHT OUTER JOIN t500000 ON t50000.c_real = t500000.c_real
+         RIGHT OUTER JOIN t100 ON t50000.c_real = t100.c_real
+WHERE t50000.c_int < 318300
+ORDER BY t50000.c_float, t500000.c_decimal, t100.c_varchar DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t50000.c_int
+FROM t50000
+         FULL JOIN t500000 ON t50000.c_int = t500000.c_int
+         FULL JOIN t100 ON t50000.c_int = t100.c_int
+WHERE t50000.c_int IN
+      (58, 19, 60, 49, 66, 5, 9, 63, 13, 28, 89, 13, 85, 21, 20, 13, 99, 8, 73, 72, 35, 69, 63, 77,
+       34, 47, 50, 83, 80, 52, 66, 37, 14, 50, 42, 95, 75, 55, 11, 62, 19, 3, 2, 35, 65, 69, 74, 86,
+       45, 83)
+ORDER BY t50000.c_int DESC LIMIT 100;
+
+SELECT DISTINCT t1000000.c_int, t50000.c_text
+FROM t50000
+         RIGHT OUTER JOIN t100 ON t50000.c_varchar = t100.c_varchar
+         RIGHT OUTER JOIN t1000000 ON t50000.c_varchar = t1000000.c_varchar
+WHERE t50000.c_int > 28
+ORDER BY t1000000.c_int, t50000.c_text DESC LIMIT 100
+OFFSET 50;
+
+SELECT DISTINCT t50000.c_float, t100.c_text, t1000000.c_varchar
+FROM t50000
+         FULL JOIN t100 ON t50000.c_float = t100.c_float
+         FULL JOIN t1000000 ON t50000.c_float = t1000000.c_float
+WHERE t50000.c_int < 221758
+ORDER BY t50000.c_float, t100.c_text, t1000000.c_varchar DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t50000.c_float, t100.c_real, t500000.c_money
+FROM t50000
+         RIGHT OUTER JOIN t100 ON t50000.c_money = t100.c_money
+         RIGHT OUTER JOIN t500000 ON t50000.c_money = t500000.c_money
+WHERE t50000.c_int IN
+      (76, 80, 27, 20, 9, 43, 67, 67, 17, 13, 51, 4, 98, 90, 44, 4, 28, 40, 95, 57, 78, 94, 68, 92,
+       71, 54, 86, 69, 100, 45, 99, 25, 26, 100, 8, 12, 58, 19, 75, 3, 33, 17, 2, 13, 72, 42, 26,
+       76, 41, 85)
+ORDER BY t50000.c_float, t100.c_real, t500000.c_money DESC LIMIT 100;
+
+SELECT DISTINCT t100.c_int, t500000.c_bool
+FROM t50000
+         FULL JOIN t100 ON t50000.c_text = t100.c_text
+         FULL JOIN t500000 ON t50000.c_text = t500000.c_text
+WHERE t50000.c_int > 49
+ORDER BY t100.c_int, t500000.c_bool DESC LIMIT 100
+OFFSET 50;
+
+SELECT DISTINCT t500000.c_int, t100.c_varchar
+FROM t100
+         RIGHT OUTER JOIN t1000000 ON t100.c_decimal = t1000000.c_decimal
+         RIGHT OUTER JOIN t500000 ON t100.c_decimal = t500000.c_decimal
+WHERE t100.c_int < 30117
+ORDER BY t500000.c_int, t100.c_varchar DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t1000000.c_float, t500000.c_decimal, t100.c_varchar
+FROM t100
+         FULL JOIN t1000000 ON t100.c_real = t1000000.c_real
+         FULL JOIN t500000 ON t100.c_real = t500000.c_real
+WHERE t100.c_int IN
+      (84, 4, 74, 94, 40, 44, 65, 82, 19, 93, 20, 100, 29, 95, 68, 60, 5, 7, 12, 9, 70, 64, 37, 53,
+       72, 87, 13, 30, 28, 46, 20, 15, 73, 19, 10, 23, 21, 10, 50, 4, 11, 85, 83, 7, 84, 30, 5, 68,
+       36, 35)
+ORDER BY t1000000.c_float, t500000.c_decimal, t100.c_varchar DESC LIMIT 100;
+
+SELECT DISTINCT t100.c_int
+FROM t100
+         RIGHT OUTER JOIN t1000000 ON t100.c_int = t1000000.c_int
+         RIGHT OUTER JOIN t50000 ON t100.c_int = t50000.c_int
+WHERE t100.c_int > 9
+ORDER BY t100.c_int DESC LIMIT 100
+OFFSET 50;
+
+SELECT DISTINCT t100.c_int, t1000000.c_text
+FROM t100
+         FULL JOIN t1000000 ON t100.c_varchar = t1000000.c_varchar
+         FULL JOIN t50000 ON t100.c_varchar = t50000.c_varchar
+WHERE t100.c_int < 371233
+ORDER BY t100.c_int, t1000000.c_text DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t1000000.c_float, t100.c_text, t500000.c_varchar
+FROM t100
+         RIGHT OUTER JOIN t500000 ON t100.c_float = t500000.c_float
+         RIGHT OUTER JOIN t1000000 ON t100.c_float = t1000000.c_float
+WHERE t100.c_int IN
+      (80, 9, 79, 69, 22, 18, 58, 20, 80, 39, 87, 41, 37, 60, 12, 97, 33, 18, 69, 78, 83, 38, 37,
+       60, 54, 86, 32, 59, 37, 36, 42, 5, 46, 32, 50, 86, 99, 6, 35, 13, 39, 24, 93, 31, 91, 22, 34,
+       42, 49, 80)
+ORDER BY t1000000.c_float, t100.c_text, t500000.c_varchar DESC LIMIT 100;
+
+SELECT DISTINCT t1000000.c_float, t100.c_real, t500000.c_money
+FROM t100
+         FULL JOIN t500000 ON t100.c_money = t500000.c_money
+         FULL JOIN t1000000 ON t100.c_money = t1000000.c_money
+WHERE t100.c_int > 35
+ORDER BY t1000000.c_float, t100.c_real, t500000.c_money DESC LIMIT 100
+OFFSET 50;
+
+SELECT DISTINCT t500000.c_int, t50000.c_bool
+FROM t100
+         RIGHT OUTER JOIN t500000 ON t100.c_text = t500000.c_text
+         RIGHT OUTER JOIN t50000 ON t100.c_text = t50000.c_text
+WHERE t100.c_int < 124830
+ORDER BY t500000.c_int, t50000.c_bool DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t50000.c_int, t100.c_varchar
+FROM t100
+         FULL JOIN t500000 ON t100.c_decimal = t500000.c_decimal
+         FULL JOIN t50000 ON t100.c_decimal = t50000.c_decimal
+WHERE t100.c_int IN
+      (9, 72, 99, 55, 52, 91, 18, 1, 17, 75, 15, 10, 39, 42, 57, 92, 76, 98, 35, 79, 65, 62, 69, 48,
+       13, 1, 87, 41, 42, 43, 25, 67, 53, 83, 17, 71, 45, 3, 40, 45, 21, 60, 39, 39, 12, 73, 58, 33,
+       77, 2)
+ORDER BY t50000.c_int, t100.c_varchar DESC LIMIT 100;
+
+SELECT DISTINCT t100.c_float, t50000.c_decimal, t1000000.c_varchar
+FROM t100
+         RIGHT OUTER JOIN t50000 ON t100.c_real = t50000.c_real
+         RIGHT OUTER JOIN t1000000 ON t100.c_real = t1000000.c_real
+WHERE t100.c_int > 20
+ORDER BY t100.c_float, t50000.c_decimal, t1000000.c_varchar DESC LIMIT 100
+OFFSET 50;
+
+SELECT DISTINCT t100.c_int
+FROM t100
+         FULL JOIN t50000 ON t100.c_int = t50000.c_int
+         FULL JOIN t1000000 ON t100.c_int = t1000000.c_int
+WHERE t100.c_int < 475577
+ORDER BY t100.c_int DESC LIMIT 100
+OFFSET 10;
+
+SELECT DISTINCT t500000.c_int, t100.c_text
+FROM t100
+         RIGHT OUTER JOIN t50000 ON t100.c_varchar = t50000.c_varchar
+         RIGHT OUTER JOIN t500000 ON t100.c_varchar = t500000.c_varchar
+WHERE t100.c_int IN
+      (15, 62, 100, 8, 78, 99, 37, 66, 55, 81, 31, 45, 73, 27, 86, 100, 32, 41, 32, 100, 3, 54, 72,
+       27, 54, 7, 82, 6, 89, 28, 14, 66, 78, 38, 44, 56, 1, 23, 96, 68, 75, 98, 57, 86, 7, 61, 9,
+       84, 65, 66)
+ORDER BY t500000.c_int, t100.c_text DESC LIMIT 100;
+
+SELECT DISTINCT t100.c_float, t50000.c_text, t500000.c_varchar
+FROM t100
+         FULL JOIN t50000 ON t100.c_float = t50000.c_float
+         FULL JOIN t500000 ON t100.c_float = t500000.c_float
+WHERE t100.c_int > 36
+ORDER BY t100.c_float, t50000.c_text, t500000.c_varchar DESC LIMIT 100
+OFFSET 50;
+

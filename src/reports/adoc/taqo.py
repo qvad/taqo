@@ -1,9 +1,10 @@
 import os
+from typing import Type
 
 from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
 
-from database import Query, ListOfQueries
+from objects import ListOfQueries, Query
 from reports.abstract import Report
 from utils import allowed_diff
 
@@ -55,11 +56,11 @@ class TaqoReport(Report):
         plt.ylabel('Optimizer cost')
 
         plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms != 0],
-                 [q.optimizer_score for q in optimizations if q.execution_time_ms != 0], 'k.',
+                 [q.execution_plan.get_estimated_cost() for q in optimizations if q.execution_time_ms != 0], 'k.',
                  [query.execution_time_ms],
-                 [query.optimizer_score], 'r^',
+                 [query.execution_plan.get_estimated_cost()], 'r^',
                  [best_optimization.execution_time_ms],
-                 [best_optimization.optimizer_score], 'go')
+                 [best_optimization.execution_plan.get_estimated_cost()], 'go')
 
         file_name = f'imgs/query_{self.reported_queries_counter}.png'
         plt.savefig(f"report/{self.start_date}/{file_name}")
@@ -67,7 +68,7 @@ class TaqoReport(Report):
 
         return file_name
 
-    def add_query(self, query: Query, pg: Query):
+    def add_query(self, query: Type[Query], pg: Type[Query] | None):
         best_optimization = query.get_best_optimization(self.config)
 
         if len(query.optimizations) > 1:
@@ -124,10 +125,11 @@ class TaqoReport(Report):
         :param query:
         :return:
         """
-        best_decision = max(row['weight'] for row in query.execution_plan_heatmap.values())
-        last_rowid = max(query.execution_plan_heatmap.keys())
+        execution_plan_heatmap = query.heatmap()
+        best_decision = max(row['weight'] for row in execution_plan_heatmap.values())
+        last_rowid = max(execution_plan_heatmap.keys())
         result = ""
-        for row_id, row in query.execution_plan_heatmap.items():
+        for row_id, row in execution_plan_heatmap.items():
             rows = row['str'].split("\n")
 
             if row['weight'] == best_decision:
@@ -211,7 +213,7 @@ class TaqoReport(Report):
         self.report += f"Cardinality|{query.result_cardinality}|{best_optimization.result_cardinality}"
         self._end_table_row()
         self._start_table_row()
-        self.report += f"Optimizer cost|{query.optimizer_score}|{best_optimization.optimizer_score}"
+        self.report += f"Optimizer cost|{query.execution_plan.get_estimated_cost()}|{best_optimization.execution_plan.get_estimated_cost()}"
         self._end_table_row()
         self._start_table_row()
         self.report += f"Execution time|{query.execution_time_ms}|{best_optimization.execution_time_ms}"

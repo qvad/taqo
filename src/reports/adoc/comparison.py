@@ -1,6 +1,6 @@
 from sql_formatter.core import format_sql
 
-from database import Query, ListOfQueries
+from objects import ListOfQueries, Query
 from reports.abstract import Report
 
 
@@ -95,7 +95,7 @@ class ComparisonReport(Report):
         self.report += f"Cardinality|{yb_query.result_cardinality}|{pg_query.result_cardinality}"
         self._end_table_row()
         self._start_table_row()
-        self.report += f"Optimizer cost|{yb_query.optimizer_score}|{pg_query.optimizer_score}"
+        self.report += f"Estimated cost|{yb_query.execution_plan.get_estimated_cost()}|{pg_query.execution_plan.get_estimated_cost()}"
         self._end_table_row()
         self._start_table_row()
         self.report += f"Execution time|{yb_query.execution_time_ms}|{pg_query.execution_time_ms}"

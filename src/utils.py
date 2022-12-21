@@ -18,14 +18,18 @@ def current_milli_time():
 
 def get_optimizer_score_from_plan(execution_plan):
     try:
-        matches = re.finditer(r"\s\(cost=\d+\.\d+\.\.(\d+\.\d+)", execution_plan, re.MULTILINE)
+        matches = re.finditer(r"\s\(cost=\d+\.\d+\.\.(\d+\.\d+)", execution_plan.full_str,
+                              re.MULTILINE)
         for matchNum, match in enumerate(matches, start=1):
             return float(match.groups()[0])
     except Exception:
         return 0
 
 
-def get_result(cur):
+def get_result(cur, is_dml):
+    if is_dml:
+        return cur.rowcount, f"{cur.rowcount} updates"
+
     result = cur.fetchall()
 
     str_result = ""
@@ -46,6 +50,9 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
     with_analyze = query_str_lower is not None and \
                    "explain" in query_str_lower and \
                    ("analyze" in query_str_lower or "analyse" in query_str_lower)
+    is_dml = "update" in query_str_lower or \
+             "insert" in query_str_lower or \
+             "delete" in query_str_lower
 
     sum_execution_times = 0
     actual_evaluations = 0
@@ -62,11 +69,11 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
 
             result = None
             if iteration >= num_warmup and with_analyze:
-                _, result = get_result(cur)
+                _, result = get_result(cur, is_dml)
 
                 # get cardinality for queries with analyze
                 evaluate_sql(cur, query.get_query())
-                cardinality, _ = get_result(cur)
+                cardinality, _ = get_result(cur, is_dml)
 
                 matches = re.finditer(r"Execution\sTime:\s(\d+\.\d+)\sms", result, re.MULTILINE)
                 for matchNum, match in enumerate(matches, start=1):
@@ -79,7 +86,7 @@ def calculate_avg_execution_time(cur, query, query_str=None, num_retries: int = 
 
             if iteration == 0:
                 if not result:
-                    cardinality, result = get_result(cur)
+                    cardinality, result = get_result(cur, is_dml)
                     query.result_cardinality = cardinality
 
                 query.result_hash = get_md5(result)
@@ -162,6 +169,9 @@ def evaluate_sql(cur, sql):
             cur.execute(sql, parameters)
         except psycopg2.errors.QueryCanceled as e:
             raise e
+        except psycopg2.OperationalError as oe:
+            config.logger.exception(sql, oe)
+            cur = cur.connection.curs()
         except Exception as e:
             config.logger.exception(sql, e)
             raise e
@@ -170,6 +180,9 @@ def evaluate_sql(cur, sql):
             cur.execute(sql_wo_parameters)
         except psycopg2.errors.QueryCanceled as e:
             raise e
+        except psycopg2.OperationalError as oe:
+            config.logger.exception(sql, oe)
+            cur = cur.connection.curs()
         except Exception as e:
             config.logger.exception(sql_wo_parameters, e)
             raise e

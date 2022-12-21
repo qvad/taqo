@@ -3,11 +3,13 @@ import argparse
 from pyhocon import ConfigFactory
 
 from config import Config, init_logger, ConnectionConfig, DDLStep
-from database import DEFAULT_USERNAME, DEFAULT_PASSWORD, get_queries_from_previous_result
+from db.factory import create_database
+from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD, PostgresResultsLoaded
 from reports.adoc.comparison import ComparisonReport
 from reports.adoc.regression import RegressionReport
 from reports.adoc.score import ScoreReport
 from reports.xls.score import ScoreXlsReport
+from reports.xls.regression import RegressionXlsReport
 from reports.adoc.selectivity import SelectivityReport
 from reports.adoc.taqo import TaqoReport
 
@@ -41,6 +43,10 @@ if __name__ == "__main__":
 
     parser.add_argument('action',
                         help='Action to perform - collect or report')
+
+    parser.add_argument('--db',
+                        default="postgres",
+                        help='Database to run against')
 
     parser.add_argument('--config',
                         default="config/default.conf",
@@ -237,6 +243,8 @@ if __name__ == "__main__":
 
         clear=args.clear)
 
+    config.database = create_database(args.db, config)
+
     config.logger.info("------------------------------------------------------------")
     config.logger.info("Query Optimizer Testing Framework for Postgres compatible DBs")
     config.logger.info("")
@@ -244,6 +252,8 @@ if __name__ == "__main__":
     for line in str(config).split("\n"):
         config.logger.info(line)
     config.logger.info("------------------------------------------------------------")
+
+    loader = PostgresResultsLoaded()
 
     if args.action == "collect":
         if args.output is None:
@@ -257,47 +267,54 @@ if __name__ == "__main__":
         sc.evaluate()
     elif args.action == "report":
         if args.type == "taqo":
-            yb_queries = get_queries_from_previous_result(args.results)
-            pg_queries = get_queries_from_previous_result(
+            yb_queries = loader.get_queries_from_previous_result(args.results)
+            pg_queries = loader.get_queries_from_previous_result(
                 args.pg_results) if args.pg_results else None
 
             TaqoReport.generate_report(yb_queries, pg_queries)
         elif args.type == "score":
-            yb_queries = get_queries_from_previous_result(args.results)
-            pg_queries = get_queries_from_previous_result(
+            yb_queries = loader.get_queries_from_previous_result(args.results)
+            pg_queries = loader.get_queries_from_previous_result(
                 args.pg_results) if args.pg_results else None
 
             ScoreReport.generate_report(yb_queries, pg_queries)
         elif args.type == "score_xls":
-            yb_queries = get_queries_from_previous_result(args.results)
-            pg_queries = get_queries_from_previous_result(
+            yb_queries = loader.get_queries_from_previous_result(args.results)
+            pg_queries = loader.get_queries_from_previous_result(
                 args.pg_results) if args.pg_results else None
 
             ScoreXlsReport.generate_report(yb_queries, pg_queries)
         elif args.type == "regression":
             report = RegressionReport()
 
-            v1_queries = get_queries_from_previous_result(args.v1_results)
-            v2_queries = get_queries_from_previous_result(args.v2_results)
+            v1_queries = loader.get_queries_from_previous_result(args.v1_results)
+            v2_queries = loader.get_queries_from_previous_result(args.v2_results)
+
+            report.generate_report(v1_queries, v2_queries)
+        elif args.type == "regression_xls":
+            report = RegressionXlsReport()
+
+            v1_queries = loader.get_queries_from_previous_result(args.v1_results)
+            v2_queries = loader.get_queries_from_previous_result(args.v2_results)
 
             report.generate_report(v1_queries, v2_queries)
         elif args.type == "comparison":
             report = ComparisonReport()
 
-            yb_queries = get_queries_from_previous_result(args.results)
-            pg_queries = get_queries_from_previous_result(
+            yb_queries = loader.get_queries_from_previous_result(args.results)
+            pg_queries = loader.get_queries_from_previous_result(
                 args.pg_results) if args.pg_results else None
 
             report.generate_report(yb_queries, pg_queries)
         elif args.type == "selectivity":
             report = SelectivityReport()
 
-            default_queries = get_queries_from_previous_result(args.default_results)
-            default_analyze_queries = get_queries_from_previous_result(args.default_analyze_results)
-            ta_queries = get_queries_from_previous_result(args.ta_results)
-            ta_analyze_queries = get_queries_from_previous_result(args.ta_analyze_results)
-            stats_queries = get_queries_from_previous_result(args.stats_results)
-            stats_analyze_queries = get_queries_from_previous_result(args.stats_analyze_results)
+            default_queries = loader.get_queries_from_previous_result(args.default_results)
+            default_analyze_queries = loader.get_queries_from_previous_result(args.default_analyze_results)
+            ta_queries = loader.get_queries_from_previous_result(args.ta_results)
+            ta_analyze_queries = loader.get_queries_from_previous_result(args.ta_analyze_results)
+            stats_queries = loader.get_queries_from_previous_result(args.stats_results)
+            stats_analyze_queries = loader.get_queries_from_previous_result(args.stats_analyze_results)
 
             report.generate_report(default_queries, default_analyze_queries, ta_queries,
                                    ta_analyze_queries, stats_queries, stats_analyze_queries)

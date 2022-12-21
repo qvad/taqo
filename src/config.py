@@ -4,6 +4,8 @@ import sys
 from enum import Enum
 from typing import List, Set
 
+from db.database import Database
+
 
 class Singleton(type):
     _instances = {}
@@ -52,6 +54,8 @@ class ConnectionConfig:
 class Config(metaclass=Singleton):
     logger: logging.Logger = None
 
+    database: Database = None
+
     remote_data_path: str = None
     ddl_prefix: str = ""
     with_optimizations: bool = False
@@ -67,7 +71,7 @@ class Config(metaclass=Singleton):
 
     compare_with_pg: bool = False
     enable_statistics: bool = False
-    explain_clause: bool = False
+    explain_clause: str = ""
     session_props: List[str] = None
 
     test: str = None

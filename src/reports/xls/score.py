@@ -1,7 +1,10 @@
+from typing import Type
+
 from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
 
-from database import Query, ListOfQueries
+from objects import ListOfQueries, Query
+from db.postgres import PostgresQuery
 from reports.abstract import Report
 
 
@@ -45,11 +48,11 @@ class ScoreXlsReport(Report):
         plt.ylabel('Optimizer cost')
 
         plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms != 0],
-                 [q.optimizer_score for q in optimizations if q.execution_time_ms != 0], 'k.',
+                 [q.execution_plan.get_estimated_cost() for q in optimizations if q.execution_time_ms != 0], 'k.',
                  [query.execution_time_ms],
-                 [query.optimizer_score], 'r^',
+                 [query.execution_plan.get_estimated_cost()], 'r^',
                  [best_optimization.execution_time_ms],
-                 [best_optimization.optimizer_score], 'go')
+                 [best_optimization.execution_plan.get_estimated_cost()], 'go')
 
         file_name = f'imgs/query_{self.reported_queries_counter}.png'
         plt.savefig(f"report/{self.start_date}/{file_name}")
@@ -57,7 +60,7 @@ class ScoreXlsReport(Report):
 
         return file_name
 
-    def add_query(self, query: Query, pg: Query):
+    def add_query(self, query: Type[Query], pg: Query | None):
         if query.tag not in self.queries:
             self.queries[query.tag] = [[query, pg], ]
         else:
@@ -123,8 +126,8 @@ class ScoreXlsReport(Report):
         # Iterate over the data and write it out row by row.
         for tag, queries in self.queries.items():
             for query in queries:
-                yb_query: Query = query[0]
-                pg_query: Query = query[1]
+                yb_query: PostgresQuery = query[0]
+                pg_query: PostgresQuery = query[1]
 
                 yb_best = yb_query.get_best_optimization(self.config)
                 pg_best = pg_query.get_best_optimization(self.config)

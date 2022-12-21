@@ -1,6 +1,6 @@
 from sql_formatter.core import format_sql
 
-from database import Query, ListOfQueries
+from objects import ListOfQueries, Query
 from reports.abstract import Report
 from utils import allowed_diff
 
@@ -123,9 +123,9 @@ class SelectivityReport(Report):
                        f"{all.result_cardinality}|{all_analyze.result_cardinality}"
         self._end_table_row()
         self._start_table_row()
-        self.report += f"Optimizer cost|{default.optimizer_score}|{default_analyze.optimizer_score}|" \
-                       f"{analyze.optimizer_score}|{analyze_analyze.optimizer_score}|" \
-                       f"{all.optimizer_score}|{all_analyze.optimizer_score}"
+        self.report += f"Optimizer cost|{default.execution_plan.get_estimated_cost()}|{default_analyze.execution_plan.get_estimated_cost()}|" \
+                       f"{analyze.execution_plan.get_estimated_cost()}|{analyze_analyze.execution_plan.get_estimated_cost()}|" \
+                       f"{all.execution_plan.get_estimated_cost()}|{all_analyze.execution_plan.get_estimated_cost()}"
         self._end_table_row()
         self._start_table_row()
         self.report += f"Execution time|{default.execution_time_ms}|{default_analyze.execution_time_ms}|" \

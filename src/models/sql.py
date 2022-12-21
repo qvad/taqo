@@ -11,7 +11,8 @@ from sqlparse.sql import Comment
 from tqdm import tqdm
 
 from config import DDLStep
-from database import Query, QueryTips, Table, Field
+from objects import QueryTips, Field
+from db.postgres import PostgresQuery, Table
 from models.abstract import QTFModel
 from utils import get_alias_table_names, evaluate_sql, get_md5
 
@@ -105,14 +106,14 @@ class SQLModel(QTFModel):
                       if row[1] not in ["pg_catalog", "information_schema"])
 
         self.logger.info("Loading columns and constraints...")
-        for table in tables:
+        for table_name, schema_name in tables:
             evaluate_sql(
                 cur,
                 f"""
                 select column_name
                 from information_schema.columns
-                where table_schema = '{table[1]}'
-                and table_name   = '{table[0]}';
+                where table_schema = '{schema_name}'
+                and table_name  = '{table_name}';
                 """
             )
 
@@ -136,7 +137,7 @@ class SQLModel(QTFModel):
                     and a.attrelid = t.oid
                     and a.attnum = ANY(ix.indkey)
                     and t.relkind = 'r'
-                    and t.relname like '{table[0]}'
+                    and t.relname like '{table_name}'
                 order by
                     t.relname,
                     i.relname;
@@ -146,11 +147,14 @@ class SQLModel(QTFModel):
             fields = []
 
             result = list(cur.fetchall())
-            for column in columns:
-                is_indexed = any(column == row[2] for row in result)
-                fields.append(Field(column, is_indexed))
+            try:
+                for column in columns:
+                    is_indexed = any(column == row[2] for row in result)
+                    fields.append(Field(column, is_indexed))
+            except Exception as e:
+                self.logger.exception(result, e)
 
-            created_tables.append(Table(table[0], fields, 0))
+            created_tables.append(Table(table_name, fields, 0))
 
     @staticmethod
     def get_comments(full_query):
@@ -166,13 +170,16 @@ class SQLModel(QTFModel):
             if comments := query_comments.split("\n"):
                 for comment_line in comments:
                     if comment_line.startswith("-- accept: "):
-                        tips.accept = [s.lstrip() for s in
+                        tips.accept = [s.strip() for s in
                                        comment_line.replace("-- accept: ", "").split(",")]
                     if comment_line.startswith("-- reject: "):
-                        tips.reject = [s.lstrip() for s in
+                        tips.reject = [s.strip() for s in
                                        comment_line.replace("-- reject: ", "").split(",")]
+                    if comment_line.startswith("-- tags: "):
+                        tips.tags = [s.strip() for s in
+                                       comment_line.replace("-- tags: ", "").split(",")]
                     if comment_line.startswith("-- max_timeout: "):
-                        tips.max_timeout = comment_line.replace("-- max_timeout: ", "").lstrip()
+                        tips.max_timeout = comment_line.replace("-- max_timeout: ", "").strip()
 
         return tips
 
@@ -188,7 +195,7 @@ class SQLModel(QTFModel):
                 for file_query in full_queries.split(";"):
                     if cleaned := sqlparse.format(file_query.lstrip(), strip_comments=True).strip():
                         tables_list = get_alias_table_names(cleaned, table_names)
-                        queries.append(Query(
+                        queries.append(PostgresQuery(
                             tag=os.path.basename(query).replace(".sql", ""),
                             query=cleaned,
                             query_hash=get_md5(cleaned),

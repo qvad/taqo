@@ -1,12 +1,10 @@
-from difflib import SequenceMatcher
-
 import psycopg2
 from tqdm import tqdm
 
-from database import ENABLE_STATISTICS_HINT, ExecutionPlan, Query, ListOfOptimizations
+from db.yugabyte import ENABLE_STATISTICS_HINT
 from models.factory import get_test_model
-from utils import evaluate_sql, get_optimizer_score_from_plan, calculate_avg_execution_time, \
-    get_md5, allowed_diff
+from utils import evaluate_sql, calculate_avg_execution_time, \
+    get_md5
 
 
 class QueryEvaluator:
@@ -18,6 +16,7 @@ class QueryEvaluator:
                  connection,
                  evaluate_optimizations=False):
         queries = []
+        model_queries = []
         try:
             model = get_test_model()
             created_tables, model_queries = model.create_tables(connection)
@@ -26,23 +25,25 @@ class QueryEvaluator:
             self.logger.exception("Failed to evaluate DDL queries", e)
             exit(1)
 
-        self.evaluate_queries_against_yugabyte(connection, queries, evaluate_optimizations)
+        self.evaluate_testing_queries(connection, queries, evaluate_optimizations)
 
-        return queries
+        return model_queries, queries
 
-    def evaluate_queries_against_yugabyte(self, conn, queries, evaluate_optimizations):
-        with conn.cursor() as cur:
-            counter = 1
+    def evaluate_testing_queries(self, conn, queries, evaluate_optimizations):
+        counter = 1
+        for original_query in queries:
+            if "dml" in original_query.optimizer_tips.tags:
+                conn.autocommit = False
 
-            for query in self.config.session_props:
-                evaluate_sql(cur, query)
+            with conn.cursor() as cur:
+                for query in self.config.session_props:
+                    evaluate_sql(cur, query)
 
-            if self.config.enable_statistics:
-                self.logger.debug("Enable yb_enable_optimizer_statistics flag")
+                if self.config.enable_statistics:
+                    self.logger.debug("Enable yb_enable_optimizer_statistics flag")
 
-                evaluate_sql(cur, ENABLE_STATISTICS_HINT)
+                    evaluate_sql(cur, ENABLE_STATISTICS_HINT)
 
-            for original_query in queries:
                 try:
                     evaluate_sql(cur, f"SET statement_timeout = '{self.config.max_query_timeout}s'")
 
@@ -52,21 +53,16 @@ class QueryEvaluator:
 
                     try:
                         evaluate_sql(cur, original_query.get_explain())
-                        original_query.execution_plan = ExecutionPlan('\n'.join(
+                        original_query.execution_plan = self.config.database.get_execution_plan('\n'.join(
                             str(item[0]) for item in cur.fetchall()))
-                        original_query.optimizer_score = get_optimizer_score_from_plan(
-                            original_query.execution_plan)
                     except psycopg2.errors.QueryCanceled:
                         try:
                             evaluate_sql(cur, original_query.get_heuristic_explain())
-                            original_query.execution_plan = ExecutionPlan('\n'.join(
+                            original_query.execution_plan = self.config.database.get_execution_plan('\n'.join(
                                 str(item[0]) for item in cur.fetchall()))
-                            original_query.optimizer_score = get_optimizer_score_from_plan(
-                                original_query.execution_plan)
                         except psycopg2.errors.QueryCanceled:
                             self.logger.error("Unable to get execution plan even w/o analyze")
-                            original_query.execution_plan = ExecutionPlan('')
-                            original_query.optimizer_score = -1
+                            original_query.execution_plan = self.config.database.get_execution_plan('')
 
                     calculate_avg_execution_time(cur, original_query,
                                                  num_retries=int(self.config.num_retries))
@@ -74,7 +70,6 @@ class QueryEvaluator:
                     if evaluate_optimizations:
                         self.logger.debug("Evaluating optimizations...")
                         self.evaluate_optimizations(cur, original_query)
-                        self.plan_heatmap(original_query)
 
                 except psycopg2.Error as pe:
                     # do not raise exception
@@ -85,11 +80,14 @@ class QueryEvaluator:
                 finally:
                     counter += 1
 
+            if "dml" in original_query.optimizer_tips.tags:
+                conn.rollback()
+                conn.autocommit = True
+
     def evaluate_optimizations(self, cur, original_query):
         # build all possible optimizations
-        list_of_optimizations = ListOfOptimizations(
-            self.config, original_query) \
-            .get_all_optimizations()
+        database = self.config.database
+        list_of_optimizations = database.get_list_optimizations(original_query)
 
         self.logger.debug(f"{len(list_of_optimizations)} optimizations generated")
         progress_bar = tqdm(list_of_optimizations)
@@ -124,19 +122,15 @@ class QueryEvaluator:
 
                 num_skipped += 1
                 optimization.execution_time_ms = 0
-                optimization.execution_plan = ExecutionPlan("")
-                optimization.optimizer_score = 0
+                optimization.execution_plan = database.get_execution_plan("")
                 continue
 
-            optimization.execution_plan = ExecutionPlan('\n'.join(
+            optimization.execution_plan = database.get_execution_plan('\n'.join(
                 str(item[0]) for item in cur.fetchall()))
 
             exec_plan_md5 = get_md5(optimization.execution_plan.get_clean_plan())
             not_unique_plan = exec_plan_md5 in execution_plans_checked
             execution_plans_checked.add(exec_plan_md5)
-
-            optimization.optimizer_score = get_optimizer_score_from_plan(
-                optimization.execution_plan)
 
             if not_unique_plan or not calculate_avg_execution_time(
                     cur,
@@ -154,32 +148,12 @@ class QueryEvaluator:
 
         return list_of_optimizations
 
-    def plan_heatmap(self, query: Query):
-        plan_heatmap = {line_id: {'weight': 0, 'str': execution_plan_line}
-                        for line_id, execution_plan_line in
-                        enumerate(query.execution_plan.get_no_cost_plan().split("->"))}
-
-        best_optimization = query.get_best_optimization(self.config)
-        for optimization in query.optimizations:
-            if allowed_diff(self.config, best_optimization.execution_time_ms,
-                            optimization.execution_time_ms):
-                no_cost_plan = optimization.execution_plan.get_no_cost_plan()
-                for plan_line in plan_heatmap.values():
-                    for optimization_line in no_cost_plan.split("->"):
-                        if SequenceMatcher(
-                                a=optimization.execution_plan.get_no_tree_plan_str(plan_line['str']),
-                                b=optimization.execution_plan.get_no_tree_plan_str(optimization_line)
-                        ).ratio() > 0.9:
-                            plan_line['weight'] += 1
-
-        query.execution_plan_heatmap = plan_heatmap
-
     def try_to_get_default_explain_hints(self, cur, optimization, original_query):
         if not original_query.explain_hints:
             if self.config.enable_statistics or optimization.execution_plan is None:
                 evaluate_sql(cur, optimization.get_heuristic_explain())
 
-                execution_plan = ExecutionPlan('\n'.join(
+                execution_plan = self.config.database.get_execution_plan('\n'.join(
                     str(item[0]) for item in cur.fetchall()))
             else:
                 execution_plan = optimization.execution_plan
