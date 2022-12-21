@@ -67,7 +67,7 @@ class QueryEvaluator:
                     calculate_avg_execution_time(cur, original_query,
                                                  num_retries=int(self.config.num_retries))
 
-                    if evaluate_optimizations:
+                    if evaluate_optimizations and "dml" not in original_query.optimizer_tips.tags:
                         self.logger.debug("Evaluating optimizations...")
                         self.evaluate_optimizations(cur, original_query)
 
