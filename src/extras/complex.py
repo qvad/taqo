@@ -55,7 +55,7 @@ class ComplexModel(QTFModel):
         model_queries = []
         with conn.cursor() as cur:
             for table in tqdm(self.TABLES):
-                evaluate_sql(cur, f"SET statement_timeout = '{self.config.max_query_timeout}s'")
+                evaluate_sql(cur, f"SET statement_timeout = '{self.config.ddl_query_timeout}s'")
 
                 colocation = "" if self.config.ddl_prefix else "WITH (colocated = true)"
 

@@ -68,6 +68,8 @@ class SQLModel(QTFModel):
         model_queries = []
         try:
             with conn.cursor() as cur:
+                evaluate_sql(cur, f"SET statement_timeout = '{self.config.ddl_query_timeout}s'")
+
                 path_to_file = f"sql/{self.config.model}/{file_name}.sql"
 
                 if not exists(path_to_file):

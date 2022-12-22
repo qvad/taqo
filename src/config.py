@@ -91,7 +91,8 @@ class Config(metaclass=Singleton):
     num_retries: int = None
     num_warmup: int = None
     skip_timeout_delta: int = None
-    max_query_timeout: int = None
+    ddl_query_timeout: int = None
+    test_query_timeout: int = None
     all_pairs_threshold: int = None
 
     asciidoctor_path: str = None

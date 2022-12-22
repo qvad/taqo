@@ -228,7 +228,8 @@ if __name__ == "__main__":
         random_seed=configuration.get("random-seed", 2022),
         skip_percentage_delta=configuration.get("skip-percentage-delta", 0.05),
         skip_timeout_delta=configuration.get("skip-timeout-delta", 1),
-        max_query_timeout=configuration.get("max-query-timeout", 1200),
+        ddl_query_timeout=configuration.get("ddl-query-timeout", 3600),
+        test_query_timeout=configuration.get("test-query-timeout", 1200),
         look_near_best_plan=configuration.get("look-near-best-plan", True),
         all_pairs_threshold=configuration.get("all-pairs-threshold", 3),
 
