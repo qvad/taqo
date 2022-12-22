@@ -43,16 +43,16 @@ def get_result(cur, is_dml):
     return cardinality, str_result
 
 
-def calculate_avg_execution_time(cur: object,
+def calculate_avg_execution_time(cur,
                                  query: Query,
                                  query_str: str = None,
                                  num_retries: int = 0,
-                                 connection: object = None) -> object:
+                                 connection=None) -> object:
     config = Config()
 
     query_str = query_str or query.get_query()
     query_str_lower = query_str.lower() if query_str is not None else None
-    
+
     with_analyze = query_with_analyze(query_str_lower)
     is_dml = query_is_dml(query_str_lower)
 
@@ -159,10 +159,11 @@ def evaluate_sql(cur, sql):
     config = Config()
 
     parameters = []
-
     sql_wo_parameters = copy(sql)
     str_param_skew = 0
     str_wo_param_skew = 0
+    changed_var_name = '%s'
+
     for match in re.finditer(PARAMETER_VARIABLE, sql, re.MULTILINE):
         var_value = match.groups()[1]
 
@@ -171,7 +172,6 @@ def evaluate_sql(cur, sql):
         else:
             correct_value = var_value.replace("'", "")
 
-        changed_var_name = '%s'
         sql = changed_var_name.join(
             [sql[:str_param_skew + match.start(1)],
              sql[str_param_skew + match.end(1):]])
