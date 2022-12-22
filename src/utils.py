@@ -5,7 +5,6 @@ import time
 from copy import copy
 
 import psycopg2
-from psycopg import Cursor, Connection
 from sql_metadata import Parser
 
 from config import Config
@@ -44,11 +43,11 @@ def get_result(cur, is_dml):
     return cardinality, str_result
 
 
-def calculate_avg_execution_time(cur: Cursor,
+def calculate_avg_execution_time(cur: object,
                                  query: Query,
                                  query_str: str = None,
                                  num_retries: int = 0,
-                                 connection: Connection = None) -> object:
+                                 connection: object = None) -> object:
     config = Config()
 
     query_str = query_str or query.get_query()
