@@ -5,9 +5,11 @@ import time
 from copy import copy
 
 import psycopg2
+from psycopg import Cursor, Connection
 from sql_metadata import Parser
 
 from config import Config
+from objects import Query
 
 PARAMETER_VARIABLE = r"[^'](\%\((.*?)\))"
 
@@ -42,18 +44,18 @@ def get_result(cur, is_dml):
     return cardinality, str_result
 
 
-def calculate_avg_execution_time(cur, query,
-                                 query_str=None,
+def calculate_avg_execution_time(cur: Cursor,
+                                 query: Query,
+                                 query_str: str = None,
                                  num_retries: int = 0,
-                                 connection=None,
-                                 is_dml=False):
+                                 connection: Connection = None) -> object:
     config = Config()
 
     query_str = query_str or query.get_query()
     query_str_lower = query_str.lower() if query_str is not None else None
-    with_analyze = query_str_lower is not None and \
-                   "explain" in query_str_lower and \
-                   ("analyze" in query_str_lower or "analyse" in query_str_lower)
+    
+    with_analyze = query_with_analyze(query_str_lower)
+    is_dml = query_is_dml(query_str_lower)
 
     sum_execution_times = 0
     actual_evaluations = 0
@@ -70,37 +72,25 @@ def calculate_avg_execution_time(cur, query,
 
             result = None
             if iteration >= num_warmup and with_analyze:
-                if is_dml:
-                    connection.rollback()
-
                 _, result = get_result(cur, is_dml)
-
-                if is_dml:
-                    connection.rollback()
+                connection.rollback()
 
                 # get cardinality for queries with analyze
                 evaluate_sql(cur, query.get_query())
                 cardinality, _ = get_result(cur, is_dml)
+                connection.rollback()
 
-                matches = re.finditer(r"Execution\sTime:\s(\d+\.\d+)\sms", result, re.MULTILINE)
-                for matchNum, match in enumerate(matches, start=1):
-                    result = float(match.groups()[0])
-                    break
-                sum_execution_times += result
+                sum_execution_times += extract_execution_time_from_analyze(result)
                 query.result_cardinality = cardinality
             else:
                 sum_execution_times += current_milli_time() - start_time
-
-            if is_dml:
                 connection.rollback()
 
             if iteration == 0:
                 if not result:
                     cardinality, result = get_result(cur, is_dml)
                     query.result_cardinality = cardinality
-
-                    if is_dml:
-                        connection.rollback()
+                    connection.rollback()
 
                 query.result_hash = get_md5(result)
         except psycopg2.errors.QueryCanceled:
@@ -121,6 +111,27 @@ def calculate_avg_execution_time(cur, query,
     query.execution_time_ms = sum_execution_times / actual_evaluations
 
     return True
+
+
+def query_with_analyze(query_str_lower):
+    return query_str_lower is not None and \
+           "explain" in query_str_lower and \
+           ("analyze" in query_str_lower or "analyse" in query_str_lower)
+
+
+def query_is_dml(query_str_lower):
+    return "update" in query_str_lower or \
+           "insert" in query_str_lower or \
+           "delete" in query_str_lower
+
+
+def extract_execution_time_from_analyze(result):
+    matches = re.finditer(r"Execution\sTime:\s(\d+\.\d+)\sms", result, re.MULTILINE)
+    for matchNum, match in enumerate(matches, start=1):
+        result = float(match.groups()[0])
+        break
+
+    return result
 
 
 def get_alias_table_names(sql_str, table_names):

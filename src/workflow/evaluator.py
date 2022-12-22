@@ -33,10 +33,6 @@ class QueryEvaluator:
     def evaluate_testing_queries(self, conn, queries, evaluate_optimizations):
         counter = 1
         for original_query in queries:
-            is_dml = "update" in original_query.query.lower() or \
-                     "insert" in original_query.query.lower() or \
-                     "delete" in original_query.query.lower()
-
             with conn.cursor() as cur:
                 for query in self.config.session_props:
                     evaluate_sql(cur, query)
@@ -58,24 +54,21 @@ class QueryEvaluator:
                         original_query.execution_plan = self.config.database.get_execution_plan('\n'.join(
                             str(item[0]) for item in cur.fetchall()))
 
-                        if is_dml:
-                            conn.rollback()
+                        conn.rollback()
                     except psycopg2.errors.QueryCanceled:
                         try:
                             evaluate_sql(cur, original_query.get_heuristic_explain())
                             original_query.execution_plan = self.config.database.get_execution_plan('\n'.join(
                                 str(item[0]) for item in cur.fetchall()))
 
-                            if is_dml:
-                                conn.rollback()
+                            conn.rollback()
                         except psycopg2.errors.QueryCanceled:
                             self.logger.error("Unable to get execution plan even w/o analyze")
                             original_query.execution_plan = self.config.database.get_execution_plan('')
 
                     calculate_avg_execution_time(cur, original_query,
                                                  num_retries=int(self.config.num_retries),
-                                                 connection=conn,
-                                                 is_dml=is_dml)
+                                                 connection=conn)
 
                     if evaluate_optimizations and "dml" not in original_query.optimizer_tips.tags:
                         self.logger.debug("Evaluating optimizations...")
