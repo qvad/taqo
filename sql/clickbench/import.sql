@@ -1,1 +1,0 @@
-COPY hits FROM '$DATA_PATH/hits.csv' with (delimiter ',', FORMAT csv, NULL 'NULL');
