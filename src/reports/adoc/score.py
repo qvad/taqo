@@ -117,10 +117,10 @@ class ScoreReport(Report):
                 yb_best = yb_query.get_best_optimization(self.config)
                 pg_best = pg_query.get_best_optimization(self.config)
 
-                default_yb_equality = "(eq) " if yb_query.compare_plans(
-                    yb_best.execution_plan) else ""
-                default_pg_equality = "(eq) " if pg_query.compare_plans(
-                    pg_best.execution_plan) else ""
+                default_yb_equality = "[green]" if yb_query.compare_plans(
+                    yb_best.execution_plan) else "[red]"
+                default_pg_equality = "[green]" if pg_query.compare_plans(
+                    pg_best.execution_plan) else "[red]"
 
                 best_yb_pg_equality = "(eq) " if yb_best.compare_plans(
                     pg_best.execution_plan) else ""
@@ -137,13 +137,12 @@ class ScoreReport(Report):
                     yb_best.execution_time_ms / pg_best.execution_time_ms if yb_best.execution_time_ms != 0 else 99999999)
                 ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
 
-                bitmap_flag = "(bm) " if "bitmap" in pg_query.execution_plan.full_str.lower() else ""
-                bitmap_flag_best = "(bm) " if "bitmap" in pg_best.execution_plan.full_str.lower() else ""
+                bitmap_flag = "[blue]" if "bitmap" in pg_query.execution_plan.full_str.lower() else "[black]"
 
-                self.report += f"|{'{:.2f}'.format(yb_query.execution_time_ms)}\n" \
-                               f"|{default_yb_equality}{'{:.2f}'.format(yb_best.execution_time_ms)}\n" \
-                               f"|{bitmap_flag}{'{:.2f}'.format(pg_query.execution_time_ms)}\n" \
-                               f"|{default_pg_equality}{bitmap_flag_best}{'{:.2f}'.format(pg_best.execution_time_ms)}\n" \
+                self.report += f"a|[black]#*{'{:.2f}'.format(yb_query.execution_time_ms)}*#\n" \
+                               f"a|{default_yb_equality}#*{'{:.2f}'.format(yb_best.execution_time_ms)}*#\n" \
+                               f"a|{bitmap_flag}#*{'{:.2f}'.format(pg_query.execution_time_ms)}*#\n" \
+                               f"a|{default_pg_equality}#*{'{:.2f}'.format(pg_best.execution_time_ms)}*#\n" \
                                f"a|{ratio_color}#*{ratio_x3_str}*#\n" \
                                f"a|{ratio_best_color}#*{best_yb_pg_equality}{ratio_best_x3_str}*#\n"
                 self.report += f"a|[#{yb_query.query_hash}_top]\n<<{yb_query.query_hash}>>\n"

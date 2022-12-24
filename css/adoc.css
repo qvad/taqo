@@ -353,5 +353,7 @@ video {
 /* Fixes for eyecatcher styles */
 .CodeRay .insert .eyecatcher{background:#32CD32}
 .CodeRay .delete .eyecatcher{background:#CD5C5C}
-.red {color:#800}
+.black {color: #000000}
+.red {color: #911717}
+.blue {color: #3a3aac}
 .green {color:#080}
