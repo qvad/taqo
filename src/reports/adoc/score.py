@@ -184,7 +184,10 @@ class ScoreReport(Report):
         :param query:
         :return:
         """
-        execution_plan_heatmap = query.heatmap()
+        # TODO FIX THIS!!!!!
+        if not (execution_plan_heatmap := query.heatmap()):
+            return
+
         best_decision = max(row['weight'] for row in execution_plan_heatmap.values())
         last_rowid = max(execution_plan_heatmap.keys())
         result = ""

@@ -297,13 +297,14 @@ class PostgresExecutionPlan(ExecutionPlan):
         except Exception:
             return 0
 
-    def get_no_cost_plan(self, execution_plan: 'PostgresExecutionPlan' = None):
+    @staticmethod
+    def get_no_cost_plan(execution_plan: 'PostgresExecutionPlan'):
         return re.sub(PLAN_CLEANUP_REGEX, '',
-                      execution_plan.full_str if execution_plan else self.full_str).strip()
+                      execution_plan.full_str).strip()
 
-    def get_no_tree_plan(self, execution_plan: 'PostgresExecutionPlan' = None):
-        return self.get_no_tree_plan_str(
-            execution_plan.full_str if execution_plan else self.full_str)
+    @staticmethod
+    def get_no_tree_plan(execution_plan: 'PostgresExecutionPlan'):
+        return PostgresExecutionPlan.get_no_tree_plan_str(execution_plan.full_str)
 
     @staticmethod
     def get_no_tree_plan_str(plan_str):
@@ -366,22 +367,24 @@ class PostgresQuery(Query):
         config = Config()
         plan_heatmap = {line_id: {'weight': 0, 'str': execution_plan_line}
                         for line_id, execution_plan_line in
-                        enumerate(self.execution_plan.get_no_cost_plan().split("->"))}
+                        enumerate(PostgresExecutionPlan.get_no_cost_plan(self.execution_plan).split("->"))}
 
         best_optimization = self.get_best_optimization(config)
         for optimization in self.optimizations:
             if allowed_diff(config, best_optimization.execution_time_ms,
                             optimization.execution_time_ms):
-                no_cost_plan = optimization.execution_plan.get_no_cost_plan()
+                no_cost_plan = PostgresExecutionPlan.get_no_cost_plan(optimization.execution_plan)
                 for plan_line in plan_heatmap.values():
                     for optimization_line in no_cost_plan.split("->"):
                         if SequenceMatcher(
-                                a=optimization.execution_plan.get_no_tree_plan_str(plan_line['str']),
-                                b=optimization.execution_plan.get_no_tree_plan_str(optimization_line)
+                                a=PostgresExecutionPlan.get_no_tree_plan_str(plan_line['str']),
+                                b=PostgresExecutionPlan.get_no_tree_plan_str(optimization_line)
                         ).ratio() > 0.9:
                             plan_line['weight'] += 1
 
         self.execution_plan_heatmap = plan_heatmap
+
+        return plan_heatmap
 
 
 @dataclasses.dataclass

@@ -1,22 +1,23 @@
 # Table of Contents
 
 1. [Query Optimizer Testing Framework](#query-optimizer-testing-framework)
-2. [Model](#model)
+2. [Installation](#installation)
+3. [Model](#model)
     1. [SQL model](#sql-model)
     2. [Basic SQL model](#basic-sql-model)
     3. [Other models](#other-models)
         1. [Complex model](#complex-model)
         2. [ClickBench OLAP model](#clickbench-olap-model)
-3. [Tests(outdated)](#tests)
+4. [Tests(outdated)](#tests)
     1. [TAQO-inspired test](#taqo-inspired-test)
     1. [Regression test](#regression-test)
     1. [Custom tests](#custom-tests)
-4. [Setup](#setup)
+5. [Setup](#setup)
     1. [Additional dependencies](#additional-dependencies)
-5. [Runner and configuration](#runner-and-configuration)
+6. [Runner and configuration](#runner-and-configuration)
     1. [Configuration](#configuration-todo)
     2. [Runner](#runner-todo)
-6. [Launch command examples](#launch-command-examples)
+7. [Launch command examples](#launch-command-examples)
 
 # Query Optimizer Testing Framework
 
@@ -25,6 +26,18 @@ optimizer current performance and changes. Main goal is to provide human readabl
 probably automate some checks.
 
 There are 2 main essences in the framework - *Model* and *Test/Report*.
+
+# Installation
+
+TBD
+
+1. Install python3.10+
+2. Install python requirements `python3.10 -m pip install -r requirements.txt`
+3. Install asciidoctor (NOT asciidoc!) and coderay `gem install coderay`
+
+```sh
+/usr/local/bin/python3.10 src/runner.py [collect | report] ...
+```
 
 ----
 ## Model
