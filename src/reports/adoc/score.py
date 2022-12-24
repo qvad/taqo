@@ -364,7 +364,7 @@ class ScoreReport(Report):
         self._end_source()
         self._end_collapsible()
 
-        self.report += f"{default_yb_equality}YB default vs YB best"
+        self.report += f"{default_yb_equality}YB default vs YB best\n"
         self._start_source(["diff"])
         diff = self._get_plan_diff(yb_query.execution_plan.full_str,
                                    yb_best.execution_plan.full_str)
