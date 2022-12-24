@@ -17,13 +17,13 @@ def current_milli_time():
     return (time.time_ns() // 1_000) / 1_000
 
 
-def get_optimizer_score_from_plan(execution_plan):
+def get_optimizer_score_from_plan(execution_plan_str):
     try:
-        matches = re.finditer(r"\s\(cost=\d+\.\d+\.\.(\d+\.\d+)", execution_plan.full_str,
+        matches = re.finditer(r"\s\(cost=\d+\.\d+\.\.(\d+\.\d+)", execution_plan_str,
                               re.MULTILINE)
         for matchNum, match in enumerate(matches, start=1):
             return float(match.groups()[0])
-    except Exception:
+    except Exception as e:
         return 0
 
 

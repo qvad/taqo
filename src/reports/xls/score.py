@@ -105,8 +105,8 @@ class ScoreXlsReport(Report):
                 yb_query = query[0]
                 pg_query = query[1]
 
-                yb_best = yb_query.get_best_optimization(self.config)
-                pg_best = pg_query.get_best_optimization(self.config)
+                yb_best = yb_query.get_best_optimization(self.config, )
+                pg_best = pg_query.get_best_optimization(self.config, )
 
                 yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
                 pg_bests += 1 if pg_query.compare_plans(pg_best.execution_plan) else 0
@@ -129,8 +129,8 @@ class ScoreXlsReport(Report):
                 yb_query: PostgresQuery = query[0]
                 pg_query: PostgresQuery = query[1]
 
-                yb_best = yb_query.get_best_optimization(self.config)
-                pg_best = pg_query.get_best_optimization(self.config)
+                yb_best = yb_query.get_best_optimization(self.config, )
+                pg_best = pg_query.get_best_optimization(self.config, )
 
                 default_yb_equality = yb_query.compare_plans(yb_best.execution_plan)
                 default_pg_equality = pg_query.compare_plans(pg_best.execution_plan)

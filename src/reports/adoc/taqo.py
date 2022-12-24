@@ -49,7 +49,7 @@ class TaqoReport(Report):
             return -1
         else:
             return "{:.2f}".format(
-                query.get_best_optimization(self.config).execution_time_ms / query.execution_time_ms)
+                query.get_best_optimization(self.config, ).execution_time_ms / query.execution_time_ms)
 
     def create_plot(self, best_optimization, optimizations, query):
         plt.xlabel('Execution time')

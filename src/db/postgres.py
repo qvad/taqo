@@ -180,19 +180,19 @@ class Leading:
 @dataclasses.dataclass
 class PostgresQuery(Query):
     execution_plan: 'PostgresExecutionPlan' = None
+    optimizations: List['PostgresOptimization'] = None
 
-    def get_best_optimization(self, config):
-        best_optimization = self
-        for optimization in best_optimization.optimizations:
-            if best_optimization.execution_time_ms < 0:
-                best_optimization = optimization
-            elif 0 < optimization.execution_time_ms < best_optimization.execution_time_ms:
-                best_optimization = optimization
+    def get_query(self):
+        return self.query
 
-        if allowed_diff(config, best_optimization.execution_time_ms, self.execution_time_ms):
-            return self
+    def get_explain(self):
+        return f"{get_explain_clause()} {self.query}"
 
-        return best_optimization
+    def get_heuristic_explain(self):
+        return f"EXPLAIN {self.query}"
+
+    def get_explain_analyze(self):
+        return f"EXPLAIN ANALYZE {self.query}"
 
     def tips_looks_fair(self, optimization):
         clean_plan = self.execution_plan.get_clean_plan()
@@ -212,9 +212,47 @@ class PostgresQuery(Query):
                f"Execution plan - \"{self.execution_plan}\"\n" \
                f"Execution time - \"{self.execution_time_ms}\""
 
+    def heatmap(self):
+        config = Config()
+        plan_heatmap = {line_id: {'weight': 0, 'str': execution_plan_line}
+                        for line_id, execution_plan_line in
+                        enumerate(self.execution_plan.get_no_cost_plan().split("->"))}
+
+        best_optimization = self.get_best_optimization(config)
+        for optimization in self.optimizations:
+            if allowed_diff(config, best_optimization.execution_time_ms,
+                            optimization.execution_time_ms):
+                no_cost_plan = optimization.execution_plan.get_no_cost_plan()
+                for plan_line in plan_heatmap.values():
+                    for optimization_line in no_cost_plan.split("->"):
+                        if SequenceMatcher(
+                                a=optimization.execution_plan.get_no_tree_plan_str(plan_line['str']),
+                                b=optimization.execution_plan.get_no_tree_plan_str(optimization_line)
+                        ).ratio() > 0.9:
+                            plan_line['weight'] += 1
+
+        self.execution_plan_heatmap = plan_heatmap
+
+        return plan_heatmap
+
+    def get_best_optimization(self, config):
+        best_optimization = self
+        for optimization in best_optimization.optimizations:
+            if best_optimization.execution_time_ms < 0:
+                best_optimization = optimization
+            elif 0 < optimization.execution_time_ms < best_optimization.execution_time_ms:
+                best_optimization = optimization
+
+        if allowed_diff(config, best_optimization.execution_time_ms, self.execution_time_ms):
+            return self
+
+        return best_optimization
+
 
 @dataclasses.dataclass
 class PostgresOptimization(PostgresQuery, Optimization):
+    execution_plan: 'PostgresExecutionPlan' = None
+
     def get_query(self):
         return f"/*+ {self.explain_hints} */ {self.query}"
 
@@ -297,14 +335,14 @@ class PostgresExecutionPlan(ExecutionPlan):
         except Exception:
             return 0
 
-    @staticmethod
-    def get_no_cost_plan(execution_plan: 'PostgresExecutionPlan'):
+    def get_no_cost_plan(self, execution_plan: 'PostgresExecutionPlan' = None):
         return re.sub(PLAN_CLEANUP_REGEX, '',
-                      execution_plan.full_str).strip()
+                      execution_plan.full_str if execution_plan else self.full_str).strip()
 
-    @staticmethod
-    def get_no_tree_plan(execution_plan: 'PostgresExecutionPlan'):
-        return PostgresExecutionPlan.get_no_tree_plan_str(execution_plan.full_str)
+    def get_no_tree_plan(self, execution_plan: 'PostgresExecutionPlan' = None):
+        return self.get_no_tree_plan_str(
+            execution_plan.full_str if execution_plan else self.full_str)
+
 
     @staticmethod
     def get_no_tree_plan_str(plan_str):
@@ -314,89 +352,6 @@ class PostgresExecutionPlan(ExecutionPlan):
         no_tree_plan = re.sub(PLAN_TREE_CLEANUP, '\n',
                               execution_plan.full_str if execution_plan else self.full_str).strip()
         return re.sub(PLAN_CLEANUP_REGEX, '', no_tree_plan).strip()
-
-@dataclasses.dataclass
-class PostgresQuery(Query):
-    execution_plan: 'PostgresExecutionPlan' = None
-    optimizations: List['PostgresOptimization'] = None
-
-    def get_query(self):
-        return self.query
-
-    def get_explain(self):
-        return f"{get_explain_clause()} {self.query}"
-
-    def get_heuristic_explain(self):
-        return f"EXPLAIN {self.query}"
-
-    def get_explain_analyze(self):
-        return f"EXPLAIN ANALYZE {self.query}"
-
-    def get_best_optimization(self, config):
-        best_optimization = self
-        for optimization in best_optimization.optimizations:
-            if best_optimization.execution_time_ms < 0:
-                best_optimization = optimization
-            elif 0 < optimization.execution_time_ms < best_optimization.execution_time_ms:
-                best_optimization = optimization
-
-        if allowed_diff(config, best_optimization.execution_time_ms, self.execution_time_ms):
-            return self
-
-        return best_optimization
-
-    def tips_looks_fair(self, optimization):
-        clean_plan = self.execution_plan.get_clean_plan()
-
-        return not any(
-            join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan
-            for join in Joins)
-
-    def compare_plans(self, execution_plan: Type['ExecutionPlan']):
-        return self.execution_plan.get_clean_plan() == \
-               self.execution_plan.get_clean_plan(execution_plan)
-
-    def __str__(self):
-        return f"Query - \"{self.query}\"\n" \
-               f"Tables - \"{self.tables}\"\n" \
-               f"Optimization hints - \"{self.explain_hints}\"\n" \
-               f"Execution plan - \"{self.execution_plan}\"\n" \
-               f"Execution time - \"{self.execution_time_ms}\""
-
-    def heatmap(self):
-        config = Config()
-        plan_heatmap = {line_id: {'weight': 0, 'str': execution_plan_line}
-                        for line_id, execution_plan_line in
-                        enumerate(PostgresExecutionPlan.get_no_cost_plan(self.execution_plan).split("->"))}
-
-        best_optimization = self.get_best_optimization(config)
-        for optimization in self.optimizations:
-            if allowed_diff(config, best_optimization.execution_time_ms,
-                            optimization.execution_time_ms):
-                no_cost_plan = PostgresExecutionPlan.get_no_cost_plan(optimization.execution_plan)
-                for plan_line in plan_heatmap.values():
-                    for optimization_line in no_cost_plan.split("->"):
-                        if SequenceMatcher(
-                                a=PostgresExecutionPlan.get_no_tree_plan_str(plan_line['str']),
-                                b=PostgresExecutionPlan.get_no_tree_plan_str(optimization_line)
-                        ).ratio() > 0.9:
-                            plan_line['weight'] += 1
-
-        self.execution_plan_heatmap = plan_heatmap
-
-        return plan_heatmap
-
-
-@dataclasses.dataclass
-class PostgresOptimization(Optimization):
-    def get_query(self):
-        return f"/*+ {self.explain_hints} */ {self.query}"
-
-    def get_explain(self):
-        return f"{get_explain_clause()}  /*+ {self.explain_hints} */ {self.query}"
-
-    def get_heuristic_explain(self):
-        return f"EXPLAIN /*+ {self.explain_hints} */ {self.query}"
 
 
 @dataclasses.dataclass

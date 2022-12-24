@@ -66,10 +66,10 @@ class Query:
     def compare_plans(self, execution_plan: Type['ExecutionPlan']):
         pass
 
-    def get_best_optimization(self, config: Config):
+    def heatmap(self):
         pass
 
-    def heatmap(self):
+    def get_best_optimization(self, config):
         pass
 
 

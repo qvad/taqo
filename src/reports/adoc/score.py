@@ -65,7 +65,7 @@ class ScoreReport(Report):
 
         return file_name
 
-    def add_query(self, query: Type[Query], pg: Query | None):
+    def add_query(self, query: Type[Query], pg: Type[Query] | None):
         if query.tag not in self.queries:
             self.queries[query.tag] = [[query, pg], ]
         else:
@@ -164,7 +164,7 @@ class ScoreReport(Report):
             for query in queries:
                 self.__report_query(query[0], query[1], True)
 
-    def __report_near_queries(self, query: Query):
+    def __report_near_queries(self, query: Type[Query]):
         best_optimization = query.get_best_optimization(self.config)
         if add_to_report := "".join(
                 f"`{optimization.explain_hints}`\n\n"
@@ -175,7 +175,7 @@ class ScoreReport(Report):
             self.report += add_to_report
             self._end_collapsible()
 
-    def __report_heatmap(self, query: Query):
+    def __report_heatmap(self, query: Type[Query]):
         """
         Here is the deal. In PG plans we can separate each plan tree node by splitting by `->`
         When constructing heatmap need to add + or - to the beginning of string `\n`.
@@ -226,7 +226,7 @@ class ScoreReport(Report):
         return result
 
     # noinspection InsecureHash
-    def __report_query(self, yb_query: Query, pg_query: Query, show_best: bool):
+    def __report_query(self, yb_query: Type[Query], pg_query: Type[Query], show_best: bool):
         yb_best = yb_query.get_best_optimization(self.config)
 
         self.reported_queries_counter += 1
@@ -289,7 +289,7 @@ class ScoreReport(Report):
             self.report += f"Cardinality|{yb_query.result_cardinality}|{yb_best.result_cardinality}|{pg_query.result_cardinality}|{pg_best.result_cardinality}"
             self._end_table_row()
             self._start_table_row()
-            self.report += f"Optimizer cost|{yb_query.execution_plan.get_estimated_cost()}|{default_yb_equality}{yb_best.execution_plan.get_estimated_cost()}|{pg_query.execution_plan.get_estimated_cost()}|{default_pg_equality}{pg_best.execution_plan.get_estimated_cost()}"
+            self.report += f"Estimated cost|{yb_query.execution_plan.get_estimated_cost()}|{default_yb_equality}{yb_best.execution_plan.get_estimated_cost()}|{pg_query.execution_plan.get_estimated_cost()}|{default_pg_equality}{pg_best.execution_plan.get_estimated_cost()}"
             self._end_table_row()
             self._start_table_row()
             self.report += f"Execution time|{'{:.2f}'.format(yb_query.execution_time_ms)}|{default_yb_equality}{'{:.2f}'.format(yb_best.execution_time_ms)}|{'{:.2f}'.format(pg_query.execution_time_ms)}|{default_pg_equality}{'{:.2f}'.format(pg_best.execution_time_ms)}"
