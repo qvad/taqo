@@ -72,7 +72,7 @@ class QueryEvaluator:
 
                     if evaluate_optimizations and "dml" not in original_query.optimizer_tips.tags:
                         self.logger.debug("Evaluating optimizations...")
-                        self.evaluate_optimizations(cur, original_query)
+                        self.evaluate_optimizations(conn, cur, original_query)
 
                 except psycopg2.Error as pe:
                     # do not raise exception
@@ -85,7 +85,7 @@ class QueryEvaluator:
 
             conn.rollback()
 
-    def evaluate_optimizations(self, cur, original_query):
+    def evaluate_optimizations(self, connection, cur, original_query):
         # build all possible optimizations
         database = self.config.database
         list_of_optimizations = database.get_list_optimizations(original_query)
@@ -136,7 +136,8 @@ class QueryEvaluator:
             if not_unique_plan or not calculate_avg_execution_time(
                     cur,
                     optimization,
-                    num_retries=int(self.config.num_retries)):
+                    num_retries=int(self.config.num_retries),
+                    connection=connection):
                 num_skipped += 1
 
             # get new minimum execution time
