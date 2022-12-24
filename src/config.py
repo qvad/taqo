@@ -99,29 +99,39 @@ class Config(metaclass=Singleton):
     clear: bool = False
 
     def __str__(self):
-        build_param_skipped = "(skipped)" if self.source_path else ""
-
-        connections = f"  Connection - {self.connection}\n"
-
-        return f"{connections}" + \
-               f"  Using following explain syntax - '{self.explain_clause} /*+ ... */ QUERY'\n" + \
-               f"  Running '{self.test}' test on model '{self.model}'\n" + \
-               f"  Repository code path '{self.source_path}', revisions to test {self.revision}\n" + \
-               f"  Additional properties defined:\n" + \
-               f"    --num_nodes: {self.num_nodes}\n" + \
-               f"    --tserver_flags: {self.tserver_flags} {build_param_skipped}\n" + \
-               f"    --master_flags: {self.master_flags} {build_param_skipped}\n" + \
-               f"    --num_queries: {self.num_queries}\n" + \
-               f"    --num_retries: {self.num_retries}\n" + \
-               f"    --random_seed: {self.random_seed}\n" + \
-               f"    --basic_multiplier: x{self.basic_multiplier}\n" + \
-               f"    --skip_timeout_delta: ±{self.skip_timeout_delta}s\n" + \
-               f"    --model_creation: {[m.name for m in self.ddls]}\n" + \
-               f"    --output: {self.output}.json\n" + \
-               f"    --look_near_best_plan: {self.look_near_best_plan}\n" + \
-               f"    --all_pairs_threshold: {self.all_pairs_threshold}\n" + \
-               f"    --clean_db: {self.clean_db}\n" + \
-               f"    --allow_destroy_db: {self.allow_destroy_db}\n" + \
-               f"    --clean_build: {self.clean_build}\n" + \
-               f"    --asciidoctor_path: '{self.asciidoctor_path}'\n" + \
-               f"    --clear: '{self.clear}'\n"
+        return "Configuration" + \
+               f"DB - {self.database.__class__.__name__}\n" \
+               f"\n" \
+               f"remote_data_path - {self.remote_data_path}\n" \
+               f"ddl_prefix - {self.ddl_prefix}\n" \
+               f"with_optimizations - {self.with_optimizations}\n" \
+               f"source_path - {self.source_path}\n" \
+               f"output - {self.output}\n" \
+               f"revision - {self.revision}\n" \
+               f"num_nodes - {self.num_nodes}\n" \
+               f"tserver_flags - {self.tserver_flags}\n" \
+               f"master_flags - {self.master_flags}\n" \
+               f"connection - {self.connection}\n" \
+               f"enable_statistics - {self.enable_statistics}\n" \
+               f"explain_clause - {self.explain_clause}\n" \
+               f"session_props - {self.session_props}\n" \
+               f"test - {self.test}\n" \
+               f"model - {self.model}\n" \
+               f"basic_multiplier - {self.basic_multiplier}\n" \
+               f"random_seed - {self.random_seed}\n" \
+               f"ddls - {[m.name for m in self.ddls]}\n" \
+               f"clean_db - {self.clean_db}\n" \
+               f"allow_destroy_db - {self.allow_destroy_db}\n" \
+               f"clean_build - {self.clean_build}\n" \
+               f"skip_percentage_delta - {self.skip_percentage_delta}\n" \
+               f"look_near_best_plan - {self.look_near_best_plan}\n" \
+               f"num_queries - {self.num_queries}\n" \
+               f"parametrized - {self.parametrized}\n" \
+               f"num_retries - {self.num_retries}\n" \
+               f"num_warmup - {self.num_warmup}\n" \
+               f"skip_timeout_delta - {self.skip_timeout_delta}\n" \
+               f"ddl_query_timeout - {self.ddl_query_timeout}\n" \
+               f"test_query_timeout - {self.test_query_timeout}\n" \
+               f"all_pairs_threshold - {self.all_pairs_threshold}\n" \
+               f"asciidoctor_path - {self.asciidoctor_path}\n" \
+               f"clear - {self.clear}\n"

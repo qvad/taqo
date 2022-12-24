@@ -1,5 +1,6 @@
 import dataclasses
 import json
+import os
 from typing import List, Dict, Type
 
 from dacite import Config as DaciteConfig
@@ -162,5 +163,8 @@ class ResultsLoaded:
             return from_dict(self.clazz, json.load(prev_result), DaciteConfig(check_types=False))
 
     def store_queries_to_file(self, queries: Type[ListOfQueries], output_json_name: str):
+        if not os.path.isdir("report"):
+            os.mkdir("report")
+
         with open(f"report/{output_json_name}.json", "w") as result_file:
             result_file.write(json.dumps(queries, cls=EnhancedJSONEncoder))
