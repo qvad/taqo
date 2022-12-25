@@ -27,18 +27,6 @@ probably automate some checks.
 
 There are 2 main essences in the framework - *Model* and *Test/Report*.
 
-# Installation
-
-TBD
-
-1. Install python3.10+
-2. Install python requirements `python3.10 -m pip install -r requirements.txt`
-3. Install asciidoctor (NOT asciidoc!) and coderay `gem install coderay`
-
-```sh
-/usr/local/bin/python3.10 src/runner.py [collect | report] ...
-```
-
 ----
 ## Model
 
@@ -198,7 +186,11 @@ Result is a report with a table with following layout:
 ----
 # Setup
 
-Install Python dependencies `pip install -r requirements.txt` and setup you SUT database.
+There are few things required before TAQO can be fully usable.
+
+1. Install python3.10+
+2. Install python requirements `python3.10 -m pip install -r requirements.txt`
+3. Install `asciidoctor` (NOT asciidoc!) and coderay `gem install coderay`
 
 ### Additional dependencies
 
