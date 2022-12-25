@@ -1,13 +1,29 @@
 # Query Optimizer Testing Framework
 
-Idea of the framework is to automate routines around query optimizer testing and generate a human
-readable report that can be manually verified.
+Idea of the framework is to automate routines around query optimizer testing and generate human-readable report that can be manually verified.
 Since the query optimizer depends on data on cluster, hardware, etc.., all test scenarios are trying
-to reduce these effects and exclude hard checks in fail criterias.
+to reduce these effects and exclude hard checks in fail criteria.
 
-There are 3 main essences in the framework - **Model** and actions: **Collect** and **Report**.
+# Installation
+
+There are few things required before TAQO can be fully usable.
+
+1. Install python3.10+
+2. Create `venv` if needed
+3. Install python requirements `pip install -r requirements.txt`
+
+### Additional dependencies
+
+To generate PDF/HTML from `.adoc` file [asciidoc utility](https://asciidoc.org/) needed. In some
+environments `--asciidoctor-path` must be specified, e.g. for macOS Homebrew installation value
+should be `/opt/homebrew/bin/asciidoctor`. Note that `asciidoc` and `asciidoctor` are separate
+projects!
+
+For proper syntax highlight `coderay` must be installed by `gem install coderay`
 
 ----
+
+There are 3 main essences in the framework - **Model** and actions: **Collect** and **Report**.
 
 ## Model
 
@@ -25,16 +41,16 @@ sql/$MODEL_NAME/create.sql
 sql/$MODEL_NAME/queries/*.sql
 ```
 
-### Basic
+### basic
 
 This model is trying to cover most usable features in optimizer, so that on regression/comparison
 test all problems should be visible. See `sql/basic/*` structure.
 
-### Complex
+### complex
 
-Generated queries that focus on testing different joins and subqueries
+Generated queries that focus on testing different joins and sub-queries
 
-#### join-order-benchmark queries
+### join-order-benchmark
 
 See [join-order-benchmark](https://github.com/gregrahn/join-order-benchmark)
 
@@ -57,13 +73,13 @@ final execution time will be AVG from later 5 tries)
 
 ### Collecting optimizations (Based on TAQO paper)
 
-This test is inspired
+This algorithm is inspired
 by [TAQO](https://www.researchgate.net/publication/241623318_Testing_the_accuracy_of_query_optimizers)
 page. Idea is to evaluate query and all possible optimisations for it. After that we compare
 execution time and other parameters to tell if optimiser works well. Query evaluated few times (
-see `--num-retries`) to avoid invalid results.
+see `--num-retries`) to avoid inaccurate results.
 
-Test detects all tables that are used in query, generates all possible permutations (basically
+Tool detects all tables that are used in query, generates all possible permutations (basically
 framework tries to generate all possible `Leading` hints) and then tries to generate possible
 optimizations using pg_hint by combining current table permutation with different types of Joins (
 Nested Loop Join, Merge, Hash) and scans (Index if available, Sequential).
@@ -71,7 +87,7 @@ Nested Loop Join, Merge, Hash) and scans (Index if available, Sequential).
 For example for 3 tables `‘a’, ‘b’, ‘c’` there will be following permutations generated:
 `[('a', 'b', 'c'), ('a', 'c', 'b'), ('b', 'a', 'c'), ('b', 'c', 'a'), ('c', 'a', 'b'), ('c', 'b', 'a')]]`
 . Each permutation will be transformed into a Leading hint (`Leading ((a b) c)` `Leading ((a c) b)`
-etc). After all leading hints are generated, the tool will try to generate all possible combinations
+etc.). After all leading hints are generated, the tool will try to generate all possible combinations
 of NL, Merge, Hash joins
 (`Leading ((a b) c) Merge(a b) Merge(a b c)`, `Leading ((a b) c) Merge(a b) Hash(a b c)` etc) .
 After all joins are used, the tool will apply all possible combinations of scans based on the tables
@@ -95,10 +111,13 @@ by using pairwise approach: `[['Nested', 'Nested', 'Nested'], ['Hash', 'Hash', '
 , ['Merge', 'Nested', 'Merge']]`. Note that here each 3 tables (2 joins) will be tried to be joined
 by each join type, but for example `[‘Merge’,'Merge','Merge']` combination is not here.
 
-Another option to reduce number of optimizations is
-using comment hints in `*.sql` files - comma separated accepted and rejected substrings
-of `pg_hints`
-can be mentioned there:
+There is `all-pairs-threshold` parameter in configuration - it defines maximum number of tables in query after which
+pairwise approach will be used. By default, this threshold is equal to `3`. For this value, for example,`basic` model will
+be evaluated without using pairwise, while JOB and complex models will reduce number of combinations. 
+
+Another option to
+reduce number of optimizations is using comment hints in `*.sql` files - comma separated accepted and rejected
+substrings of `pg_hints`can be mentioned there:
 
 ```sql
 -- accept: a b c
@@ -107,46 +126,50 @@ can be mentioned there:
 -- tags: muted_nlj, 5s_max
 
 select a.c1,
-       a.c2,
-    ...
+       a.c2, 
+       ...
 ```
 
 In this example framework will only use join order from the accept hint and reject all NestLoop
-joins. Max query timeout will be limited by 1 second.
+joins. Max query timeout will be limited by 5 seconds.
 
 After optimizations are generated, the framework evaluates all of them with maximum query timeout
-equal to current minimum execution time (starts with original optimization timeout) so don’t spend
+equal to current minimum execution time (starts with original optimization timeout) so do not spend
 time on worst cases.
+
+----
 
 ## Report
 
 Report action evaluates a few automated checks based on provided data and then generates reports in
 ASCIIDOC format (Something like extended Markdown format). This specific format allow to create
-complex html files with code syntax highlight inside tables eg. Framework supports adding new
+complex html files with code syntax highlight inside tables e.g. Framework supports adding new
 scenarios.
 
 ### TAQO/Score
 
 TAQO report is a basic report that analyzes QO performance. For this test user need to provide a
-JSON file with optimizations. Based on this information report will show TAQO plot, score, best
-optimization and how it differs with default one. In addition user can provide PG results, in this
-case there will be also comparison with PG execution plans
+JSON file with optimizations. Based on this information report will show TAQO plot, score, the best
+optimization and how it differs with default one. In addition, user can provide PG results, in this
+case there will be also comparison with PG execution plans if specified.
 
 ### Default execution plan comparison
 
 These reports do not require optimizations to be evaluated, to test itself might be quick.
 
-#### Regression
+#### Regression and Comparison
 
-Scenario:
+See `bin/regression.sh` for steps.
 
 1. Start cluster of version1.
 2. Evaluate all queries and store results for version1
-3. Upgrade cluster to version2.
+3. Upgrade cluster to version2 (or against PG compatible DB).
 4. Evaluate all queries and store results for version2
 5. Generate `report` with plans comparison version1 vs version2
 
 #### Selectivity testing
+
+See `bin/selectivity.sh` for steps.
 
 1. Evaluate EXPLAIN query
 2. Evaluate EXPLAIN ANALYZE query
@@ -156,24 +179,7 @@ Scenario:
 6. Enable statistics hint
 7. Evaluate EXPLAIN query
 8. Evaluate EXPLAIN ANALYZE query
-
-----
-
-# Setup
-
-There are few things required before TAQO can be fully usable.
-
-1. Install python3.10+
-2. Install python requirements `python3.10 -m pip install -r requirements.txt`
-
-### Additional dependencies
-
-To generate PDF/HTML from `.adoc` file [asciidoc utility](https://asciidoc.org/) needed. In some
-environments `--asciidoctor-path` must be specified, e.g. for MacOS Homebrew installation value
-should be `/opt/homebrew/bin/asciidoctor`. Note that `asciidoc` and `asciidoctor` are separate
-projects!
-
-For proper syntax highlight `coderay` must be installed by `gem install coderay`
+9. Generate `report` with plans comparison between 6 different result files
 
 ----
 
