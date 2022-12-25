@@ -1,33 +1,14 @@
-# Table of Contents
-
-1. [Query Optimizer Testing Framework](#query-optimizer-testing-framework)
-2. [Installation](#installation)
-3. [Model](#model)
-    1. [SQL model](#sql-model)
-    2. [Basic SQL model](#basic-sql-model)
-    3. [Other models](#other-models)
-        1. [Complex model](#complex-model)
-        2. [ClickBench OLAP model](#clickbench-olap-model)
-4. [Tests(outdated)](#tests)
-    1. [TAQO-inspired test](#taqo-inspired-test)
-    1. [Regression test](#regression-test)
-    1. [Custom tests](#custom-tests)
-5. [Setup](#setup)
-    1. [Additional dependencies](#additional-dependencies)
-6. [Runner and configuration](#runner-and-configuration)
-    1. [Configuration](#configuration-todo)
-    2. [Runner](#runner-todo)
-7. [Launch command examples](#launch-command-examples)
-
 # Query Optimizer Testing Framework
 
-Idea of framework is to provide semi-automated tests that may help in testing and validating query
-optimizer current performance and changes. Main goal is to provide human readable reports and
-probably automate some checks.
+Idea of the framework is to automate routines around query optimizer testing and generate a human
+readable report that can be manually verified.
+Since the query optimizer depends on data on cluster, hardware, etc.., all test scenarios are trying
+to reduce these effects and exclude hard checks in fail criterias.
 
-There are 2 main essences in the framework - *Model* and *Test/Report*.
+There are 3 main essences in the framework - **Model** and actions: **Collect** and **Report**.
 
 ----
+
 ## Model
 
 Model is a set of DDLs that define the model and select queries that need to be tested
@@ -44,42 +25,37 @@ sql/$MODEL_NAME/create.sql
 sql/$MODEL_NAME/queries/*.sql
 ```
 
-### Basic SQL model
+### Basic
 
 This model is trying to cover most usable features in optimizer, so that on regression/comparison
 test all problems should be visible. See `sql/basic/*` structure.
 
-### Other models
+### Complex
 
-#### Subqueries
-
-Small set of queries with subqueries and joins
-
-#### Complex model
-
-Generated queries that focus on testing different Joins. See `src/models/complex.py`
-
-#### ClickBench queries
-
-Model based on [ClickBench](https://github.com/ClickHouse/ClickBench). See `sql/clickbench/**`
-
-#### TPCH
-
-Popular benchmark to test OLAP DBs
+Generated queries that focus on testing different joins and subqueries
 
 #### join-order-benchmark queries
 
 See [join-order-benchmark](https://github.com/gregrahn/join-order-benchmark)
 
 ----
-## Tests
 
-Tests are a sequence of following actions: creating tables (if needed), running queries, collecting
-results, evaluating a few automated checks and then finally generating a report in ASCIIDOC format (
-Something like extended Markdown format). This specific format allow to create complex html files
-with code syntax highlight inside tables eg. Framework supports adding new scenarios.
+## Actions
 
-### TAQO-inspired test
+Basic evaluation contains two actions - collect and report. Collect will evaluate all queries in the
+model and store it into a JSON file. On report action users need to define one or few JSON files and
+based on that different reports will be generated.
+Collect
+Test is a sequence of following actions: evaluate DDLs (if needed), running queries, evaluate
+possible optimizations (if needed) and finally collect results to the JSON file.
+
+In all tests the framework is able to detect the equal execution plans, the main validation criteria
+is query execution time. For regression tests RPC Calls, Memory Usage, Rows scanned metrics from
+EXPLAIN ANALYZE are also available.
+Each query evaluated few times (6 times total by default, first execution stats are skipped, the
+final execution time will be AVG from later 5 tries)
+
+### Collecting optimizations (Based on TAQO paper)
 
 This test is inspired
 by [TAQO](https://www.researchgate.net/publication/241623318_Testing_the_accuracy_of_query_optimizers)
@@ -104,10 +80,22 @@ used and its indexes.
 applied, no matter which columns are selected). For 4 tables there will be 423 possible `pg_hint`
 for example.
 
-To reduce the number of generated optimizations, a pairwise approach may be used (enabled by
-default): it guarantees that two different tables will be tried to be joined by NLJ, Merge, Hash and
-both of them will be tried to be scanned by all possible Seq and Index combinations. But for 3
-tables for example there is no such assumption. Another option to reduce number of optimizations is
+To reduce the number of generated optimizations, a pairwise approach is used (enabled by default if
+there is more than 4 tables in query): it guarantees that 3 different tables will be tried to be
+joined by NLJ, Merge, Hash combinations and all of them will be tried to be scanned by all possible
+Seq and Index combinations. But for 4 tables for example there is no such assumption.
+
+Here is an example how pairwise will reduce the number of join combinations: suppose we have 4
+tables t1, t2, t3 and t4 in the query. There are 3 joins that should appear in the execution plan,
+one of `['Nested','Hash','Merge']` for each 2 tables. Here is the list of combinations that
+generated
+by using pairwise approach: `[['Nested', 'Nested', 'Nested'], ['Hash', 'Hash', 'Nested']
+, ['Merge', 'Merge', 'Nested'], ['Merge', 'Hash', 'Hash'], ['Hash', 'Nested', 'Hash']
+, ['Nested', 'Merge', 'Hash'], ['Nested', 'Hash', 'Merge'], ['Hash', 'Merge', 'Merge']
+, ['Merge', 'Nested', 'Merge']]`. Note that here each 3 tables (2 joins) will be tried to be joined
+by each join type, but for example `[‘Merge’,'Merge','Merge']` combination is not here.
+
+Another option to reduce number of optimizations is
 using comment hints in `*.sql` files - comma separated accepted and rejected substrings
 of `pg_hints`
 can be mentioned there:
@@ -116,6 +104,7 @@ can be mentioned there:
 -- accept: a b c
 -- reject: NestLoop
 -- max_timeout: 5s
+-- tags: muted_nlj, 5s_max
 
 select a.c1,
        a.c2,
@@ -129,12 +118,25 @@ After optimizations are generated, the framework evaluates all of them with maxi
 equal to current minimum execution time (starts with original optimization timeout) so don’t spend
 time on worst cases.
 
-### Regression test
+## Report
 
-Test evaluates same queries w/o any optimization hints against 2 different versions and generates
-the report with diff analysis. Idea is to check if there are any regressions in default execution
-plan generation. Ideally it must be evaluated against the same hardware so after upgrading the
-cluster all data skews will be the same.
+Report action evaluates a few automated checks based on provided data and then generates reports in
+ASCIIDOC format (Something like extended Markdown format). This specific format allow to create
+complex html files with code syntax highlight inside tables eg. Framework supports adding new
+scenarios.
+
+### TAQO/Score
+
+TAQO report is a basic report that analyzes QO performance. For this test user need to provide a
+JSON file with optimizations. Based on this information report will show TAQO plot, score, best
+optimization and how it differs with default one. In addition user can provide PG results, in this
+case there will be also comparison with PG execution plans
+
+### Default execution plan comparison
+
+These reports do not require optimizations to be evaluated, to test itself might be quick.
+
+#### Regression
 
 Scenario:
 
@@ -142,37 +144,9 @@ Scenario:
 2. Evaluate all queries and store results for version1
 3. Upgrade cluster to version2.
 4. Evaluate all queries and store results for version2
-5. Compare execution plans version1 vs version2
-6. Generate report
+5. Generate `report` with plans comparison version1 vs version2
 
-For local execution and some Jenkins cases framework can use `yugabyte-db` repo to start a cluster automatically.
-There is also a feature that allow to separate regression test run into 2 different runs - for version1 and then run again for version2, in this case scenario will be following:
-
-1. Start cluster of version1.
-2. Evaluate all queries and store results for version1 into a file
-3. Execution of framework will be stopped here
-4. Upgrade cluster to version2 or run with other connections params
-5. Start testing framework again
-6. Evaluate all queries and store results for version2
-7. Compare execution plans version1 vs version2 (version1 results will be taken from step 2)
-8. Generate report
-
-
-### Comparison with PG
-
-Same as the regression test, but compare execution plans with Postgres (or any other PG compatible DB) and use specific fail criteria (Execution time should be ~3x PG performance e.g.).
-Result is a report with a table with following layout:
-
-| DB execution time | Postgres execution time  | Ratio vs Postgres | Ratio vs Postgres x3 |
-|-------------------|---|---|----------------------|
-
-1. Connect to DB cluster.
-2. Evaluate all queries from Model and store results
-3. Connect to Postgres DB.
-4. Evaluate all queries from Model and store results
-5. Compare execution plans and generate the report. All failed ratios will be marked as red.
-
-### Selectivity testing
+#### Selectivity testing
 
 1. Evaluate EXPLAIN query
 2. Evaluate EXPLAIN ANALYZE query
@@ -184,13 +158,13 @@ Result is a report with a table with following layout:
 8. Evaluate EXPLAIN ANALYZE query
 
 ----
+
 # Setup
 
 There are few things required before TAQO can be fully usable.
 
 1. Install python3.10+
 2. Install python requirements `python3.10 -m pip install -r requirements.txt`
-3. Install `asciidoctor` (NOT asciidoc!) and coderay `gem install coderay`
 
 ### Additional dependencies
 
@@ -218,7 +192,7 @@ num-nodes = 3
 
 # default explain clause
 # will be used in TAQO, regression, comparison tests as a plan extraction command
-explain-clause = "explain (analyze)"
+explain-clause = "explain "
 # session properties before executing set of testing queries
 session-props = [
    "SET pg_hint_plan.enable_hint = ON;",
@@ -230,9 +204,13 @@ session-props = [
 # default random seed, used in all tests
 random-seed = 2022
 # allowed diff between queries (all tests included)
-skip_percentage-delta = 0.25
+skip-percentage-delta = 0.15
 
-# TAQO related options
+# query execution related options
+ddl-query-timeout = 3600 # skip DDL if they evaluated in more than 1200 seconds
+test-query-timeout = 1200 # skip queries if they evaluated in more than 1200 seconds
+
+# optimization generation
 skip-timeout-delta = 1 # skip queries if they exceed (min+1) seconds
 all-pairs-threshold = 3 # maximum number of tables after which all_pairs will be used, -1 to use all combinations always
 look-near-best-plan = true # evaluate only queries that are near current best optimization
@@ -241,6 +219,7 @@ look-near-best-plan = true # evaluate only queries that are near current best op
 num-queries = -1
 # number of retries to get query execution time
 num-retries = 5
+num-warmup = 1
 
 # path to asciidoctor, can be different in brew
 asciidoctor-path = "asciidoctor"
@@ -248,16 +227,9 @@ asciidoctor-path = "asciidoctor"
 
 ## Runner
 
-```
-usage: runner.py [-h] [--config CONFIG] [--type TYPE] [--results RESULTS] [--pg-results PG_RESULTS] [--v1-results V1_RESULTS] [--v2-results V2_RESULTS] [--default-results DEFAULT_RESULTS]
-                 [--default-analyze-results DEFAULT_ANALYZE_RESULTS] [--ta-results TA_RESULTS] [--ta-analyze-results TA_ANALYZE_RESULTS] [--stats-results STATS_RESULTS]
-                 [--stats-analyze-results STATS_ANALYZE_RESULTS] [--ddl-prefix DDL_PREFIX] [--optimizations | --no-optimizations] [--model MODEL] [--basic-multiplier BASIC_MULTIPLIER]
-                 [--source-path SOURCE_PATH] [--revision REVISION] [--ddls DDLS] [--clean-db | --no-clean-db] [--allow-destroy-db | --no-allow-destroy-db] [--clean-build | --no-clean-build]
-                 [--num-nodes NUM_NODES] [--tserver-flags TSERVER_FLAGS] [--master-flags MASTER_FLAGS] [--host HOST] [--port PORT] [--username USERNAME] [--password PASSWORD] [--database DATABASE]
-                 [--enable-statistics | --no-enable-statistics] [--explain-clause EXPLAIN_CLAUSE] [--num-queries NUM_QUERIES] [--parametrized | --no-parametrized] [--output OUTPUT] [--clear | --no-clear]
-                 [--yes | --no-yes] [--verbose | --no-verbose]
-                 action
+Here is full description of all available arguments.
 
+```
 Query Optimizer Testing framework for PostgreSQL compatible DBs
 
 positional arguments:
@@ -265,6 +237,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
+  --db DB               Database to run against
   --config CONFIG       Configuration file path
   --type TYPE           Report type - taqo, regression, comparison or selectivity
   --results RESULTS     TAQO/Comparison: Path to results with optimizations for YB
@@ -288,6 +261,8 @@ options:
                         Results with table analyze and enabled statistics and EXPLAIN ANALYZE
   --ddl-prefix DDL_PREFIX
                         DDL file prefix (default empty, might be postgres)
+  --remote-data-path REMOTE_DATA_PATH
+                        Path to remote data files ($DATA_PATH/*.csv)
   --optimizations, --no-optimizations
                         Evaluate optimizations for each query (default: False)
   --model MODEL         Test model to use - complex, tpch, subqueries, any other custom model
@@ -334,7 +309,9 @@ options:
 See prepared scenarios in `bin/` directory
 
 Collect queries results for basic model for localhost cluster
+
 ```
+src/runner.py
 collect
 --optimizations
 --model=basic
@@ -344,11 +321,12 @@ collect
 ```
 
 Generate comparison report for 2 previous collect runs
+
 ```
 src/runner.py
 report
---type=comparison
---config=config/dmitry.conf
+--type=regression
+--config=config/qo.conf
 --results=report/basic_taqo_new_runner.json
 --pg_results=report/basic_taqo_new_runner_2.json
 ```
