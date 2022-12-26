@@ -13,7 +13,7 @@ from reports.xls.regression import RegressionXlsReport
 from reports.adoc.selectivity import SelectivityReport
 from reports.adoc.taqo import TaqoReport
 
-from workflow.scenario import Scenario
+from scenario import Scenario
 from utils import get_bool_from_str
 
 
