@@ -78,7 +78,6 @@ class Config(metaclass=Singleton):
     model: str = None
     basic_multiplier: int = None
 
-    random_seed: int = None
     ddls: Set[DDLStep] = None
     clean_db: bool = None
     allow_destroy_db: bool = None

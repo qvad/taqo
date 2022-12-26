@@ -4,7 +4,7 @@ from pyhocon import ConfigFactory
 
 from config import Config, init_logger, ConnectionConfig, DDLStep
 from db.factory import create_database
-from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD, PostgresResultsLoaded
+from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD, PostgresResultsLoader
 from reports.adoc.comparison import ComparisonReport
 from reports.adoc.regression import RegressionReport
 from reports.adoc.score import ScoreReport
@@ -225,7 +225,6 @@ if __name__ == "__main__":
         session_props=configuration.get("session-props", []),
         basic_multiplier=int(args.basic_multiplier),
 
-        random_seed=configuration.get("random-seed", 2022),
         skip_percentage_delta=configuration.get("skip-percentage-delta", 0.05),
         skip_timeout_delta=configuration.get("skip-timeout-delta", 1),
         ddl_query_timeout=configuration.get("ddl-query-timeout", 3600),
@@ -254,7 +253,7 @@ if __name__ == "__main__":
         config.logger.info(line)
     config.logger.info("------------------------------------------------------------")
 
-    loader = PostgresResultsLoaded()
+    loader = PostgresResultsLoader()
 
     if args.action == "collect":
         if args.output is None:

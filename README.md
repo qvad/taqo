@@ -201,8 +201,6 @@ session-props = [
    "SET pg_hint_plan.message_level = debug;",
 ]
 
-# default random seed, used in all tests
-random-seed = 2022
 # allowed diff between queries (all tests included)
 skip-percentage-delta = 0.15
 
