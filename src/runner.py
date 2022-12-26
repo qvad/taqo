@@ -247,15 +247,17 @@ if __name__ == "__main__":
 
     config.logger.info("------------------------------------------------------------")
     config.logger.info("Query Optimizer Testing Framework for Postgres compatible DBs")
-    config.logger.info("")
-    config.logger.info("Initial configuration:")
-    for line in str(config).split("\n"):
-        config.logger.info(line)
-    config.logger.info("------------------------------------------------------------")
 
     loader = PostgresResultsLoader()
 
     if args.action == "collect":
+        config.logger.info("")
+        config.logger.info(f"Collecting results for model: {config.model}")
+        config.logger.info("Configuration:")
+        for line in str(config).split("\n"):
+            config.logger.info(line)
+        config.logger.info("------------------------------------------------------------")
+
         if args.output is None:
             print("ARGUMENTS VALIDATION ERROR: --output arg is required for collect task")
             exit(1)
@@ -267,6 +269,11 @@ if __name__ == "__main__":
         sc = Scenario(config)
         sc.evaluate()
     elif args.action == "report":
+        config.logger.info("")
+        config.logger.info(f"Generation {args.type} report")
+        config.logger.info(f"Allowed execution time percentage deviation: {config.skip_percentage_delta * 100}%")
+        config.logger.info("------------------------------------------------------------")
+
         if args.type == "taqo":
             yb_queries = loader.get_queries_from_previous_result(args.results)
             pg_queries = loader.get_queries_from_previous_result(
