@@ -12,7 +12,7 @@ from config import Config, ConnectionConfig
 from objects import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table, Optimization, \
     ListOfQueries, ResultsLoader
 from db.database import Database
-from utils import get_explain_clause, evaluate_sql, allowed_diff, get_optimizer_score_from_plan
+from utils import evaluate_sql, allowed_diff
 
 DEFAULT_USERNAME = 'postgres'
 DEFAULT_PASSWORD = 'postgres'

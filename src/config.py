@@ -106,18 +106,20 @@ class Config(metaclass=Singleton):
                f"with_optimizations - {self.with_optimizations}\n" \
                f"source_path - {self.source_path}\n" \
                f"output - {self.output}\n" \
+               f"\n" \
                f"revision - {self.revision}\n" \
                f"num_nodes - {self.num_nodes}\n" \
                f"tserver_flags - {self.tserver_flags}\n" \
                f"master_flags - {self.master_flags}\n" \
-               f"connection - {self.connection}\n" \
+               f"\n" \
+               f"(initial) connection - {self.connection}\n" \
                f"enable_statistics - {self.enable_statistics}\n" \
                f"explain_clause - {self.explain_clause}\n" \
                f"session_props - {self.session_props}\n" \
+               f"\n" \
                f"test - {self.test}\n" \
                f"model - {self.model}\n" \
                f"basic_multiplier - {self.basic_multiplier}\n" \
-               f"random_seed - {self.random_seed}\n" \
                f"ddls - {[m.name for m in self.ddls]}\n" \
                f"clean_db - {self.clean_db}\n" \
                f"allow_destroy_db - {self.allow_destroy_db}\n" \

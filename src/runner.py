@@ -263,6 +263,7 @@ if __name__ == "__main__":
         if not args.yes:
             input("Validate configuration carefully and press Enter...")
 
+        config.logger.info("Evaluating scenario")
         sc = Scenario(config)
         sc.evaluate()
     elif args.action == "report":
