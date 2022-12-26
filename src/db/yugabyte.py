@@ -7,7 +7,7 @@ from typing import List
 
 from config import ConnectionConfig
 from db.postgres import Postgres, PostgresExecutionPlan, PLAN_TREE_CLEANUP, PostgresQuery
-from objects import ExecutionPlan, ListOfQueries, ResultsLoaded
+from objects import ExecutionPlan, ListOfQueries, ResultsLoader
 
 DEFAULT_USERNAME = 'yugabyte'
 DEFAULT_PASSWORD = 'yugabyte'
@@ -287,7 +287,7 @@ class YugabyteListOfQueries(ListOfQueries):
     queries: List[YugabyteQuery] = None
 
 
-class YugabyteResultsLoaded(ResultsLoaded):
+class YugabyteResultsLoader(ResultsLoader):
 
     def __init__(self):
         super().__init__()

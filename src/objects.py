@@ -153,7 +153,7 @@ class EnhancedJSONEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-class ResultsLoaded:
+class ResultsLoader:
 
     def __init__(self):
         self.clazz = ListOfQueries

@@ -1,5 +1,4 @@
 import hashlib
-import math
 import re
 import time
 from copy import copy
@@ -15,16 +14,6 @@ PARAMETER_VARIABLE = r"[^'](\%\((.*?)\))"
 
 def current_milli_time():
     return (time.time_ns() // 1_000) / 1_000
-
-
-def get_optimizer_score_from_plan(execution_plan_str):
-    try:
-        matches = re.finditer(r"\s\(cost=\d+\.\d+\.\.(\d+\.\d+)", execution_plan_str,
-                              re.MULTILINE)
-        for matchNum, match in enumerate(matches, start=1):
-            return float(match.groups()[0])
-    except Exception as e:
-        return 0
 
 
 def get_result(cur, is_dml):
@@ -151,10 +140,6 @@ def get_alias_table_names(sql_str, table_names):
     return result_tables
 
 
-def get_explain_clause():
-    return Config().explain_clause
-
-
 def evaluate_sql(cur, sql):
     config = Config()
 
@@ -227,53 +212,3 @@ def get_md5(string: str):
 
 def get_bool_from_str(string: str):
     return string in {True, 1, "True", "true", "TRUE", "T"}
-
-
-def calculate_taqo_score(query):
-    """
-    Calculates TAQO score based on algorithm from the paper
-    https://databasescience.files.wordpress.com/2013/01/taqo.pdf
-
-    Since it doesn't count default execution, it basically tests optimizer score efficiency.
-    Not fully representative for this framework.
-
-    :param query: Query object with evaluated optimizations
-    :return: float number TAQO score
-    """
-
-    optimizations = [q for q in query.optimizations
-                     if q and
-                     q.optimizer_score is not None
-                     and q.execution_time_ms != 0]
-    optimizations.sort(key=lambda q: q.execution_time_ms)
-
-    try:
-        e_max = max(op.optimizer_score for op in optimizations)
-        e_diff = e_max - min(op.optimizer_score for op in optimizations)
-
-        if e_diff == 0:
-            e_diff = 0.01
-
-        a_max = max(op.execution_time_ms for op in optimizations)
-        a_best = min(op.execution_time_ms for op in optimizations)
-        a_diff = a_max - a_best
-
-        score = 0
-        for i in range(2, len(optimizations) - 1):
-            for j in range(1, i):
-                pi = optimizations[j]
-                pj = optimizations[i]
-                score += (a_best / pi.execution_time_ms) * \
-                         (a_best / pj.execution_time_ms) * \
-                         math.sqrt(
-                             ((pj.execution_time_ms - pi.execution_time_ms) / a_diff) ** 2 + \
-                             ((pj.optimizer_score - pi.optimizer_score) / e_diff) ** 2) * \
-                         math.copysign(1, (pj.optimizer_score - pi.optimizer_score))
-    except InterruptedError as ie:
-        raise ie
-    except Exception:
-        print("Failed to calculate score, setting TAQO score as 0.0")
-        return 0.0
-    print("{:.2f}".format(score))
-
-    return "{:.2f}".format(score)

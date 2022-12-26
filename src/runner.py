@@ -4,7 +4,7 @@ from pyhocon import ConfigFactory
 
 from config import Config, init_logger, ConnectionConfig, DDLStep
 from db.factory import create_database
-from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD, PostgresResultsLoaded
+from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD, PostgresResultsLoader
 from reports.adoc.comparison import ComparisonReport
 from reports.adoc.regression import RegressionReport
 from reports.adoc.score import ScoreReport
@@ -13,7 +13,7 @@ from reports.xls.regression import RegressionXlsReport
 from reports.adoc.selectivity import SelectivityReport
 from reports.adoc.taqo import TaqoReport
 
-from workflow.scenario import Scenario
+from scenario import Scenario
 from utils import get_bool_from_str
 
 
@@ -225,7 +225,6 @@ if __name__ == "__main__":
         session_props=configuration.get("session-props", []),
         basic_multiplier=int(args.basic_multiplier),
 
-        random_seed=configuration.get("random-seed", 2022),
         skip_percentage_delta=configuration.get("skip-percentage-delta", 0.05),
         skip_timeout_delta=configuration.get("skip-timeout-delta", 1),
         ddl_query_timeout=configuration.get("ddl-query-timeout", 3600),
@@ -248,15 +247,17 @@ if __name__ == "__main__":
 
     config.logger.info("------------------------------------------------------------")
     config.logger.info("Query Optimizer Testing Framework for Postgres compatible DBs")
-    config.logger.info("")
-    config.logger.info("Initial configuration:")
-    for line in str(config).split("\n"):
-        config.logger.info(line)
-    config.logger.info("------------------------------------------------------------")
 
-    loader = PostgresResultsLoaded()
+    loader = PostgresResultsLoader()
 
     if args.action == "collect":
+        config.logger.info("")
+        config.logger.info(f"Collecting results for model: {config.model}")
+        config.logger.info("Configuration:")
+        for line in str(config).split("\n"):
+            config.logger.info(line)
+        config.logger.info("------------------------------------------------------------")
+
         if args.output is None:
             print("ARGUMENTS VALIDATION ERROR: --output arg is required for collect task")
             exit(1)
@@ -264,9 +265,15 @@ if __name__ == "__main__":
         if not args.yes:
             input("Validate configuration carefully and press Enter...")
 
+        config.logger.info("Evaluating scenario")
         sc = Scenario(config)
         sc.evaluate()
     elif args.action == "report":
+        config.logger.info("")
+        config.logger.info(f"Generation {args.type} report")
+        config.logger.info(f"Allowed execution time percentage deviation: {config.skip_percentage_delta * 100}%")
+        config.logger.info("------------------------------------------------------------")
+
         if args.type == "taqo":
             yb_queries = loader.get_queries_from_previous_result(args.results)
             pg_queries = loader.get_queries_from_previous_result(

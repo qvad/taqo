@@ -10,9 +10,9 @@ from allpairspy import AllPairs
 
 from config import Config, ConnectionConfig
 from objects import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table, Optimization, \
-    ListOfQueries, ResultsLoaded
+    ListOfQueries, ResultsLoader
 from db.database import Database
-from utils import get_explain_clause, evaluate_sql, allowed_diff, get_optimizer_score_from_plan
+from utils import evaluate_sql, allowed_diff
 
 DEFAULT_USERNAME = 'postgres'
 DEFAULT_PASSWORD = 'postgres'
@@ -55,7 +55,7 @@ class Postgres(Database):
         return PostgresExecutionPlan(execution_plan)
 
     def get_results_loader(self):
-        return PostgresResultsLoaded()
+        return PostgresResultsLoader()
 
     def get_list_queries(self):
         return PostgresListOfQueries()
@@ -186,7 +186,7 @@ class PostgresQuery(Query):
         return self.query
 
     def get_explain(self):
-        return f"{get_explain_clause()} {self.query}"
+        return f"{Config().explain_clause} {self.query}"
 
     def get_heuristic_explain(self):
         return f"EXPLAIN {self.query}"
@@ -257,7 +257,7 @@ class PostgresOptimization(PostgresQuery, Optimization):
         return f"/*+ {self.explain_hints} */ {self.query}"
 
     def get_explain(self):
-        return f"{get_explain_clause()}  /*+ {self.explain_hints} */ {self.query}"
+        return f"{Config().explain_clause}  /*+ {self.explain_hints} */ {self.query}"
 
     def get_heuristic_explain(self):
         return f"EXPLAIN /*+ {self.explain_hints} */ {self.query}"
@@ -301,7 +301,13 @@ class PostgresExecutionPlan(ExecutionPlan):
         return self.full_str
 
     def get_estimated_cost(self):
-        return get_optimizer_score_from_plan(self.full_str)
+        try:
+            matches = re.finditer(r"\s\(cost=\d+\.\d+\.\.(\d+\.\d+)", self.full_str,
+                                  re.MULTILINE)
+            for matchNum, match in enumerate(matches, start=1):
+                return float(match.groups()[0])
+        except Exception as e:
+            return 0
 
     def get_rpc_calls(self, execution_plan: 'ExecutionPlan' = None):
         try:
@@ -396,7 +402,7 @@ class PostgresListOfQueries(ListOfQueries):
     queries: List[PostgresQuery] = None
 
 
-class PostgresResultsLoaded(ResultsLoaded):
+class PostgresResultsLoader(ResultsLoader):
 
     def __init__(self):
         super().__init__()
