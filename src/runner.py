@@ -45,7 +45,7 @@ if __name__ == "__main__":
                         help='Action to perform - collect or report')
 
     parser.add_argument('--db',
-                        default="postgres",
+                        default="yugabyte",
                         help='Database to run against')
 
     parser.add_argument('--config',
