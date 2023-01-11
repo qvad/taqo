@@ -156,6 +156,8 @@ def evaluate_sql(cur, sql):
         except psycopg2.OperationalError as oe:
             config.logger.exception(sql, oe)
             cur = cur.connection.curs()
+        except psycopg2.errors.ConfigurationLimitExceeded as cle:
+            config.logger.exception(sql, cle)
         except Exception as e:
             config.logger.exception(sql, e)
             raise e
@@ -167,6 +169,8 @@ def evaluate_sql(cur, sql):
         except psycopg2.OperationalError as oe:
             config.logger.exception(sql, oe)
             cur = cur.connection.curs()
+        except psycopg2.errors.ConfigurationLimitExceeded as cle:
+            config.logger.exception(sql, cle)
         except Exception as e:
             config.logger.exception(sql_wo_parameters, e)
             raise e
