@@ -185,7 +185,7 @@ class Scenario:
             self.try_to_get_default_explain_hints(cur, optimization, original_query)
 
             try:
-                evaluate_sql(cur, original_query.get_explain())
+                evaluate_sql(cur, optimization.get_explain())
                 optimization.execution_plan = database.get_execution_plan(
                     '\n'.join(
                         str(item[0]) for item in cur.fetchall()))
