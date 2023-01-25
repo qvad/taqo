@@ -392,7 +392,7 @@ class PGListOfOptimizations(ListOfOptimizations):
         skip_optimization = self.filter_optimization_tips(explain_hints)
         if not skip_optimization:
             optimizations.append(
-                Optimization(
+                PostgresOptimization(
                     query=self.query.query,
                     query_hash=self.query.query_hash,
                     explain_hints=explain_hints
