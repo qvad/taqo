@@ -240,14 +240,15 @@ class PostgresQuery(Query):
 
     def get_best_optimization(self, config):
         best_optimization = self
-        for optimization in best_optimization.optimizations:
-            if best_optimization.execution_time_ms < 0:
-                best_optimization = optimization
-            elif 0 < optimization.execution_time_ms < best_optimization.execution_time_ms:
-                best_optimization = optimization
+        if best_optimization.optimizations:
+            for optimization in best_optimization.optimizations:
+                if best_optimization.execution_time_ms < 0:
+                    best_optimization = optimization
+                elif 0 < optimization.execution_time_ms < best_optimization.execution_time_ms:
+                    best_optimization = optimization
 
-        if allowed_diff(config, best_optimization.execution_time_ms, self.execution_time_ms):
-            return self
+            if allowed_diff(config, best_optimization.execution_time_ms, self.execution_time_ms):
+                return self
 
         return best_optimization
 

@@ -25,10 +25,6 @@ class ScoreReport(Report):
         report.report_model(loq.model_queries)
 
         for qid, query in enumerate(loq.queries):
-            if not query.optimizations:
-                raise AttributeError("There is no optimizations found in result file. "
-                                     "Evaluate collect with --optimizations flag")
-
             report.add_query(query, pg_loq.queries[qid] if pg_loq else None)
 
         report.build_report()
@@ -88,11 +84,13 @@ class ScoreReport(Report):
                 yb_best = yb_query.get_best_optimization(self.config)
                 pg_best = pg_query.get_best_optimization(self.config)
 
-                qe_bests_geo *= yb_best.execution_time_ms / pg_best.execution_time_ms
+                pg_success = pg_query.execution_time_ms != 0
+
+                qe_bests_geo *= yb_best.execution_time_ms / pg_best.execution_time_ms if pg_success else 1
                 qo_yb_bests_geo *= (yb_query.execution_time_ms if yb_query.execution_time_ms > 0 else 1.0) / (yb_best.execution_time_ms if yb_best.execution_time_ms > 0 else 1)
-                qo_pg_bests_geo *= pg_query.execution_time_ms / pg_best.execution_time_ms
+                qo_pg_bests_geo *= pg_query.execution_time_ms / pg_best.execution_time_ms if pg_best.execution_time_ms != 0 else 9999999
                 yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
-                pg_bests += 1 if pg_query.compare_plans(pg_best.execution_plan) else 0
+                pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best.execution_plan) else 0
 
                 total += 1
 
@@ -117,9 +115,11 @@ class ScoreReport(Report):
                 yb_best = yb_query.get_best_optimization(self.config)
                 pg_best = pg_query.get_best_optimization(self.config)
 
+                pg_success = pg_query.execution_time_ms != 0
+
                 default_yb_equality = "[green]" if yb_query.compare_plans(
                     yb_best.execution_plan) else "[red]"
-                default_pg_equality = "[green]" if pg_query.compare_plans(
+                default_pg_equality = "[green]" if pg_success and pg_query.compare_plans(
                     pg_best.execution_plan) else "[red]"
 
                 best_yb_pg_equality = "(eq) " if yb_best.compare_plans(
@@ -132,19 +132,21 @@ class ScoreReport(Report):
                 ratio_color = "[green]" if ratio_x3 <= 1.0 else "[red]"
 
                 ratio_best = yb_best.execution_time_ms / (
-                        3 * pg_best.execution_time_ms) if yb_best.execution_time_ms != 0 else 99999999
+                        3 * pg_best.execution_time_ms) \
+                    if yb_best.execution_time_ms != 0 and pg_success else 99999999
                 ratio_best_x3_str = "{:.2f}".format(
-                    yb_best.execution_time_ms / pg_best.execution_time_ms if yb_best.execution_time_ms != 0 else 99999999)
+                    yb_best.execution_time_ms / pg_best.execution_time_ms
+                    if yb_best.execution_time_ms != 0 and pg_success else 99999999)
                 ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
 
-                bitmap_flag = "[blue]" if "bitmap" in pg_query.execution_plan.full_str.lower() else "[black]"
+                bitmap_flag = "[blue]" if pg_success and "bitmap" in pg_query.execution_plan.full_str.lower() else "[black]"
 
                 self.report += f"a|[black]#*{'{:.2f}'.format(yb_query.execution_time_ms)}*#\n" \
-                               f"a|{default_yb_equality}#*{'{:.2f}'.format(yb_best.execution_time_ms)}*#\n" \
-                               f"a|{bitmap_flag}#*{'{:.2f}'.format(pg_query.execution_time_ms)}*#\n" \
-                               f"a|{default_pg_equality}#*{'{:.2f}'.format(pg_best.execution_time_ms)}*#\n" \
-                               f"a|{ratio_color}#*{ratio_x3_str}*#\n" \
-                               f"a|{ratio_best_color}#*{best_yb_pg_equality}{ratio_best_x3_str}*#\n"
+                                   f"a|{default_yb_equality}#*{'{:.2f}'.format(yb_best.execution_time_ms)}*#\n" \
+                                   f"a|{bitmap_flag}#*{'{:.2f}'.format(pg_query.execution_time_ms)}*#\n" \
+                                   f"a|{default_pg_equality}#*{'{:.2f}'.format(pg_best.execution_time_ms)}*#\n" \
+                                   f"a|{ratio_color}#*{ratio_x3_str}*#\n" \
+                                   f"a|{ratio_best_color}#*{best_yb_pg_equality}{ratio_best_x3_str}*#\n"
                 self.report += f"a|[#{yb_query.query_hash}_top]\n<<{yb_query.query_hash}>>\n"
                 self._start_source(["sql"])
                 self.report += format_sql(pg_query.query.replace("|", "\|"))
@@ -264,7 +266,7 @@ class ScoreReport(Report):
         default_yb_pg_equality = ""
 
         best_yb_pg_equality = ""
-        if pg_query:
+        if pg_query and pg_query.execution_time_ms != 0:
             self._start_table("5")
             self.report += "|Metric|YB|YB Best|PG|PG Best\n"
 
@@ -317,7 +319,7 @@ class ScoreReport(Report):
         self._start_table()
         self._start_table_row()
 
-        if pg_query:
+        if pg_query and pg_query.execution_time_ms != 0:
             bitmap_used = "(bm) " if "bitmap" in pg_query.execution_plan.full_str.lower() else ""
             self._start_collapsible(f"{bitmap_used}PG plan")
             self._start_source(["diff"])
