@@ -185,7 +185,12 @@ class Scenario:
             self.try_to_get_default_explain_hints(cur, optimization, original_query)
 
             try:
-                evaluate_sql(cur, optimization.get_explain())
+                evaluate_sql(cur, original_query.get_explain())
+                optimization.execution_plan = database.get_execution_plan(
+                    '\n'.join(
+                        str(item[0]) for item in cur.fetchall()))
+
+                connection.rollback()
             except psycopg2.errors.QueryCanceled as e:
                 # failed by timeout - it's ok just skip optimization
                 self.logger.debug(f"Getting execution plan failed with {e}")
@@ -194,9 +199,6 @@ class Scenario:
                 optimization.execution_time_ms = 0
                 optimization.execution_plan = database.get_execution_plan("")
                 continue
-
-            optimization.execution_plan = database.get_execution_plan('\n'.join(
-                str(item[0]) for item in cur.fetchall()))
 
             exec_plan_md5 = get_md5(optimization.execution_plan.get_clean_plan())
             not_unique_plan = exec_plan_md5 in execution_plans_checked

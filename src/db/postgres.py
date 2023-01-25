@@ -140,8 +140,9 @@ class Leading:
                 self.joins.append(f"{self.LEADING} ({prev_el}) {join}")
 
         for table in self.tables:
-            tables_and_idxs = [f"{Scans.INDEX.value}({table.name})" for field in table.fields if
-                               field.is_index]
+            tables_and_idxs = list({f"{Scans.INDEX.value}({table.name})"
+                                    for field in table.fields if field.is_index})
+
             tables_and_idxs.append(f"{Scans.SEQ.value}({table.name})")
             self.table_scan_hints.append(tables_and_idxs)
 
@@ -226,8 +227,10 @@ class PostgresQuery(Query):
                 for plan_line in plan_heatmap.values():
                     for optimization_line in no_cost_plan.split("->"):
                         if SequenceMatcher(
-                                a=optimization.execution_plan.get_no_tree_plan_str(plan_line['str']),
-                                b=optimization.execution_plan.get_no_tree_plan_str(optimization_line)
+                                a=optimization.execution_plan.get_no_tree_plan_str(
+                                    plan_line['str']),
+                                b=optimization.execution_plan.get_no_tree_plan_str(
+                                    optimization_line)
                         ).ratio() > 0.9:
                             plan_line['weight'] += 1
 
@@ -349,7 +352,6 @@ class PostgresExecutionPlan(ExecutionPlan):
         return self.get_no_tree_plan_str(
             execution_plan.full_str if execution_plan else self.full_str)
 
-
     @staticmethod
     def get_no_tree_plan_str(plan_str):
         return re.sub(PLAN_TREE_CLEANUP, '\n', plan_str).strip()
@@ -377,7 +379,7 @@ class PGListOfOptimizations(ListOfOptimizations):
 
                 self.add_optimization(explain_hints, optimizations)
 
-        if not optimizations:
+        if not optimizations and self.leading.table_scan_hints:
             # case w/o any joins
             for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
                 explain_hints = f"{' '.join(table_scan_hint)}"

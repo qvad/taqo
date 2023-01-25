@@ -99,13 +99,13 @@ class SQLModel(QTFModel):
             """
             select table_name, table_schema 
             from information_schema.tables 
-            where table_schema = 'public';
+            where table_schema = 'public' or table_schema = 'pg_catalog';
             """)
         tables = []
         result = list(cur.fetchall())
         tables.extend((row[0], row[1])
                       for row in result
-                      if row[1] not in ["pg_catalog", "information_schema"])
+                      if row[1] not in ["information_schema"])
 
         self.logger.info("Loading columns and constraints...")
         for table_name, schema_name in tables:
@@ -223,6 +223,8 @@ class BasicOpsModel(SQLModel):
 
     def generate_data(self):
         self.logger.info("Generating data files for simplified model")
+
+        random.seed = 2023
 
         # create dir if not there yet
         if not exists(f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data"):
