@@ -122,22 +122,35 @@ def extract_execution_time_from_analyze(result):
     return result
 
 
-def get_alias_table_names(sql_str, table_names):
+def get_alias_table_names(sql_str, tables_in_sut):
+    table_names = [table.name for table in tables_in_sut]
+
     parser = Parser(sql_str)
 
     # todo some workarounds for sql_metadata package issues
-    # 1. 'where' may occur in table aliases
-    tables = parser.tables
-    aliases = parser.tables_aliases
+    # 'where' may occur in table_name_in_query aliases_in_query
+    tables_in_query = parser.tables
+    aliases_in_query = parser.tables_aliases
 
-    result_tables = {alias: table_name for alias, table_name in aliases.items()
+    result_tables = {alias: table_name for alias, table_name in aliases_in_query.items()
                      if alias not in ['where', 'group by', 'from'] and table_name in table_names}
 
-    for table in tables:
+    # add tables w/o aliases
+    for table in tables_in_query:
         if table not in result_tables.keys():
             result_tables[table] = table
 
-    return result_tables
+    # return usable table objects list
+    table_objects_in_query = []
+    for alias, table_name_in_query in result_tables.items():
+        table_objects_in_query.extend(
+            real_table
+            for real_table in tables_in_sut
+            if table_name_in_query == real_table.name
+            or ('.' in table_name_in_query
+                and table_name_in_query.split(".")[1] == real_table.name))
+
+    return table_objects_in_query
 
 
 def evaluate_sql(cur, sql):

@@ -186,8 +186,6 @@ class SQLModel(QTFModel):
         return tips
 
     def get_queries(self, tables):
-        table_names = [table.name for table in tables]
-
         queries = []
         query_file_lists = sorted(list(glob.glob(f"sql/{self.config.model}/queries/*.sql")))
         for query in query_file_lists:
@@ -196,13 +194,12 @@ class SQLModel(QTFModel):
                 query_tips = self.get_query_hint_tips(full_queries)
                 for file_query in full_queries.split(";"):
                     if cleaned := sqlparse.format(file_query.lstrip(), strip_comments=True).strip():
-                        tables_list = get_alias_table_names(cleaned, table_names)
+                        tables_in_query = get_alias_table_names(cleaned, tables)
                         queries.append(PostgresQuery(
                             tag=os.path.basename(query).replace(".sql", ""),
                             query=cleaned,
                             query_hash=get_md5(cleaned),
-                            tables=[table for table in tables if
-                                    table.name in tables_list.values()],
+                            tables=tables_in_query,
                             optimizer_tips=query_tips))
 
         if self.config.num_queries > 0:
