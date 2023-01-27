@@ -10,11 +10,21 @@ from config import Config
 from objects import Query
 
 PARAMETER_VARIABLE = r"[^'](\%\((.*?)\))"
-
+WITH_ORDINALITY = r"[Ww][Ii][Tt][Hh]\s*[Oo][Rr][Dd][Ii][Nn][Aa][Ll][Ii][Tt][yY]\s*[Aa][Ss]\s*.*(.*)"
 
 def current_milli_time():
     return (time.time_ns() // 1_000) / 1_000
 
+def remove_with_ordinality(sql_str):
+    while True:
+        match = re.search(WITH_ORDINALITY, sql_str)
+        if not match:
+            break
+
+        start, end = match.span(0)
+        sql_str = (sql_str[:start] if start > 0 else "") + (sql_str[end:] if end < len(sql_str) else "")
+    
+    return sql_str
 
 def get_result(cur, is_dml):
     if is_dml:
@@ -125,7 +135,9 @@ def extract_execution_time_from_analyze(result):
 def get_alias_table_names(sql_str, tables_in_sut):
     table_names = [table.name for table in tables_in_sut]
 
-    parser = Parser(sql_str)
+    # 'WITH ORDINALITY' clauses get misinterpreted as
+    # aliases so remove them from the query. 
+    parser = Parser(remove_with_ordinality(sql_str))
 
     # todo some workarounds for sql_metadata package issues
     # 'where' may occur in table_name_in_query aliases_in_query
