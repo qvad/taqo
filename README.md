@@ -6,6 +6,7 @@ to reduce these effects and exclude hard checks in fail criteria.
 
 # Installation
 
+
 There are few things required before TAQO can be fully usable.
 
 1. Install python3.10+
