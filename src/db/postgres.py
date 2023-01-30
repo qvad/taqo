@@ -203,8 +203,10 @@ class PostgresQuery(Query):
             for join in Joins)
 
     def compare_plans(self, execution_plan: Type['ExecutionPlan']):
-        return self.execution_plan.get_clean_plan() == \
-               self.execution_plan.get_clean_plan(execution_plan)
+        if clean_plan := self.execution_plan.get_clean_plan():
+            return clean_plan == self.execution_plan.get_clean_plan(execution_plan)
+        else:
+            return False
 
     def __str__(self):
         return f"Query - \"{self.query}\"\n" \
