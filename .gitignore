@@ -2,6 +2,8 @@
 report/
 .idea/
 
+sql/proprietary/
+
 # GitHub generated ignores
 # Byte-compiled / optimized / DLL files
 __pycache__/

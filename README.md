@@ -41,6 +41,9 @@ sql/$MODEL_NAME/create.sql
 sql/$MODEL_NAME/queries/*.sql
 ```
 
+Use the sql/proprietary/ folder for any models you don't want to be checked in. Remember to prefix
+the model flag with proprietary/ in this case.
+
 ### basic
 
 This model is trying to cover most usable features in optimizer, so that on regression/comparison
@@ -331,6 +334,6 @@ src/runner.py
 report
 --type=regression
 --config=config/qo.conf
---results=report/basic_taqo_new_runner.json
---pg_results=report/basic_taqo_new_runner_2.json
+--v1-results=report/basic_taqo_new_runner.json
+--v2-results=report/basic_taqo_new_runner_2.json
 ```
