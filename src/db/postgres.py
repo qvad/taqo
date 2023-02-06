@@ -222,19 +222,20 @@ class PostgresQuery(Query):
                         enumerate(self.execution_plan.get_no_cost_plan().split("->"))}
 
         best_optimization = self.get_best_optimization(config)
-        for optimization in self.optimizations:
-            if allowed_diff(config, best_optimization.execution_time_ms,
-                            optimization.execution_time_ms):
-                no_cost_plan = optimization.execution_plan.get_no_cost_plan()
-                for plan_line in plan_heatmap.values():
-                    for optimization_line in no_cost_plan.split("->"):
-                        if SequenceMatcher(
-                                a=optimization.execution_plan.get_no_tree_plan_str(
-                                    plan_line['str']),
-                                b=optimization.execution_plan.get_no_tree_plan_str(
-                                    optimization_line)
-                        ).ratio() > 0.9:
-                            plan_line['weight'] += 1
+        if self.optimizations:
+            for optimization in self.optimizations:
+                if allowed_diff(config, best_optimization.execution_time_ms,
+                                optimization.execution_time_ms):
+                    no_cost_plan = optimization.execution_plan.get_no_cost_plan()
+                    for plan_line in plan_heatmap.values():
+                        for optimization_line in no_cost_plan.split("->"):
+                            if SequenceMatcher(
+                                    a=optimization.execution_plan.get_no_tree_plan_str(
+                                        plan_line['str']),
+                                    b=optimization.execution_plan.get_no_tree_plan_str(
+                                        optimization_line)
+                            ).ratio() > 0.9:
+                                plan_line['weight'] += 1
 
         self.execution_plan_heatmap = plan_heatmap
 

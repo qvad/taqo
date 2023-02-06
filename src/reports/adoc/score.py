@@ -45,6 +45,9 @@ class ScoreReport(Report):
                     self.config).execution_time_ms / query.execution_time_ms)
 
     def create_plot(self, best_optimization, optimizations, query):
+        if not optimizations:
+            return "NO PLOT"
+
         plt.xlabel('Execution time')
         plt.ylabel('Optimizer cost')
 
@@ -166,15 +169,16 @@ class ScoreReport(Report):
                 self.__report_query(query[0], query[1], True)
 
     def __report_near_queries(self, query: Type[Query]):
-        best_optimization = query.get_best_optimization(self.config)
-        if add_to_report := "".join(
-                f"`{optimization.explain_hints}`\n\n"
-                for optimization in query.optimizations
-                if allowed_diff(self.config, best_optimization.execution_time_ms,
-                                optimization.execution_time_ms)):
-            self._start_collapsible("Near best optimization hints")
-            self.report += add_to_report
-            self._end_collapsible()
+        if query.optimizations:
+            best_optimization = query.get_best_optimization(self.config)
+            if add_to_report := "".join(
+                    f"`{optimization.explain_hints}`\n\n"
+                    for optimization in query.optimizations
+                    if allowed_diff(self.config, best_optimization.execution_time_ms,
+                                    optimization.execution_time_ms)):
+                self._start_collapsible("Near best optimization hints")
+                self.report += add_to_report
+                self._end_collapsible()
 
     def __report_heatmap(self, query: Type[Query]):
         """

@@ -7,7 +7,7 @@ SELECT c_int,
         (c_int + 0.1):: decimal as c_decimal,
         (c_int + 0.2):: float as c_float,
         (c_int + 0.3):: real as c_real,
-        (c_int + 0.4) ::money as c_money FROM generate_Series(1, 1000000) c_int;
+        (c_int + 0.4) ::money as c_money FROM generate_Series(1, 100000 * $MULTIPLIER) c_int;
 CREATE INDEX t1000000_1_idx ON t1000000 (c_int);
 CREATE INDEX t1000000_2_idx ON t1000000 (c_int, c_bool);
 CREATE INDEX t1000000_3_idx ON t1000000 (c_int, c_text);
@@ -25,7 +25,7 @@ SELECT c_int,
        (c_int + 0.1):: decimal as c_decimal,
        (c_int + 0.2):: float as c_float,
        (c_int + 0.3):: real as c_real,
-       (c_int + 0.4) ::money as c_money FROM generate_Series(1, 500000) c_int;
+       (c_int + 0.4) ::money as c_money FROM generate_Series(1, 50000 * $MULTIPLIER) c_int;
 CREATE INDEX t500000_1_idx ON t500000 (c_int);
 CREATE INDEX t500000_2_idx ON t500000 (c_int, c_bool);
 CREATE INDEX t500000_3_idx ON t500000 (c_int, c_text);
@@ -43,7 +43,7 @@ SELECT c_int,
         (c_int + 0.1):: decimal as c_decimal,
         (c_int + 0.2):: float as c_float,
         (c_int + 0.3):: real as c_real,
-        (c_int + 0.4) ::money as c_money FROM generate_Series (1, 50000) c_int;
+        (c_int + 0.4) ::money as c_money FROM generate_Series (1, 5000 * $MULTIPLIER) c_int;
 CREATE INDEX t50000_1_idx ON t50000 (c_int);
 CREATE INDEX t50000_2_idx ON t50000 (c_int, c_bool);
 CREATE INDEX t50000_3_idx ON t50000 (c_int, c_text);
@@ -61,7 +61,7 @@ SELECT c_int,
         (c_int + 0.1):: decimal as c_decimal,
         (c_int + 0.2):: float as c_float,
         (c_int + 0.3):: real as c_real,
-        (c_int + 0.4) ::money as c_money FROM generate_Series (1, 100) c_int;
+        (c_int + 0.4) ::money as c_money FROM generate_Series (1, 10 * $MULTIPLIER) c_int;
 CREATE INDEX t100_1_idx ON t100 (c_int);
 CREATE INDEX t100_2_idx ON t100 (c_int, c_bool);
 CREATE INDEX t100_3_idx ON t100 (c_int, c_text);

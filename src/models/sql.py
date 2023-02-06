@@ -179,7 +179,7 @@ class SQLModel(QTFModel):
                                        comment_line.replace("-- reject: ", "").split(",")]
                     if comment_line.startswith("-- tags: "):
                         tips.tags = [s.strip() for s in
-                                       comment_line.replace("-- tags: ", "").split(",")]
+                                     comment_line.replace("-- tags: ", "").split(",")]
                     if comment_line.startswith("-- max_timeout: "):
                         tips.max_timeout = comment_line.replace("-- max_timeout: ", "").strip()
 
@@ -208,12 +208,17 @@ class SQLModel(QTFModel):
         return queries
 
     def apply_variables(self, queries_str):
-        if self.config.remote_data_path:
-            return queries_str.replace("$DATA_PATH",
-                                       self.config.remote_data_path)
-        else:
-            return queries_str.replace("$DATA_PATH",
-                                       f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data")
+        variables = {
+            '$MULTIPLIER': self.config.basic_multiplier,
+            "$DATA_PATH": self.config.remote_data_path
+        }
+
+        for variable_name, variable_value in variables.items():
+            if variable_value:
+                queries_str.replace(variable_name,
+                                    variable_value)
+
+        return queries_str
 
 
 class BasicOpsModel(SQLModel):

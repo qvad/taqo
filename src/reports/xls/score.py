@@ -21,10 +21,6 @@ class ScoreXlsReport(Report):
         report = ScoreXlsReport()
 
         for qid, query in enumerate(loq.queries):
-            if not query.optimizations:
-                raise AttributeError("There is no optimizations found in result file. "
-                                     "Evaluate collect with --optimizations flag")
-
             report.add_query(query, pg_loq.queries[qid] if pg_loq else None)
 
         report.build_report()
