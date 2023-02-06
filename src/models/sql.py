@@ -215,8 +215,8 @@ class SQLModel(QTFModel):
 
         for variable_name, variable_value in variables.items():
             if variable_value:
-                queries_str.replace(variable_name,
-                                    str(variable_value))
+                queries_str = queries_str.replace(variable_name,
+                                                  str(variable_value))
 
         return queries_str
 
