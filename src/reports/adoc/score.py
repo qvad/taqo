@@ -52,7 +52,8 @@ class ScoreReport(Report):
         plt.ylabel('Optimizer cost')
 
         plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms != 0],
-                 [q.execution_plan.get_estimated_cost() for q in optimizations if q.execution_time_ms != 0], 'k.',
+                 [q.execution_plan.get_estimated_cost() for q in optimizations if
+                  q.execution_time_ms != 0], 'k.',
                  [query.execution_time_ms],
                  [query.execution_plan.get_estimated_cost()], 'r^',
                  [best_optimization.execution_time_ms],
@@ -90,18 +91,21 @@ class ScoreReport(Report):
                 pg_success = pg_query.execution_time_ms != 0
 
                 qe_bests_geo *= yb_best.execution_time_ms / pg_best.execution_time_ms if pg_success else 1
-                qo_yb_bests_geo *= (yb_query.execution_time_ms if yb_query.execution_time_ms > 0 else 1.0) / (yb_best.execution_time_ms if yb_best.execution_time_ms > 0 else 1)
+                qo_yb_bests_geo *= (
+                                       yb_query.execution_time_ms if yb_query.execution_time_ms > 0 else 1.0) / (
+                                       yb_best.execution_time_ms if yb_best.execution_time_ms > 0 else 1)
                 qo_pg_bests_geo *= pg_query.execution_time_ms / pg_best.execution_time_ms if pg_best.execution_time_ms != 0 else 9999999
                 yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
-                pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best.execution_plan) else 0
+                pg_bests += 1 if pg_success and pg_query.compare_plans(
+                    pg_best.execution_plan) else 0
 
                 total += 1
 
         self._start_table("4,1,1")
         self.report += "|Statistic|YB|PG\n"
         self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_bests) * 100 / total)}%|{'{:.2f}'.format(float(pg_bests) * 100 / total)}%\n"
-        self.report += f"|Geomeric mean QE best\n2+m|{'{:.2f}'.format(qe_bests_geo**(1/total))}\n"
-        self.report += f"|Geomeric mean QO default vs best|{'{:.2f}'.format(qo_yb_bests_geo**(1/total))}|{'{:.2f}'.format(qo_pg_bests_geo**(1/total))}\n"
+        self.report += f"|Geomeric mean QE best\n2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
+        self.report += f"|Geomeric mean QO default vs best|{'{:.2f}'.format(qo_yb_bests_geo ** (1 / total))}|{'{:.2f}'.format(qo_pg_bests_geo ** (1 / total))}\n"
         self._end_table()
 
         self.report += "\n[#top]\n== QE score\n"
@@ -145,11 +149,11 @@ class ScoreReport(Report):
                 bitmap_flag = "[blue]" if pg_success and "bitmap" in pg_query.execution_plan.full_str.lower() else "[black]"
 
                 self.report += f"a|[black]#*{'{:.2f}'.format(yb_query.execution_time_ms)}*#\n" \
-                                   f"a|{default_yb_equality}#*{'{:.2f}'.format(yb_best.execution_time_ms)}*#\n" \
-                                   f"a|{bitmap_flag}#*{'{:.2f}'.format(pg_query.execution_time_ms)}*#\n" \
-                                   f"a|{default_pg_equality}#*{'{:.2f}'.format(pg_best.execution_time_ms)}*#\n" \
-                                   f"a|{ratio_color}#*{ratio_x3_str}*#\n" \
-                                   f"a|{ratio_best_color}#*{best_yb_pg_equality}{ratio_best_x3_str}*#\n"
+                               f"a|{default_yb_equality}#*{'{:.2f}'.format(yb_best.execution_time_ms)}*#\n" \
+                               f"a|{bitmap_flag}#*{'{:.2f}'.format(pg_query.execution_time_ms)}*#\n" \
+                               f"a|{default_pg_equality}#*{'{:.2f}'.format(pg_best.execution_time_ms)}*#\n" \
+                               f"a|{ratio_color}#*{ratio_x3_str}*#\n" \
+                               f"a|{ratio_best_color}#*{best_yb_pg_equality}{ratio_best_x3_str}*#\n"
                 self.report += f"a|[#{yb_query.query_hash}_top]\n<<{yb_query.query_hash}>>\n"
                 self._start_source(["sql"])
                 self.report += format_sql(pg_query.query.replace("|", "\|"))
@@ -342,15 +346,19 @@ class ScoreReport(Report):
             self._start_collapsible(f"{default_yb_pg_equality}PG default vs YB default")
             self._start_source(["diff"])
             # postgres plan should be red
-            self.report += self._get_plan_diff(pg_query.execution_plan.full_str,
-                                               yb_query.execution_plan.full_str, )
+            self.report += self._get_plan_diff(
+                yb_query.execution_plan.full_str,
+                pg_query.execution_plan.full_str,
+            )
             self._end_source()
             self._end_collapsible()
 
             self._start_collapsible(f"{best_yb_pg_equality}PG best vs YB best")
             self._start_source(["diff"])
-            self.report += self._get_plan_diff(pg_best.execution_plan.full_str,
-                                               yb_best.execution_plan.full_str, )
+            self.report += self._get_plan_diff(
+                yb_best.execution_plan.full_str,
+                pg_best.execution_plan.full_str,
+            )
             self._end_source()
             self._end_collapsible()
 
