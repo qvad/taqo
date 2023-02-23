@@ -97,6 +97,10 @@ if __name__ == "__main__":
                         default=None,
                         help='Path to remote data files ($DATA_PATH/*.csv)')
 
+    parser.add_argument('--plans-only',
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help='Collect only execution plans, execution time will be equal to cost')
     parser.add_argument('--optimizations',
                         action=argparse.BooleanOptionalAction,
                         default=False,
@@ -218,6 +222,7 @@ if __name__ == "__main__":
         remote_data_path=args.remote_data_path,
         ddl_prefix=args.ddl_prefix,
         with_optimizations=args.optimizations,
+        plans_only=args.plans_only,
 
         enable_statistics=args.enable_statistics or get_bool_from_str(
             configuration.get("enable-statistics", False)),

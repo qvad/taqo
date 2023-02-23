@@ -134,9 +134,13 @@ class Scenario:
                             original_query.execution_plan = self.config.database.get_execution_plan(
                                 '')
 
-                    calculate_avg_execution_time(cur, original_query,
-                                                 num_retries=int(self.config.num_retries),
-                                                 connection=conn)
+                    if self.config.plans_only:
+                        original_query.execution_time_ms = \
+                            original_query.execution_plan.get_estimated_cost()
+                    else:
+                        calculate_avg_execution_time(cur, original_query,
+                                                     num_retries=int(self.config.num_retries),
+                                                     connection=conn)
 
                     if evaluate_optimizations and "dml" not in original_query.optimizer_tips.tags:
                         self.logger.debug("Evaluating optimizations...")
@@ -204,7 +208,10 @@ class Scenario:
             not_unique_plan = exec_plan_md5 in execution_plans_checked
             execution_plans_checked.add(exec_plan_md5)
 
-            if not_unique_plan or not calculate_avg_execution_time(
+            if self.config.plans_only:
+                original_query.execution_time_ms = \
+                    original_query.execution_plan.get_estimated_cost()
+            elif not_unique_plan or not calculate_avg_execution_time(
                     cur,
                     optimization,
                     num_retries=int(self.config.num_retries),
