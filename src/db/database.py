@@ -7,6 +7,15 @@ class Database:
     def change_version_and_compile(self, revision_or_path: str = None):
         pass
 
+    def create_test_database(self):
+        pass
+
+    def prepare_query_execution(self, cur):
+        pass
+
+    def set_query_timeout(self, cur, timeout):
+        pass
+
     def destroy(self):
         pass
 

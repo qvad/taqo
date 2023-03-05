@@ -47,7 +47,7 @@ class SQLModel(QTFModel):
         if not created_tables:
             # try to load current tables
             with conn.cursor() as cur:
-                self.load_tables_from_public(created_tables, cur)
+                created_tables = self.load_tables_from_public(cur)
 
         return created_tables, teardown_queries + create_queries + analyze_queries + import_queries
 
@@ -86,14 +86,16 @@ class SQLModel(QTFModel):
                                 self.logger.exception(e)
                                 raise e
                 if step_prefix == DDLStep.CREATE:
-                    self.load_tables_from_public(created_tables, cur)
+                    created_tables = self.load_tables_from_public(cur)
+
+            return created_tables, model_queries
         except Exception as e:
             self.logger.exception(e)
-            exit(1)
-        finally:
-            return created_tables, model_queries
+            raise e
 
-    def load_tables_from_public(self, created_tables, cur):
+    def load_tables_from_public(self, cur):
+        created_tables = []
+
         self.logger.info("Loading tables...")
         cur.execute(
             """
@@ -157,6 +159,8 @@ class SQLModel(QTFModel):
                 self.logger.exception(result, e)
 
             created_tables.append(Table(table_name, fields, 0))
+
+        return created_tables
 
     @staticmethod
     def get_comments(full_query):
