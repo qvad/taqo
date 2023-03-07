@@ -8,6 +8,7 @@ from typing import List
 from config import ConnectionConfig
 from db.postgres import Postgres, PostgresExecutionPlan, PLAN_TREE_CLEANUP, PostgresQuery
 from objects import ExecutionPlan, ListOfQueries, ResultsLoader
+from utils import evaluate_sql
 
 DEFAULT_USERNAME = 'yugabyte'
 DEFAULT_PASSWORD = 'yugabyte'
@@ -48,6 +49,16 @@ class Yugabyte(Postgres):
                                                            parsing[5], )
 
         self.logger.info(f"Connection - {self.config.connection}")
+
+    def prepare_query_execution(self, cur):
+        if self.config.enable_statistics:
+            self.logger.debug("Enable yb_enable_optimizer_statistics flag")
+
+            evaluate_sql(cur, ENABLE_STATISTICS_HINT)
+
+    def set_query_timeout(self, cur, timeout):
+        self.logger.debug(f"Setting statement timeout to {timeout} seconds")
+        evaluate_sql(cur, f"SET statement_timeout = '{timeout}s'")
 
     def change_version_and_compile(self, revision_or_path=None):
         pass
