@@ -47,7 +47,7 @@ class SQLModel(QTFModel):
         if not created_tables:
             # try to load current tables
             with conn.cursor() as cur:
-                self.load_tables_from_public(created_tables, cur)
+                created_tables = self.load_tables_from_public(cur)
 
         return created_tables, teardown_queries + create_queries + analyze_queries + import_queries
 
@@ -86,14 +86,16 @@ class SQLModel(QTFModel):
                                 self.logger.exception(e)
                                 raise e
                 if step_prefix == DDLStep.CREATE:
-                    self.load_tables_from_public(created_tables, cur)
+                    created_tables = self.load_tables_from_public(cur)
+
+            return created_tables, model_queries
         except Exception as e:
             self.logger.exception(e)
-            exit(1)
-        finally:
-            return created_tables, model_queries
+            raise e
 
-    def load_tables_from_public(self, created_tables, cur):
+    def load_tables_from_public(self, cur):
+        created_tables = []
+
         self.logger.info("Loading tables...")
         cur.execute(
             """
@@ -158,6 +160,8 @@ class SQLModel(QTFModel):
 
             created_tables.append(Table(table_name, fields, 0))
 
+        return created_tables
+
     @staticmethod
     def get_comments(full_query):
         for token in sqlparse.parse(full_query)[0].tokens:
@@ -179,7 +183,7 @@ class SQLModel(QTFModel):
                                        comment_line.replace("-- reject: ", "").split(",")]
                     if comment_line.startswith("-- tags: "):
                         tips.tags = [s.strip() for s in
-                                       comment_line.replace("-- tags: ", "").split(",")]
+                                     comment_line.replace("-- tags: ", "").split(",")]
                     if comment_line.startswith("-- max_timeout: "):
                         tips.max_timeout = comment_line.replace("-- max_timeout: ", "").strip()
 
@@ -208,12 +212,17 @@ class SQLModel(QTFModel):
         return queries
 
     def apply_variables(self, queries_str):
-        if self.config.remote_data_path:
-            return queries_str.replace("$DATA_PATH",
-                                       self.config.remote_data_path)
-        else:
-            return queries_str.replace("$DATA_PATH",
-                                       f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data")
+        variables = {
+            '$MULTIPLIER': self.config.basic_multiplier,
+            "$DATA_PATH": self.config.remote_data_path
+        }
+
+        for variable_name, variable_value in variables.items():
+            if variable_value:
+                queries_str = queries_str.replace(variable_name,
+                                                  str(variable_value))
+
+        return queries_str
 
 
 class BasicOpsModel(SQLModel):

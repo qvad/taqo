@@ -8,7 +8,7 @@ from typing import List, Type
 import psycopg2
 from allpairspy import AllPairs
 
-from config import Config, ConnectionConfig
+from config import Config, ConnectionConfig, DDLStep
 from objects import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table, Optimization, \
     ListOfQueries, ResultsLoader
 from db.database import Database
@@ -46,6 +46,17 @@ class Postgres(Database):
         self.connection = Connection(config)
 
         self.connection.connect()
+
+    def create_test_database(self):
+        if DDLStep.DATABASE in self.config.ddls:
+            self.establish_connection("postgres")
+            conn = self.connection.conn
+            try:
+                with conn.cursor() as cur:
+                    colocated = "" if self.config.ddl_prefix else " WITH COLOCATED = true"
+                    evaluate_sql(cur, f'CREATE DATABASE {self.config.connection.database}{colocated};')
+            except Exception as e:
+                self.logger.exception(f"Failed to create testing database {e}")
 
     def get_list_optimizations(self, original_query):
         return PGListOfOptimizations(
@@ -222,19 +233,20 @@ class PostgresQuery(Query):
                         enumerate(self.execution_plan.get_no_cost_plan().split("->"))}
 
         best_optimization = self.get_best_optimization(config)
-        for optimization in self.optimizations:
-            if allowed_diff(config, best_optimization.execution_time_ms,
-                            optimization.execution_time_ms):
-                no_cost_plan = optimization.execution_plan.get_no_cost_plan()
-                for plan_line in plan_heatmap.values():
-                    for optimization_line in no_cost_plan.split("->"):
-                        if SequenceMatcher(
-                                a=optimization.execution_plan.get_no_tree_plan_str(
-                                    plan_line['str']),
-                                b=optimization.execution_plan.get_no_tree_plan_str(
-                                    optimization_line)
-                        ).ratio() > 0.9:
-                            plan_line['weight'] += 1
+        if self.optimizations:
+            for optimization in self.optimizations:
+                if allowed_diff(config, best_optimization.execution_time_ms,
+                                optimization.execution_time_ms):
+                    no_cost_plan = optimization.execution_plan.get_no_cost_plan()
+                    for plan_line in plan_heatmap.values():
+                        for optimization_line in no_cost_plan.split("->"):
+                            if SequenceMatcher(
+                                    a=optimization.execution_plan.get_no_tree_plan_str(
+                                        plan_line['str']),
+                                    b=optimization.execution_plan.get_no_tree_plan_str(
+                                        optimization_line)
+                            ).ratio() > 0.9:
+                                plan_line['weight'] += 1
 
         self.execution_plan_heatmap = plan_heatmap
 

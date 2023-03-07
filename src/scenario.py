@@ -3,8 +3,6 @@ import subprocess
 import psycopg2
 from tqdm import tqdm
 
-from config import DDLStep
-from db.yugabyte import ENABLE_STATISTICS_HINT
 from models.factory import get_test_model
 from utils import evaluate_sql, calculate_avg_execution_time, get_md5
 
@@ -37,18 +35,14 @@ class Scenario:
         else:
             return ""
 
-    def stop_db(self):
-        self.sut_database.stop_database()
-
     def evaluate(self):
         loader = self.config.database.get_results_loader()
 
         commit_message = self.start_db()
         try:
-            test_database = self.config.connection.database
-            self.create_test_database(test_database)
+            self.sut_database.create_test_database()
 
-            self.sut_database.establish_connection(test_database)
+            self.sut_database.establish_connection(self.config.connection.database)
 
             loq = self.config.database.get_list_queries()
             loq.db_version = self.sut_database.connection.get_version()
@@ -63,18 +57,7 @@ class Scenario:
             raise e
         finally:
             if self.config.clean_db:
-                self.stop_db()
-
-    def create_test_database(self, test_database):
-        if DDLStep.DATABASE in self.config.ddls:
-            self.sut_database.establish_connection("postgres")
-            conn = self.sut_database.connection.conn
-            try:
-                with conn.cursor() as cur:
-                    colocated = "" if self.config.ddl_prefix else " WITH COLOCATED = true"
-                    evaluate_sql(cur, f'CREATE DATABASE {test_database}{colocated};')
-            except Exception as e:
-                self.logger.exception(f"Failed to create testing database {e}")
+                self.sut_database.stop_database()
 
     def run_ddl_and_testing_queries(self,
                                     connection,
@@ -101,14 +84,10 @@ class Scenario:
                 for query in self.config.session_props:
                     evaluate_sql(cur, query)
 
-                if self.config.enable_statistics:
-                    self.logger.debug("Enable yb_enable_optimizer_statistics flag")
-
-                    evaluate_sql(cur, ENABLE_STATISTICS_HINT)
+                self.sut_database.prepare_query_execution(cur)
 
                 try:
-                    evaluate_sql(cur,
-                                 f"SET statement_timeout = '{self.config.test_query_timeout}s'")
+                    self.sut_database.set_query_timeout(cur, self.config.test_query_timeout)
 
                     short_query = original_query.query.replace('\n', '')[:40]
                     self.logger.info(
@@ -182,9 +161,7 @@ class Scenario:
                     (original_query.optimizer_tips and original_query.optimizer_tips.max_timeout) or \
                     f"{int(min_execution_time / 1000) + int(self.config.skip_timeout_delta)}s"
 
-                self.logger.debug(f"Setting query timeout to {optimizer_query_timeout} seconds")
-
-                evaluate_sql(cur, f"SET statement_timeout = '{optimizer_query_timeout}'")
+                self.sut_database.set_query_timeout(cur, optimizer_query_timeout)
 
             self.try_to_get_default_explain_hints(cur, optimization, original_query)
 
