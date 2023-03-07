@@ -103,14 +103,14 @@ def calculate_avg_execution_time(cur,
 
 def query_with_analyze(query_str_lower):
     return query_str_lower is not None and \
-           "explain" in query_str_lower and \
-           ("analyze" in query_str_lower or "analyse" in query_str_lower)
+        "explain" in query_str_lower and \
+        ("analyze" in query_str_lower or "analyse" in query_str_lower)
 
 
 def query_is_dml(query_str_lower):
     return "update" in query_str_lower or \
-           "insert" in query_str_lower or \
-           "delete" in query_str_lower
+        "insert" in query_str_lower or \
+        "delete" in query_str_lower
 
 
 def extract_execution_time_from_analyze(result):
@@ -120,6 +120,15 @@ def extract_execution_time_from_analyze(result):
         break
 
     return result
+
+
+def check_alias_validity(alias: str):
+    lower_alias = alias.lower()
+
+    if " " in lower_alias:
+        return False
+
+    return lower_alias not in {'on', 'where', 'group by', 'from'}
 
 
 def get_alias_table_names(sql_str, tables_in_sut):
@@ -133,7 +142,7 @@ def get_alias_table_names(sql_str, tables_in_sut):
     aliases_in_query = parser.tables_aliases
 
     result_tables = {alias: table_name for alias, table_name in aliases_in_query.items()
-                     if alias not in ['where', 'group by', 'from'] and table_name in table_names}
+                     if check_alias_validity(alias) and table_name in table_names}
 
     # add tables w/o aliases
     for table in tables_in_query:
@@ -142,6 +151,7 @@ def get_alias_table_names(sql_str, tables_in_sut):
 
     # return usable table objects list
     table_objects_in_query = []
+    # todo major issue here that mans that taoq doesn't work with aliases
     for alias, table_name_in_query in result_tables.items():
         table_objects_in_query.extend(
             real_table
@@ -158,8 +168,7 @@ def evaluate_sql(cur, sql):
 
     parameters, sql, sql_wo_parameters = parse_clear_and_parametrized_sql(sql)
 
-    config.logger.debug(
-        sql.replace("\n", "")[:120] + "..." if len(sql) > 120 else sql.replace("\n", ""))
+    config.logger.debug(sql)
 
     if config.parametrized and parameters:
         try:
