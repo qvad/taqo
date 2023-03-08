@@ -136,13 +136,11 @@ class Leading:
         combs = list(itertools.combinations(tables, len(tables) - 1))
 
         result = []
-        used = set()
         for perm in perms:
             perm_join = "".join([table.name for table in perm])
             for comb in combs:
                 comb_join = "".join([table.name for table in comb])
-                if perm_join.startswith(comb_join) and comb_join not in used:
-                    used.add(comb_join)
+                if comb_join in perm_join:
                     result.append(perm)
 
         return result
