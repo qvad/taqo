@@ -162,15 +162,13 @@ def get_alias_table_names(sql_str, tables_in_sut):
             result_tables[table] = table
 
     # return usable table objects list
-    table_objects_in_query = []
-    # todo major issue here that mans that taoq doesn't work with aliases
+    table_objects_in_query = {}
     for alias, table_name_in_query in result_tables.items():
-        table_objects_in_query.extend(
-            real_table
-            for real_table in tables_in_sut
-            if table_name_in_query == real_table.name
-            or ('.' in table_name_in_query
-                and table_name_in_query.split(".")[1] == real_table.name))
+        for real_table in tables_in_sut:
+            if table_name_in_query == real_table.name \
+                or ('.' in table_name_in_query
+                    and table_name_in_query.split(".")[1] == real_table.name):
+                table_objects_in_query[alias] = real_table
 
     return table_objects_in_query
 

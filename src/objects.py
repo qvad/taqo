@@ -35,7 +35,7 @@ class Query:
     tag: str = ""
     query: str = ""
     query_hash: str = ""
-    tables: List[Table] = None
+    tables: Dict[str, Table] = None
 
     optimizer_tips: QueryTips = None
     explain_hints: str = ""
