@@ -112,7 +112,7 @@ class Joins(Enum):
 class Leading:
     LEADING = "Leading"
 
-    def __init__(self, config: Config, alias_to_table: Dict[str, Table]):
+    def __init__(self, config: Config, alias_to_table: List[Table]):
         self.config = config
         self.alias_to_table = alias_to_table
         self.joins = []
@@ -126,17 +126,32 @@ class Leading:
         else:
             self.get_all_pairs_combinations()
 
+    def filtered_permutations(self, tables):
+        # todo check how it works
+        perms = list(itertools.permutations(tables))
+        combs = list(itertools.combinations(tables, self.config.all_pairs_threshold))
+
+        result = []
+        used = set()
+        for perm in perms:
+            perm_join = "".join([table.name for table in perm])
+            for comb in combs:
+                comb_join = "".join([table.name for table in comb])
+                if perm_join.startswith(comb_join) and comb_join not in used:
+                    used.add(comb_join)
+                    result.append(perm)
+
+        return result
+
     def get_all_combinations(self):
         # algorithm with all possible combinations
-        tables = [[alias, table_obj] for alias, table_obj in self.alias_to_table.items()]
-
-        for tables_perm in itertools.permutations(tables):
+        for tables_perm in itertools.permutations(self.alias_to_table):
             prev_el = None
             joins = []
             joined_tables = []
 
             for alias_to_table in tables_perm:
-                alias = alias_to_table[0]
+                alias = alias_to_table.alias
 
                 prev_el = f"( {prev_el} {alias} )" if prev_el else alias
                 joined_tables.append(alias)
@@ -154,11 +169,11 @@ class Leading:
             for join in joins:
                 self.joins.append(f"{self.LEADING} ({prev_el}) {join}")
 
-        for alias, table in self.alias_to_table.items():
-            tables_and_idxs = list({f"{Scans.INDEX.value}({alias})"
+        for table in self.alias_to_table:
+            tables_and_idxs = list({f"{Scans.INDEX.value}({table.alias})"
                                     for field in table.fields if field.is_index})
 
-            tables_and_idxs.append(f"{Scans.SEQ.value}({alias})")
+            tables_and_idxs.append(f"{Scans.SEQ.value}({table.alias})")
             self.table_scan_hints.append(tables_and_idxs)
 
     def get_all_pairs_combinations(self):
@@ -168,9 +183,7 @@ class Leading:
         # todo to reduce number of pairs combinations used here
         # while its not produce overwhelming amount of optimizations
         # it should provide enough number of combinations
-        tables = [[alias, table_obj] for alias, table_obj in self.alias_to_table.items()]
-
-        table_combinations = list(itertools.combinations(tables, len(tables)))
+        table_combinations = list(self.filtered_permutations(self.alias_to_table))
         join_product = list(AllPairs([list(Joins) for _ in range(len(self.alias_to_table) - 1)]))
         scan_product = list(AllPairs([list(Scans) for _ in range(len(self.alias_to_table))]))
 
@@ -181,15 +194,15 @@ class Leading:
             joined_tables = []
 
             for table in tables:
-                prev_el = f"( {prev_el} {table[1].name} )" if prev_el else table[1].name
-                joined_tables.append(table[1].name)
+                prev_el = f"( {prev_el} {table.alias} )" if prev_el else table.alias
+                joined_tables.append(table.alias)
 
-                if prev_el != table[1].name:
+                if prev_el != table.alias:
                     query_joins += f" {next(joins).construct(joined_tables)}"
 
             leading_hint = f"{self.LEADING} ({prev_el})"
             scan_hints = " ".join(
-                f"{scan.value}({tables[table_idx][0]})" for table_idx, scan in
+                f"{scan.value}({tables[table_idx].alias})" for table_idx, scan in
                 enumerate(scans))
 
             self.joins.append(f"{leading_hint} {query_joins} {scan_hints}")

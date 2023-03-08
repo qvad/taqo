@@ -17,6 +17,7 @@ class Field:
 
 @dataclasses.dataclass
 class Table:
+    alias: str = None
     name: str = None
     fields: List[Field] = None
     size: int = 0
@@ -35,7 +36,7 @@ class Query:
     tag: str = ""
     query: str = ""
     query_hash: str = ""
-    tables: Dict[str, Table] = None
+    tables: List[Table] = None
 
     optimizer_tips: QueryTips = None
     explain_hints: str = ""

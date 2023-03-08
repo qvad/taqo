@@ -158,7 +158,7 @@ class SQLModel(QTFModel):
             except Exception as e:
                 self.logger.exception(result, e)
 
-            created_tables.append(Table(table_name, fields, 0))
+            created_tables.append(Table(name=table_name, fields=fields, size=0))
 
         return created_tables
 
