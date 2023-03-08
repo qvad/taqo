@@ -159,7 +159,7 @@ class Scenario:
             if self.config.look_near_best_plan or len(original_query.optimizations) == 1:
                 optimizer_query_timeout = \
                     (original_query.optimizer_tips and original_query.optimizer_tips.max_timeout) or \
-                    f"{int(min_execution_time / 1000) + int(self.config.skip_timeout_delta)}s"
+                    f"{int(min_execution_time / 1000) + int(self.config.skip_timeout_delta)}"
 
                 self.sut_database.set_query_timeout(cur, optimizer_query_timeout)
 

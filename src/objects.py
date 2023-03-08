@@ -17,6 +17,7 @@ class Field:
 
 @dataclasses.dataclass
 class Table:
+    alias: str = None
     name: str = None
     fields: List[Field] = None
     size: int = 0

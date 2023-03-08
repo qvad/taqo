@@ -99,5 +99,5 @@ class Report:
             f'{report_adoc}',
             shell=True)
 
-        report_html_path = Path(f'reports/{self.start_date}/report_{report_name}.html')
+        report_html_path = Path(f'report/{self.start_date}/report_{report_name}.html')
         self.logger.info(f"Done! Check report at {report_html_path.absolute()}")

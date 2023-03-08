@@ -148,7 +148,8 @@ def get_alias_table_names(sql_str, tables_in_sut):
     # aliases so remove them from the query. 
     parser = Parser(remove_with_ordinality(sql_str))
 
-    # todo some workarounds for sql_metadata package issues
+    # todo this code contains too many magic
+    # todo so it has more smell rather that magic
     # 'where' may occur in table_name_in_query aliases_in_query
     tables_in_query = parser.tables
     aliases_in_query = parser.tables_aliases
@@ -156,21 +157,21 @@ def get_alias_table_names(sql_str, tables_in_sut):
     result_tables = {alias: table_name for alias, table_name in aliases_in_query.items()
                      if check_alias_validity(alias) and table_name in table_names}
 
-    # add tables w/o aliases
-    for table in tables_in_query:
-        if table not in result_tables.keys():
-            result_tables[table] = table
+    if not len(result_tables) == len(tables_in_query) == len(aliases_in_query):
+        # add tables w/o aliases
+        for table in tables_in_query:
+            if table not in result_tables.keys():
+                result_tables[table] = table
 
     # return usable table objects list
     table_objects_in_query = []
-    # todo major issue here that mans that taoq doesn't work with aliases
     for alias, table_name_in_query in result_tables.items():
-        table_objects_in_query.extend(
-            real_table
-            for real_table in tables_in_sut
-            if table_name_in_query == real_table.name
-            or ('.' in table_name_in_query
-                and table_name_in_query.split(".")[1] == real_table.name))
+        for real_table in tables_in_sut:
+            if table_name_in_query == real_table.name \
+                or ('.' in table_name_in_query
+                    and table_name_in_query.split(".")[1] == real_table.name):
+                real_table.alias = alias
+                table_objects_in_query.append(real_table)
 
     return table_objects_in_query
 
