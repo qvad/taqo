@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--ddl-prefix',
                         default="",
-                        help='DDL file prefix (default empty, might be postgres)')
+                        help='DDL file prefix (can be used for testing). By default taken from db argument.')
     parser.add_argument('--remote-data-path',
                         default=None,
                         help='Path to remote data files ($DATA_PATH/*.csv)')
@@ -106,16 +106,17 @@ if __name__ == "__main__":
                         default=False,
                         help='Evaluate optimizations for each query')
     parser.add_argument('--model',
-                        default="simple",
-                        help='Test model to use - complex, tpch, subqueries, any other custom model')
+                        default="basic",
+                        help='Test model to use - basic, complex, subqueries, etc. See sql/* folder.')
 
-    parser.add_argument('--basic-multiplier',
+    parser.add_argument('--data-multiplier',
                         default=10,
-                        help='Basic model data multiplier (Default 10)')
+                        help='Generated data multiplier. See create.sql or import.sql mdoel files for more information '
+                             '(Default 10)')
     parser.add_argument('--source-path',
-                        help='Path to yugabyte-db source code')
+                        help='Path to yugabyte-db repository source code (if local run)')
     parser.add_argument('--revision',
-                        help='Git revision or path to release build')
+                        help='Git revision or path to release build (if local run)')
     parser.add_argument('--ddls',
                         default="database,create,analyze,import,drop",
                         help='Model creation queries, comma separated: database,create,analyze,import,drop')
@@ -123,15 +124,15 @@ if __name__ == "__main__":
     parser.add_argument('--clean-db',
                         action=argparse.BooleanOptionalAction,
                         default=True,
-                        help='Keep database after test')
+                        help='Keep database after test (True by default)')
     parser.add_argument('--allow-destroy-db',
                         action=argparse.BooleanOptionalAction,
                         default=True,
-                        help='Allow to run yb-ctl/yugabyted destory')
+                        help='Evaluate yb-ctl/yugabyted destroy after test (True by default)')
     parser.add_argument('--clean-build',
                         action=argparse.BooleanOptionalAction,
                         default=True,
-                        help='Build yb_build with --clean-force flag')
+                        help='Build yb_build with --clean-force flag (True by default)')
 
     parser.add_argument('--num-nodes',
                         default=0,
@@ -220,7 +221,7 @@ if __name__ == "__main__":
         output=args.output,
         ddls=ddls,
         remote_data_path=args.remote_data_path,
-        ddl_prefix=args.ddl_prefix,
+        ddl_prefix=args.ddl_prefix or args.db if args.db != "yugabyte" else "",
         with_optimizations=args.optimizations,
         plans_only=args.plans_only,
 
@@ -228,7 +229,7 @@ if __name__ == "__main__":
             configuration.get("enable-statistics", False)),
         explain_clause=args.explain_clause or configuration.get("explain-clause", "EXPLAIN"),
         session_props=configuration.get("session-props", []),
-        basic_multiplier=int(args.basic_multiplier),
+        data_multiplier=int(args.data_multiplier),
 
         skip_percentage_delta=configuration.get("skip-percentage-delta", 0.05),
         skip_timeout_delta=configuration.get("skip-timeout-delta", 1),

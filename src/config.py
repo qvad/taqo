@@ -77,7 +77,7 @@ class Config(metaclass=Singleton):
 
     test: str = None
     model: str = None
-    basic_multiplier: int = None
+    data_multiplier: int = None
 
     ddls: Set[DDLStep] = None
     clean_db: bool = None
@@ -120,7 +120,7 @@ class Config(metaclass=Singleton):
                f"\n" \
                f"test - {self.test}\n" \
                f"model - {self.model}\n" \
-               f"basic_multiplier - {self.basic_multiplier}\n" \
+               f"basic_multiplier - {self.data_multiplier}\n" \
                f"ddls - {[m.name for m in self.ddls]}\n" \
                f"clean_db - {self.clean_db}\n" \
                f"allow_destroy_db - {self.allow_destroy_db}\n" \

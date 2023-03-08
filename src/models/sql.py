@@ -213,7 +213,7 @@ class SQLModel(QTFModel):
 
     def apply_variables(self, queries_str):
         variables = {
-            '$MULTIPLIER': self.config.basic_multiplier,
+            '$MULTIPLIER': self.config.data_multiplier,
             "$DATA_PATH": self.config.remote_data_path
         }
 
@@ -250,7 +250,7 @@ class BasicOpsModel(SQLModel):
             with open(
                     f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data/{table_name}.csv",
                     "w") as csv_file:
-                for i in tqdm(range(50_000 * self.config.basic_multiplier)):
+                for i in tqdm(range(50_000 * self.config.data_multiplier)):
                     ng_string = ''.join(
                         random.choices(string.ascii_uppercase + string.digits, k=str_length))
                     csv_file.write(f"{i},k2-{i},{i},{ng_string}\n")
@@ -262,21 +262,21 @@ class BasicOpsModel(SQLModel):
             with open(
                     f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data/{table_name}.csv",
                     "w") as table_file:
-                for i in tqdm(range((table_size - 3000) * self.config.basic_multiplier)):
+                for i in tqdm(range((table_size - 3000) * self.config.data_multiplier)):
                     ng_string = ''.join(
                         random.choices(string.ascii_uppercase + string.digits, k=16))
                     table_file.write(f"{i},k2-{i},{i},{ng_string}\n")
 
-                for i in tqdm(range((table_size - 3000) * self.config.basic_multiplier,
-                                    (table_size - 2000) * self.config.basic_multiplier)):
+                for i in tqdm(range((table_size - 3000) * self.config.data_multiplier,
+                                    (table_size - 2000) * self.config.data_multiplier)):
                     ng_string = ''.join(
                         random.choices(string.ascii_uppercase + string.digits, k=16))
                     table_file.write(f"{i},k2-{i},NULL,{ng_string}\n")
 
-                for i in tqdm(range((table_size - 2000) * self.config.basic_multiplier,
-                                    (table_size - 1000) * self.config.basic_multiplier)):
+                for i in tqdm(range((table_size - 2000) * self.config.data_multiplier,
+                                    (table_size - 1000) * self.config.data_multiplier)):
                     table_file.write(f"{i},k2-{i},{i},NULL\n")
 
-                for i in tqdm(range((table_size - 1000) * self.config.basic_multiplier,
-                                    table_size * self.config.basic_multiplier)):
+                for i in tqdm(range((table_size - 1000) * self.config.data_multiplier,
+                                    table_size * self.config.data_multiplier)):
                     table_file.write(f"{i},k2-{i},NULL,NULL\n")

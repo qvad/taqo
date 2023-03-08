@@ -62,8 +62,6 @@ class Scenario:
     def run_ddl_and_testing_queries(self,
                                     connection,
                                     evaluate_optimizations=False):
-        queries = []
-        model_queries = []
         try:
             model = get_test_model()
             created_tables, model_queries = model.create_tables(connection)
