@@ -337,3 +337,14 @@ report
 --v1-results=report/basic_taqo_new_runner.json
 --v2-results=report/basic_taqo_new_runner_2.json
 ```
+
+Generate score report which contains taqo analysis and comparison with postgres
+
+```
+src/runner.py
+report
+--type=score
+--config=config/qo.conf
+--results=report/basic_taqo_yb.json
+--pg-results=report/basic_taqo_pg.json
+```

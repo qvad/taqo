@@ -129,7 +129,11 @@ class Leading:
     def filtered_permutations(self, tables):
         # todo check how it works
         perms = list(itertools.permutations(tables))
-        combs = list(itertools.combinations(tables, self.config.all_pairs_threshold))
+
+        if len(tables) < self.config.all_pairs_threshold:
+            return perms
+
+        combs = list(itertools.combinations(tables, len(tables) - 1))
 
         result = []
         used = set()
