@@ -81,9 +81,6 @@ class Scenario:
         counter = 1
         for original_query in queries:
             with conn.cursor() as cur:
-                for query in self.config.session_props:
-                    evaluate_sql(cur, query)
-
                 self.sut_database.prepare_query_execution(cur)
 
                 try:
@@ -100,6 +97,7 @@ class Scenario:
                                 str(item[0]) for item in cur.fetchall()))
 
                         conn.rollback()
+                        self.sut_database.prepare_query_execution(cur)
                     except psycopg2.errors.QueryCanceled:
                         try:
                             evaluate_sql(cur, original_query.get_heuristic_explain())
@@ -108,6 +106,7 @@ class Scenario:
                                     str(item[0]) for item in cur.fetchall()))
 
                             conn.rollback()
+                            self.sut_database.prepare_query_execution(cur)
                         except psycopg2.errors.QueryCanceled:
                             self.logger.error("Unable to get execution plan even w/o analyze")
                             original_query.execution_plan = self.config.database.get_execution_plan(
@@ -117,7 +116,7 @@ class Scenario:
                         original_query.execution_time_ms = \
                             original_query.execution_plan.get_estimated_cost()
                     else:
-                        calculate_avg_execution_time(cur, original_query,
+                        calculate_avg_execution_time(cur, original_query, self.sut_database,
                                                      num_retries=int(self.config.num_retries),
                                                      connection=conn)
 
@@ -172,6 +171,7 @@ class Scenario:
                         str(item[0]) for item in cur.fetchall()))
 
                 connection.rollback()
+                self.sut_database.prepare_query_execution(cur)
             except psycopg2.errors.QueryCanceled as e:
                 # failed by timeout - it's ok just skip optimization
                 self.logger.debug(f"Getting execution plan failed with {e}")
@@ -191,6 +191,7 @@ class Scenario:
             elif not_unique_plan or not calculate_avg_execution_time(
                     cur,
                     optimization,
+                    self.sut_database,
                     num_retries=int(self.config.num_retries),
                     connection=connection):
                 num_skipped += 1

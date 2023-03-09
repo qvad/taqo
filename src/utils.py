@@ -1,12 +1,14 @@
 import hashlib
 import re
 import time
+import traceback
 from copy import copy
 
 import psycopg2
 from sql_metadata import Parser
 
 from config import Config
+from db.database import Database
 from objects import Query
 
 PARAMETER_VARIABLE = r"[^'](\%\((.*?)\))"
@@ -44,6 +46,7 @@ def get_result(cur, is_dml):
 
 def calculate_avg_execution_time(cur,
                                  query: Query,
+                                 sut_database: Database,
                                  query_str: str = None,
                                  num_retries: int = 0,
                                  connection=None) -> object:
@@ -72,23 +75,26 @@ def calculate_avg_execution_time(cur,
             if iteration >= num_warmup and with_analyze:
                 _, result = get_result(cur, is_dml)
                 connection.rollback()
+                # todo make wrapper for this
+                sut_database.prepare_query_execution(cur)
 
                 # get cardinality for queries with analyze
                 evaluate_sql(cur, query.get_query())
                 cardinality, _ = get_result(cur, is_dml)
                 connection.rollback()
+                sut_database.prepare_query_execution(cur)
 
                 sum_execution_times += extract_execution_time_from_analyze(result)
                 query.result_cardinality = cardinality
             else:
                 sum_execution_times += current_milli_time() - start_time
-                connection.rollback()
 
             if iteration == 0:
                 if not result:
                     cardinality, result = get_result(cur, is_dml)
                     query.result_cardinality = cardinality
                     connection.rollback()
+                    sut_database.prepare_query_execution(cur)
 
                 query.result_hash = get_md5(result)
         except psycopg2.errors.QueryCanceled:
@@ -101,6 +107,7 @@ def calculate_avg_execution_time(cur,
             # Some serious problem occurred - probably an issue
             query.execution_time_ms = 0
             config.logger.error(f"INTERNAL ERROR {ie}\nSQL query:\n{query_str}")
+            traceback.print_exc(limit=None, file=None, chain=True)
             return False
         finally:
             if iteration >= num_warmup:
