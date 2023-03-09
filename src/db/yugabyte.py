@@ -51,6 +51,8 @@ class Yugabyte(Postgres):
         self.logger.info(f"Connection - {self.config.connection}")
 
     def prepare_query_execution(self, cur):
+        super().prepare_query_execution(cur)
+
         if self.config.enable_statistics:
             self.logger.debug("Enable yb_enable_optimizer_statistics flag")
 
