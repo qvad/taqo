@@ -47,6 +47,10 @@ class Postgres(Database):
 
         self.connection.connect()
 
+    def prepare_query_execution(self, cur):
+        for query in self.config.session_props:
+            evaluate_sql(cur, query)
+
     def create_test_database(self):
         if DDLStep.DATABASE in self.config.ddls:
             self.establish_connection("postgres")
@@ -169,7 +173,7 @@ class Leading:
                             joins.append(new_join.construct(joined_tables))
 
             for join in joins:
-                self.joins.append(f"{self.LEADING} ({prev_el}) {join}")
+                self.joins.append(f"{self.LEADING} ( {prev_el} ) {join}")
 
         for table in self.alias_to_table:
             tables_and_idxs = list({f"{Scans.INDEX.value}({table.alias})"
