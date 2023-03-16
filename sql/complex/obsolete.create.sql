@@ -1,5 +1,5 @@
 CREATE TABLE t1000000
-    WITH (colocation = true) AS
+    WITH (colocated = true) AS
 SELECT c_int,
        (case when c_int % 2 = 0 then true else false end) as c_bool,
        (c_int + 0.0001)::text as c_text,
@@ -17,7 +17,7 @@ CREATE INDEX t1000000_6_idx ON t1000000 (c_float, c_decimal, c_varchar);
 CREATE INDEX t1000000_7_idx ON t1000000 (c_float, c_real, c_money);
 
 CREATE TABLE t500000
-    WITH (colocation = true) AS
+    WITH (colocated = true) AS
 SELECT c_int,
        (case when c_int % 2 = 0 then true else false end) as c_bool,
        (c_int + 0.0001)::text as c_text,
@@ -35,7 +35,7 @@ CREATE INDEX t500000_6_idx ON t500000 (c_float, c_decimal, c_varchar);
 CREATE INDEX t500000_7_idx ON t500000 (c_float, c_real, c_money);
 
 CREATE TABLE t50000
-    WITH (colocation = true) AS
+    WITH (colocated = true) AS
 SELECT c_int,
        (case when c_int % 2 = 0 then true else false end) as c_bool,
        (c_int + 0.0001)::text as c_text,
@@ -53,7 +53,7 @@ CREATE INDEX t50000_6_idx ON t50000 (c_float, c_decimal, c_varchar);
 CREATE INDEX t50000_7_idx ON t50000 (c_float, c_real, c_money);
 
 CREATE TABLE t100
-    WITH (colocation = true) AS
+    WITH (colocated = true) AS
 SELECT c_int,
        (case when c_int % 2 = 0 then true else false end) as c_bool,
        (c_int + 0.0001)::text as c_text,
