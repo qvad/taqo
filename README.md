@@ -1,8 +1,9 @@
 # Query Optimizer Testing Framework
 
-Idea of the framework is to automate routines around query optimizer testing and generate human-readable report that can be manually verified.
-Since the query optimizer depends on data on cluster, hardware, etc.., all test scenarios are trying
-to reduce these effects and exclude hard checks in fail criteria.
+The idea of the framework is to automate routines around query optimizer testing and generate a
+human-readable report that can be manually verified. Since the query optimizer depends on data in
+the cluster, hardware, etc., all test scenarios are designed to reduce these effects and exclude
+hard checks in fail criteria.
 
 # Installation
 
@@ -36,13 +37,45 @@ files `create.sql`
 and `queries/*.sql` - create is for creating model tables and uploading data, queries is a set of
 single query files that we want to measure. Example for TPCH model can be found in `sql/` directory.
 
+---
+**NOTE**
+
+Due to SQL parsing limitations, a query can either have all tables with aliases or no aliases should
+be used.
+
+---
+
 ```
+sql/$MODEL_NAME/drop.sql
 sql/$MODEL_NAME/create.sql
+sql/$MODEL_NAME/import.sql
+sql/$MODEL_NAME/analyze.sql
+sql/$MODEL_NAME/postgres.create.sql
+sql/$MODEL_NAME/obsolete.create.sql
 sql/$MODEL_NAME/queries/*.sql
 ```
 
 Use the sql/proprietary/ folder for any models you don't want to be checked in. Remember to prefix
 the model flag with proprietary/ in this case.
+
+#### DDL Prefix
+
+The `--ddl-prefix` flag feature has been implemented to support various scenarios that rely on DDL
+calls. This feature allows specific DDL queries to be executed to test different features. For
+example, the default Yugabyte implementation assumes that the database will be created with a
+colocation flag. However, Postgres does not have this feature. To evaluate tests against Postgres,
+you need to define `--ddl-prefix=postgres`. Additionally, if `--db=postgres`, then `--ddl-prefix`
+will be automatically defined based on the database type.
+
+This feature can also be used to test obsolete configurations. For example, at Yugabyte, the old
+syntax `colocated` was used, which can be tested using the `--ddl-prefix=colocated` flag.
+
+#### Prefix semantics
+
+There are five DDL stages - database, drop, create, import, and analyze. Each step, except for the
+database stage, is mapped to a corresponding file name: create -> create.sql, import -> import.sql,
+etc. If --ddl-prefix is defined, the framework will try to search for $PREFIX.create.sql file for
+the create DDL stage. If the file is not found, create.sql will be used as the default one.
 
 ### basic
 
@@ -90,7 +123,8 @@ Nested Loop Join, Merge, Hash) and scans (Index if available, Sequential).
 For example for 3 tables `‘a’, ‘b’, ‘c’` there will be following permutations generated:
 `[('a', 'b', 'c'), ('a', 'c', 'b'), ('b', 'a', 'c'), ('b', 'c', 'a'), ('c', 'a', 'b'), ('c', 'b', 'a')]]`
 . Each permutation will be transformed into a Leading hint (`Leading ((a b) c)` `Leading ((a c) b)`
-etc.). After all leading hints are generated, the tool will try to generate all possible combinations
+etc.). After all leading hints are generated, the tool will try to generate all possible
+combinations
 of NL, Merge, Hash joins
 (`Leading ((a b) c) Merge(a b) Merge(a b c)`, `Leading ((a b) c) Merge(a b) Hash(a b c)` etc) .
 After all joins are used, the tool will apply all possible combinations of scans based on the tables
@@ -114,12 +148,16 @@ by using pairwise approach: `[['Nested', 'Nested', 'Nested'], ['Hash', 'Hash', '
 , ['Merge', 'Nested', 'Merge']]`. Note that here each 3 tables (2 joins) will be tried to be joined
 by each join type, but for example `[‘Merge’,'Merge','Merge']` combination is not here.
 
-There is `all-pairs-threshold` parameter in configuration - it defines maximum number of tables in query after which
-pairwise approach will be used. By default, this threshold is equal to `3`. For this value, for example,`basic` model will
-be evaluated without using pairwise, while JOB and complex models will reduce number of combinations. 
+There is `all-pairs-threshold` parameter in configuration - it defines maximum number of tables in
+query after which
+pairwise approach will be used. By default, this threshold is equal to `3`. For this value, for
+example,`basic` model will
+be evaluated without using pairwise, while JOB and complex models will reduce number of
+combinations.
 
 Another option to
-reduce number of optimizations is using comment hints in `*.sql` files - comma separated accepted and rejected
+reduce number of optimizations is using comment hints in `*.sql` files - comma separated accepted
+and rejected
 substrings of `pg_hints`can be mentioned there:
 
 ```sql
@@ -129,8 +167,7 @@ substrings of `pg_hints`can be mentioned there:
 -- tags: muted_nlj, 5s_max
 
 select a.c1,
-       a.c2, 
-       ...
+       a.c2, ...
 ```
 
 In this example framework will only use join order from the accept hint and reject all NestLoop
@@ -204,10 +241,10 @@ num-nodes = 3
 explain-clause = "explain "
 # session properties before executing set of testing queries
 session-props = [
-   "SET pg_hint_plan.enable_hint = ON;",
-   "SET pg_hint_plan.debug_print = ON;",
-   "SET client_min_messages TO log;",
-   "SET pg_hint_plan.message_level = debug;",
+  "SET pg_hint_plan.enable_hint = ON;",
+  "SET pg_hint_plan.debug_print = ON;",
+  "SET client_min_messages TO log;",
+  "SET pg_hint_plan.message_level = debug;",
 ]
 
 # allowed diff between queries (all tests included)
