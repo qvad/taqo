@@ -14,8 +14,10 @@ from objects import Query
 PARAMETER_VARIABLE = r"[^'](\%\((.*?)\))"
 WITH_ORDINALITY = r"[Ww][Ii][Tt][Hh]\s*[Oo][Rr][Dd][Ii][Nn][Aa][Ll][Ii][Tt][yY]\s*[Aa][Ss]\s*.*(.*)"
 
+
 def current_milli_time():
     return (time.time_ns() // 1_000) / 1_000
+
 
 def remove_with_ordinality(sql_str):
     while True:
@@ -24,9 +26,11 @@ def remove_with_ordinality(sql_str):
             break
 
         start, end = match.span(0)
-        sql_str = (sql_str[:start] if start > 0 else "") + (sql_str[end:] if end < len(sql_str) else "")
-    
+        sql_str = (sql_str[:start] if start > 0 else "") + (
+            sql_str[end:] if end < len(sql_str) else "")
+
     return sql_str
+
 
 def get_result(cur, is_dml):
     if is_dml:
@@ -175,8 +179,8 @@ def get_alias_table_names(sql_str, tables_in_sut):
     for alias, table_name_in_query in result_tables.items():
         for real_table in tables_in_sut:
             if table_name_in_query == real_table.name \
-                or ('.' in table_name_in_query
-                    and table_name_in_query.split(".")[1] == real_table.name):
+                    or ('.' in table_name_in_query
+                        and table_name_in_query.split(".")[1] == real_table.name):
                 real_table.alias = alias
                 table_objects_in_query.append(real_table)
 
