@@ -105,9 +105,9 @@ class SQLModel(QTFModel):
         local_path = parse_re[1]
         params = parse_re[2]
 
-        delimiter = None
+        delimiter = ","
         file_format = None
-        null_format = None
+        null_format = 'None'
         if 'delimiter' in params.lower():
             delimiter = re.findall(r"(?i)delimiter\s\'(\S)\'", params)[0]
         if 'format' in params.lower():
