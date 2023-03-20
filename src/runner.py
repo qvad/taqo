@@ -220,7 +220,9 @@ if __name__ == "__main__":
         output=args.output,
         ddls=ddls,
         remote_data_path=args.remote_data_path,
-        ddl_prefix=args.ddl_prefix,
+        ddl_prefix=args.ddl_prefix if args.ddl_prefix else (
+            args.db if args.db != "yugabyte" else ""
+        ),
         with_optimizations=args.optimizations,
         plans_only=args.plans_only,
 
@@ -276,7 +278,8 @@ if __name__ == "__main__":
     elif args.action == "report":
         config.logger.info("")
         config.logger.info(f"Generation {args.type} report")
-        config.logger.info(f"Allowed execution time percentage deviation: {config.skip_percentage_delta * 100}%")
+        config.logger.info(
+            f"Allowed execution time percentage deviation: {config.skip_percentage_delta * 100}%")
         config.logger.info("------------------------------------------------------------")
 
         if args.type == "taqo":
@@ -323,11 +326,13 @@ if __name__ == "__main__":
             report = SelectivityReport()
 
             default_queries = loader.get_queries_from_previous_result(args.default_results)
-            default_analyze_queries = loader.get_queries_from_previous_result(args.default_analyze_results)
+            default_analyze_queries = loader.get_queries_from_previous_result(
+                args.default_analyze_results)
             ta_queries = loader.get_queries_from_previous_result(args.ta_results)
             ta_analyze_queries = loader.get_queries_from_previous_result(args.ta_analyze_results)
             stats_queries = loader.get_queries_from_previous_result(args.stats_results)
-            stats_analyze_queries = loader.get_queries_from_previous_result(args.stats_analyze_results)
+            stats_analyze_queries = loader.get_queries_from_previous_result(
+                args.stats_analyze_results)
 
             report.generate_report(default_queries, default_analyze_queries, ta_queries,
                                    ta_analyze_queries, stats_queries, stats_analyze_queries)

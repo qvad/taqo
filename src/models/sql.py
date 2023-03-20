@@ -98,29 +98,21 @@ class SQLModel(QTFModel):
             self.logger.exception(e)
             raise e
 
-    def import_from_local(self, cur, cleaned):
+    @staticmethod
+    def import_from_local(cur, cleaned):
         copy_re = r"(?i)\bCOPY\b\s(.+)\s\bFROM\b\s\'(.*)\'\s\bWITH\b\s\((.*\,?)\)"
         parse_re = re.findall(copy_re, cleaned, re.MULTILINE)[0]
-        table_name = parse_re[0]
         local_path = parse_re[1]
         params = parse_re[2]
 
-        delimiter = ","
         file_format = None
-        null_format = 'None'
-        if 'delimiter' in params.lower():
-            delimiter = re.findall(r"(?i)delimiter\s\'(\S)\'", params)[0]
         if 'format' in params.lower():
             file_format = re.findall(r"(?i)format\s([a-zA-Z]+)", params)[0]
-        if 'null' in params.lower():
-            null_format = re.findall(r"(?i)null\s\'([a-zA-Z]+)\'", params)[0]
 
         if 'csv' not in file_format.lower():
             raise AttributeError("Can't import from non CSV files")
 
-        cur.copy_from(open(local_path, "r"), table_name,
-                      sep=delimiter,
-                      null=null_format)
+        cur.copy_expert(cleaned, open(local_path, "r"))
 
     def load_tables_from_public(self, cur):
         created_tables = []
