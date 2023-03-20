@@ -112,7 +112,8 @@ class SQLModel(QTFModel):
         if 'csv' not in file_format.lower():
             raise AttributeError("Can't import from non CSV files")
 
-        cur.copy_expert(cleaned, open(local_path, "r"))
+        with open(local_path, "r") as data:
+            cur.copy_expert(cleaned, data)
 
     def load_tables_from_public(self, cur):
         created_tables = []
