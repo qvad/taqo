@@ -198,26 +198,32 @@ def evaluate_sql(cur, sql):
         try:
             cur.execute(sql, parameters)
         except psycopg2.errors.QueryCanceled as e:
+            cur.connection.rollback()
             raise e
         except psycopg2.errors.ConfigurationLimitExceeded as cle:
+            cur.connection.rollback()
             config.logger.exception(sql, cle)
         except psycopg2.OperationalError as oe:
+            cur.connection.rollback()
             config.logger.exception(sql, oe)
-            cur = cur.connection.cursor()
         except Exception as e:
-            config.logger.exception(sql, e)
+            cur.connection.rollback()
+            config.logger.exception(sql_wo_parameters, e)
             raise e
     else:
         try:
             cur.execute(sql_wo_parameters)
         except psycopg2.errors.QueryCanceled as e:
+            cur.connection.rollback()
             raise e
         except psycopg2.errors.ConfigurationLimitExceeded as cle:
+            cur.connection.rollback()
             config.logger.exception(sql, cle)
         except psycopg2.OperationalError as oe:
+            cur.connection.rollback()
             config.logger.exception(sql, oe)
-            cur = cur.connection.cursor()
         except Exception as e:
+            cur.connection.rollback()
             config.logger.exception(sql_wo_parameters, e)
             raise e
 
