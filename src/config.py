@@ -61,7 +61,7 @@ class Config(metaclass=Singleton):
     plans_only: bool = False
     with_optimizations: bool = False
     source_path: str = None
-    output: str = None
+    output: str = ""
     revision: str = None
 
     num_nodes: int = None

@@ -87,7 +87,7 @@ class Report:
             text[:3] not in ('+++', '---', '@@ '))
 
     def publish_report(self, report_name):
-        report_adoc = f"report/{self.start_date}/report_{report_name}.adoc"
+        report_adoc = f"report/{self.start_date}/report_{report_name}_{self.config.output}.adoc"
 
         with open(report_adoc, "w") as file:
             file.write(self.report)
@@ -99,5 +99,5 @@ class Report:
             f'{report_adoc}',
             shell=True)
 
-        report_html_path = Path(f'report/{self.start_date}/report_{report_name}.html')
+        report_html_path = Path(f'report/{self.start_date}/report_{report_name}_{self.config.output}.html')
         self.logger.info(f"Done! Check report at {report_html_path.absolute()}")
