@@ -8,14 +8,19 @@ class RegressionReport(Report):
     def __init__(self):
         super().__init__()
 
+        self.v1_name = None
+        self.v2_name = None
         self.queries = {}
 
     @classmethod
     def generate_report(cls,
+                        v1_name: str,
+                        v2_name: str,
                         loq_v1: ListOfQueries,
                         loq_v2: ListOfQueries):
         report = RegressionReport()
 
+        report.define_version_names(v1_name, v2_name)
         report.define_version(loq_v1.db_version, loq_v2.db_version)
         report.report_model(loq_v1.model_queries)
 
@@ -32,7 +37,8 @@ class RegressionReport(Report):
         return "Regression"
 
     def define_version(self, first_version, second_version):
-        self.report += f"[GIT COMMIT/VERSION]\n====\nFirst:\n{first_version}\n\nSecond:\n{second_version}\n====\n\n"
+        self.report += f"[GIT COMMIT/VERSION]\n====\n" \
+                       f"First:\n{first_version}\n\nSecond:\n{second_version}\n====\n\n"
 
     def add_query(self, first_query: Query, second_query: Query):
         if first_query.tag not in self.queries:
@@ -51,7 +57,7 @@ class RegressionReport(Report):
         self.report += "\n[#query_summary]\n== Query Summary\n"
         num_columns = 4
         self._start_table("1,1,1,4")
-        self.report += "|First|Second|Ratio (Second/First)|Query\n"
+        self.report += f"|{self.v1_name}|{self.v2_name}|Ratio (Second/First)|Query\n"
         for tag, queries in self.queries.items():
             self.report += f"{num_columns}+m|{tag}.sql\n"
             for query_id, query in enumerate(queries):
@@ -70,7 +76,9 @@ class RegressionReport(Report):
                 self.report += f"{query[0].execution_time_ms}\n" \
                                f"|{query[1].execution_time_ms}\n" \
                                f"a|{color}#*{ratio}*#\n"
-                self.report += f"a|[#{query[0].query_hash}_query]\n<<tags_summary, Go to tags summary>>\n\n<<{query[0].query_hash}>>\n"
+                self.report += f"a|[#{query[0].query_hash}_query]\n" \
+                               f"<<tags_summary, Go to tags summary>>\n\n" \
+                               f"<<{query[0].query_hash}>>\n"
                 self._start_source(["sql"])
                 self.report += format_sql(query[1].query.replace("|", "\|"))
                 self._end_source()
@@ -173,7 +181,7 @@ class RegressionReport(Report):
         self._add_double_newline()
 
         self._start_table("3")
-        self.report += "|Metric|First|Second\n"
+        self.report += f"|Metric|{self.v1_name}|{self.v2_name}\n"
         self._start_table_row()
         self.report += f"Cardinality|{first_query.result_cardinality}|{second_query.result_cardinality}"
         self._end_table_row()
@@ -188,13 +196,13 @@ class RegressionReport(Report):
         self._start_table()
         self._start_table_row()
 
-        self._start_collapsible("First version plan")
+        self._start_collapsible(f"{self.v1_name} version plan")
         self._start_source(["diff"])
         self.report += first_query.execution_plan.full_str
         self._end_source()
         self._end_collapsible()
 
-        self._start_collapsible("Second version plan")
+        self._start_collapsible(f"{self.v2_name} version plan")
         self._start_source(["diff"])
         self.report += second_query.execution_plan.full_str
         self._end_source()
@@ -215,3 +223,7 @@ class RegressionReport(Report):
         self._end_table()
 
         self._add_double_newline()
+
+    def define_version_names(self, v1_name, v2_name):
+        self.v1_name = v1_name
+        self.v2_name = v2_name
