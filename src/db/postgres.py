@@ -3,7 +3,7 @@ import itertools
 import re
 from difflib import SequenceMatcher
 from enum import Enum
-from typing import List, Type, Dict
+from typing import List, Type
 
 import psycopg2
 from allpairspy import AllPairs
