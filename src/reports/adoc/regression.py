@@ -1,7 +1,18 @@
+from dataclasses import dataclass
+
 from sql_formatter.core import format_sql
 
 from objects import ListOfQueries, Query
 from reports.abstract import Report
+
+
+@dataclass
+class ShortSummaryReport:
+    diff_plans: int = 0
+    diff_rpc_calls: int = 0
+    diff_wait_times: int = 0
+    diff_scanned_rows: int = 0
+    diff_peak_memory: int = 0
 
 
 class RegressionReport(Report):
@@ -11,6 +22,7 @@ class RegressionReport(Report):
         self.v1_name = None
         self.v2_name = None
         self.queries = {}
+        self.short_summary = ShortSummaryReport()
 
     @classmethod
     def generate_report(cls,
@@ -32,6 +44,7 @@ class RegressionReport(Report):
 
         report.build_report()
         report.publish_report("reg")
+        report.publish_short_report()
 
     def get_report_name(self):
         return "Regression"
@@ -99,9 +112,9 @@ class RegressionReport(Report):
             num_same_plans = sum(1 for query in queries
                                  if query[0].compare_plans(query[1].execution_plan))
             self.report += f"a|<<{tag}>>\n"
-            num_changed_plans = len(queries) - num_same_plans
-            color = "[green]" if num_changed_plans == 0 else "[orange]"
-            self.report += f"a|{color}#*{num_changed_plans}*#\n"
+            self.short_summary.diff_plans = len(queries) - num_same_plans
+            color = "[green]" if self.short_summary.diff_plans == 0 else "[orange]"
+            self.report += f"a|{color}#*{self.short_summary.diff_plans}*#\n"
             self._end_table_row()
         self._end_table()
         self._end_collapsible()
@@ -111,11 +124,13 @@ class RegressionReport(Report):
         self.report += "\n[#rpc_summary]\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
-            num_same_plans = sum(query[0].execution_plan.get_rpc_calls() != query[1].execution_plan.get_rpc_calls()
-                                 for query in queries)
+            self.short_summary.diff_rpc_calls = sum(
+                query[0].execution_plan.get_rpc_calls() != query[1].execution_plan.get_rpc_calls()
+                for query in queries
+            )
             self.report += f"a|<<{tag}>>\n"
-            color = "[green]" if num_same_plans == 0 else "[orange]"
-            self.report += f"a|{color}#*{num_same_plans}*#\n"
+            color = "[green]" if self.short_summary.diff_rpc_calls == 0 else "[orange]"
+            self.report += f"a|{color}#*{self.short_summary.diff_rpc_calls}*#\n"
             self._end_table_row()
         self._end_table()
         self._end_collapsible()
@@ -125,11 +140,13 @@ class RegressionReport(Report):
         self.report += "\n[#rpc_wait_summary]\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
-            num_same_plans = sum(query[0].execution_plan.get_rpc_wait_times() != query[1].execution_plan.get_rpc_wait_times()
-                                 for query in queries)
+            self.short_summary.diff_wait_times = sum(
+                query[0].execution_plan.get_rpc_wait_times() != query[1].execution_plan.get_rpc_wait_times()
+                for query in queries
+            )
             self.report += f"a|<<{tag}>>\n"
-            color = "[green]" if num_same_plans == 0 else "[orange]"
-            self.report += f"a|{color}#*{num_same_plans}*#\n"
+            color = "[green]" if self.short_summary.diff_wait_times == 0 else "[orange]"
+            self.report += f"a|{color}#*{self.short_summary.diff_wait_times}*#\n"
             self._end_table_row()
         self._end_table()
         self._end_collapsible()
@@ -139,8 +156,10 @@ class RegressionReport(Report):
         self.report += "\n[#rows_summary]\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
-            num_same_plans = sum(query[0].execution_plan.get_scanned_rows() != query[1].execution_plan.get_scanned_rows()
-                                 for query in queries)
+            num_same_plans = sum(
+                query[0].execution_plan.get_scanned_rows() != query[1].execution_plan.get_scanned_rows()
+                for query in queries
+            )
             self.report += f"a|<<{tag}>>\n"
             color = "[green]" if num_same_plans == 0 else "[orange]"
             self.report += f"a|{color}#*{num_same_plans}*#\n"
@@ -153,11 +172,13 @@ class RegressionReport(Report):
         self.report += "\n[#memory_summary]\n"
         self._start_table("2")
         for tag, queries in self.queries.items():
-            num_same_plans = sum(query[0].execution_plan.get_peak_memory() != query[1].execution_plan.get_peak_memory()
-                                 for query in queries)
+            self.short_summary.diff_peak_memory = sum(
+                query[0].execution_plan.get_peak_memory() != query[1].execution_plan.get_peak_memory()
+                for query in queries
+            )
             self.report += f"a|<<{tag}>>\n"
-            color = "[green]" if num_same_plans == 0 else "[orange]"
-            self.report += f"a|{color}#*{num_same_plans}*#\n"
+            color = "[green]" if self.short_summary.diff_peak_memory == 0 else "[orange]"
+            self.report += f"a|{color}#*{self.short_summary.diff_peak_memory}*#\n"
             self._end_table_row()
         self._end_table()
         self._end_collapsible()
@@ -227,3 +248,12 @@ class RegressionReport(Report):
     def define_version_names(self, v1_name, v2_name):
         self.v1_name = v1_name
         self.v2_name = v2_name
+
+    def publish_short_report(self):
+        with open(f"report/{self.start_date}/short_regression_summary.txt", "w") as short_summary:
+            short_summary.write(f"Changed plans: {self.short_summary.diff_plans}\n")
+            short_summary.write(f"Changed scanned rows: {self.short_summary.diff_scanned_rows}\n")
+            short_summary.write(f"Changed RPC calls: {self.short_summary.diff_rpc_calls}\n")
+            short_summary.write(f"Changed RPC wait times: {self.short_summary.diff_wait_times}\n")
+            short_summary.write(f"Changed peak memory: {self.short_summary.diff_peak_memory}\n")
+
