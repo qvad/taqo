@@ -17,9 +17,6 @@ class QTFModel(ABC):
         self.config = Config()
         self.logger = self.config.logger
 
-    def generate_data(self):
-        pass
-
     @abc.abstractmethod
     def create_tables(self, conn, skip_analyze=False, db_prefix=None):
         pass
