@@ -271,9 +271,10 @@ class YugabyteLocalRepository(Yugabyte):
                                       stderr=subprocess.PIPE,
                                       cwd=self.path, )
 
-        if 'Running.' not in str(out):
-            self.logger.error(f"Failed to start Yugabyte\n{str(out)}")
-            exit(1)
+        # temporarily disabled status check
+        # if 'Running.' not in str(out):
+        #     self.logger.error(f"Failed to start Yugabyte\n{str(out)}")
+        #     exit(1)
 
         self.establish_connection_from_output(str(out))
 

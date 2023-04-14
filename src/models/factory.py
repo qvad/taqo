@@ -1,7 +1,5 @@
-from config import Config
-from models.sql import SQLModel, BasicOpsModel
+from models.sql import SQLModel
 
 
 def get_test_model():
-    # return BasicOpsModel() if Config().model == "basic" else SQLModel()
     return SQLModel()

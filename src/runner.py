@@ -69,6 +69,12 @@ if __name__ == "__main__":
                         help='Regression: Results for first version')
     parser.add_argument('--v2-results',
                         help='Regression: Results for second version')
+    parser.add_argument('--v1-name',
+                        default='First',
+                        help='Regression: First version reporting name')
+    parser.add_argument('--v2-name',
+                        default='Second',
+                        help='Regression: Second version reporting name')
 
     # Selectivity
     parser.add_argument('--default-results',
@@ -306,7 +312,7 @@ if __name__ == "__main__":
             v1_queries = loader.get_queries_from_previous_result(args.v1_results)
             v2_queries = loader.get_queries_from_previous_result(args.v2_results)
 
-            report.generate_report(v1_queries, v2_queries)
+            report.generate_report(args.v1_name, args.v2_name, v1_queries, v2_queries)
         elif args.type == "regression_xls":
             report = RegressionXlsReport()
 

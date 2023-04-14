@@ -1,8 +1,6 @@
 import glob
 import os
-import random
 import re
-import string
 from os.path import exists
 from typing import List
 
@@ -63,9 +61,6 @@ class SQLModel(QTFModel):
         db_prefix = self.config.ddl_prefix or db_prefix
         if db_prefix and exists(f"sql/{self.config.model}/{db_prefix}.{file_name}.sql"):
             file_name = f"{db_prefix}.{file_name}"
-
-        if step_prefix == DDLStep.IMPORT:
-            self.generate_data()
 
         model_queries = []
         try:
@@ -255,60 +250,3 @@ class SQLModel(QTFModel):
                                                   str(variable_value))
 
         return queries_str
-
-
-class BasicOpsModel(SQLModel):
-
-    def generate_data(self):
-        self.logger.info("Generating data files for simplified model")
-
-        random.seed = 2023
-
-        # create dir if not there yet
-        if not exists(f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data"):
-            os.mkdir(f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data")
-
-        self.create_data_for_50kx_table('t1', 16)
-        self.create_data_for_50kx_table('t2', 128)
-        self.create_data_for_50kx_table('t3', 512)
-
-        self.create_table_with_1k_nulls('ts2', 20000)
-        self.create_table_with_1k_nulls('ts3', 5000)
-
-    def create_data_for_50kx_table(self, table_name: str, str_length: int):
-        if exists(f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data/{table_name}.csv"):
-            self.logger.warn(f"Model files already presented, skipping {table_name}.csv")
-        else:
-            with open(
-                    f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data/{table_name}.csv",
-                    "w") as csv_file:
-                for i in tqdm(range(50_000 * self.config.basic_multiplier)):
-                    ng_string = ''.join(
-                        random.choices(string.ascii_uppercase + string.digits, k=str_length))
-                    csv_file.write(f"{i},k2-{i},{i},{ng_string}\n")
-
-    def create_table_with_1k_nulls(self, table_name: str, table_size: int):
-        if exists(f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data/{table_name}.csv"):
-            self.logger.warn(f"Model files already presented, skipping {table_name}.csv")
-        else:
-            with open(
-                    f"{os.path.abspath(os.getcwd())}/sql/{self.config.model}/data/{table_name}.csv",
-                    "w") as table_file:
-                for i in tqdm(range((table_size - 3000) * self.config.basic_multiplier)):
-                    ng_string = ''.join(
-                        random.choices(string.ascii_uppercase + string.digits, k=16))
-                    table_file.write(f"{i},k2-{i},{i},{ng_string}\n")
-
-                for i in tqdm(range((table_size - 3000) * self.config.basic_multiplier,
-                                    (table_size - 2000) * self.config.basic_multiplier)):
-                    ng_string = ''.join(
-                        random.choices(string.ascii_uppercase + string.digits, k=16))
-                    table_file.write(f"{i},k2-{i},NULL,{ng_string}\n")
-
-                for i in tqdm(range((table_size - 2000) * self.config.basic_multiplier,
-                                    (table_size - 1000) * self.config.basic_multiplier)):
-                    table_file.write(f"{i},k2-{i},{i},NULL\n")
-
-                for i in tqdm(range((table_size - 1000) * self.config.basic_multiplier,
-                                    table_size * self.config.basic_multiplier)):
-                    table_file.write(f"{i},k2-{i},NULL,NULL\n")

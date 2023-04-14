@@ -56,7 +56,7 @@ class Config(metaclass=Singleton):
 
     database: Database = None
 
-    remote_data_path: str = None
+    remote_data_path: str = "."
     ddl_prefix: str = ""
     plans_only: bool = False
     with_optimizations: bool = False
