@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from typing import Type
 
 from matplotlib import pyplot as plt
@@ -6,7 +7,7 @@ from sql_formatter.core import format_sql
 
 from objects import ListOfQueries, Query
 from reports.abstract import Report
-from utils import allowed_diff
+from utils import allowed_diff, disabled_path
 
 
 class ScoreReport(Report):
@@ -16,6 +17,11 @@ class ScoreReport(Report):
         os.mkdir(f"report/{self.start_date}/imgs")
 
         self.queries = {}
+        self.overall_plots = {
+            'color': 'k.',
+            'x_values': [],
+            'y_values': []
+        }
 
     @classmethod
     def generate_report(cls, loq: ListOfQueries, pg_loq: ListOfQueries = None):
@@ -44,7 +50,74 @@ class ScoreReport(Report):
                 query.get_best_optimization(
                     self.config).execution_time_ms / query.execution_time_ms)
 
-    def create_plot(self, best_optimization, optimizations, query):
+    def create_default_query_plot(self):
+        plt.xlabel('Predicted cost [log scale]')
+        plt.ylabel('Execution time [ms][log scale]')
+        plt.xscale('log')
+        plt.yscale('log')
+
+        x_data = []
+        y_data = []
+
+        for tag, queries in self.queries.items():
+            for yb_pg_queries in queries:
+                query = yb_pg_queries[0]
+                if query.execution_time_ms:
+                    x_data.append(query.execution_plan.get_estimated_cost())
+                    y_data.append(query.execution_time_ms)
+
+        fig = self.generate_regression_and_standard_errors(x_data, y_data)
+
+        file_name = f'imgs/all_queries_defaults.png'
+        fig.savefig(f"report/{self.start_date}/{file_name}", dpi=300)
+        plt.close()
+
+        return file_name
+
+    def create_optimizations_plot(self):
+        plt.xlabel('Predicted cost [log scale]')
+        plt.ylabel('Execution time [ms][log scale]')
+        plt.xscale('log')
+        plt.yscale('log')
+
+        x_data = []
+        y_data = []
+
+        for tag, queries in self.queries.items():
+            for yb_pg_queries in queries:
+                query = yb_pg_queries[0]
+                x_data += [q.execution_plan.get_estimated_cost() for q in query.optimizations
+                           if q.execution_time_ms != 0 and not disabled_path(q)]
+                y_data += [q.execution_time_ms for q in query.optimizations
+                           if q.execution_time_ms != 0 and not disabled_path(q)]
+
+        fig = self.generate_regression_and_standard_errors(x_data, y_data)
+
+        file_name = f'imgs/all_optimizations.png'
+        fig.savefig(f"report/{self.start_date}/{file_name}", dpi=300)
+        plt.close()
+
+        return file_name
+
+    @staticmethod
+    def generate_regression_and_standard_errors(x_data, y_data):
+        x = np.array(x_data)
+        y = np.array(y_data)
+        n = x.size
+
+        a, b = np.polyfit(x, y, deg=1)
+        y_est = a * x + b
+        y_err = (y - y_est).std() * np.sqrt(1 / n + (x - x.mean()) ** 2 / np.sum((x - x.mean()) ** 2))
+
+        fig, ax = plt.subplots()
+
+        ax.plot(x, y_est, '-')
+        ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
+        ax.plot(x, y, 'k.')
+
+        return fig
+
+    def create_query_plot(self, best_optimization, optimizations, query):
         if not optimizations:
             return "NO PLOT"
 
@@ -60,7 +133,7 @@ class ScoreReport(Report):
                  [best_optimization.execution_plan.get_estimated_cost()], 'go')
 
         file_name = f'imgs/query_{self.reported_queries_counter}.png'
-        plt.savefig(f"report/{self.start_date}/{file_name}")
+        plt.savefig(f"report/{self.start_date}/{file_name}", dpi=300)
         plt.close()
 
         return file_name
@@ -72,6 +145,12 @@ class ScoreReport(Report):
             self.queries[query.tag].append([query, pg])
 
     def build_report(self):
+        self._start_table("2")
+        self.report += "|Default query plans|Optimizations\n"
+        self.report += f"a|image::{self.create_default_query_plot()}[Defaults,align=\"center\"]\n"
+        self.report += f"a|image::{self.create_optimizations_plot()}[Optimizations,align=\"center\"]\n"
+        self._end_table()
+
         self.report += "\n== QO score\n"
 
         yb_bests = 0
@@ -262,8 +341,8 @@ class ScoreReport(Report):
 
             self.__report_near_queries(yb_query)
 
-        filename = self.create_plot(yb_best, yb_query.optimizations, yb_query)
-        self.report += f"image::{filename}[\"Query {self.reported_queries_counter}\"]"
+        filename = self.create_query_plot(yb_best, yb_query.optimizations, yb_query)
+        self.report += f"image::{filename}[\"Query {self.reported_queries_counter}\",align=\"center\"]"
 
         self._add_double_newline()
 

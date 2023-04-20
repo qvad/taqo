@@ -274,3 +274,7 @@ def get_md5(string: str):
 
 def get_bool_from_str(string: str):
     return string in {True, 1, "True", "true", "TRUE", "T"}
+
+
+def disabled_path(query):
+    return query.execution_plan.get_estimated_cost() < 10000000000
