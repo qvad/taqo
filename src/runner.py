@@ -173,6 +173,9 @@ if __name__ == "__main__":
     parser.add_argument('--explain-clause',
                         default=None,
                         help='Explain clause that will be placed before query. Default "EXPLAIN"')
+    parser.add_argument('--session-props',
+                        default=[],
+                        help='Additional session properties queries')
     parser.add_argument('--num-queries',
                         default=-1,
                         help='Number of queries to evaluate')
@@ -235,7 +238,7 @@ if __name__ == "__main__":
         enable_statistics=args.enable_statistics or get_bool_from_str(
             configuration.get("enable-statistics", False)),
         explain_clause=args.explain_clause or configuration.get("explain-clause", "EXPLAIN"),
-        session_props=configuration.get("session-props", []),
+        session_props=configuration.get("session-props", args.session_props.split(",")),
         basic_multiplier=int(args.basic_multiplier),
 
         skip_percentage_delta=configuration.get("skip-percentage-delta", 0.05),
