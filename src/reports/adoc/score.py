@@ -133,7 +133,7 @@ class ScoreReport(Report):
                  [best_optimization.execution_plan.get_estimated_cost()], 'go')
 
         file_name = f'imgs/query_{self.reported_queries_counter}.png'
-        plt.savefig(f"report/{self.start_date}/{file_name}", dpi=300)
+        plt.savefig(f"report/{self.start_date}/{file_name}")
         plt.close()
 
         return file_name
