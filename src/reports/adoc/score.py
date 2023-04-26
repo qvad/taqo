@@ -1,4 +1,6 @@
 import os
+from math import log
+
 import numpy as np
 from typing import Type
 
@@ -51,11 +53,6 @@ class ScoreReport(Report):
                     self.config).execution_time_ms / query.execution_time_ms)
 
     def create_default_query_plot(self):
-        plt.xlabel('Predicted cost [log scale]')
-        plt.ylabel('Execution time [ms][log scale]')
-        plt.xscale('log')
-        plt.yscale('log')
-
         x_data = []
         y_data = []
 
@@ -75,11 +72,6 @@ class ScoreReport(Report):
         return file_name
 
     def create_optimizations_plot(self):
-        plt.xlabel('Predicted cost [log scale]')
-        plt.ylabel('Execution time [ms][log scale]')
-        plt.xscale('log')
-        plt.yscale('log')
-
         x_data = []
         y_data = []
 
@@ -101,8 +93,8 @@ class ScoreReport(Report):
 
     @staticmethod
     def generate_regression_and_standard_errors(x_data, y_data):
-        x = np.array(x_data)
-        y = np.array(y_data)
+        x = np.array([log(x) for x in x_data])
+        y = np.array([log(y) for y in y_data])
         n = x.size
 
         a, b = np.polyfit(x, y, deg=1)
@@ -110,6 +102,9 @@ class ScoreReport(Report):
         y_err = (y - y_est).std() * np.sqrt(1 / n + (x - x.mean()) ** 2 / np.sum((x - x.mean()) ** 2))
 
         fig, ax = plt.subplots()
+
+        plt.xlabel('Predicted cost [log scale]')
+        plt.ylabel('Execution time [ms][log scale]')
 
         ax.plot(x, y_est, '-')
         ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
