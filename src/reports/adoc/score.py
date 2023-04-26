@@ -93,8 +93,8 @@ class ScoreReport(Report):
 
     @staticmethod
     def generate_regression_and_standard_errors(x_data, y_data):
-        x = np.array([log(x) for x in x_data])
-        y = np.array([log(y) for y in y_data])
+        x = np.array(x_data)
+        y = np.array(y_data)
         n = x.size
 
         a, b = np.polyfit(x, y, deg=1)
@@ -103,8 +103,8 @@ class ScoreReport(Report):
 
         fig, ax = plt.subplots()
 
-        plt.xlabel('Predicted cost [log scale]')
-        plt.ylabel('Execution time [ms][log scale]')
+        plt.xlabel('Predicted cost')
+        plt.ylabel('Execution time [ms]')
 
         ax.plot(x, y_est, '-')
         ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
@@ -116,8 +116,8 @@ class ScoreReport(Report):
         if not optimizations:
             return "NO PLOT"
 
-        plt.xlabel('Execution time')
-        plt.ylabel('Optimizer cost')
+        plt.xlabel('Execution time [ms]')
+        plt.ylabel('Predicted cost')
 
         plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms != 0],
                  [q.execution_plan.get_estimated_cost() for q in optimizations if
