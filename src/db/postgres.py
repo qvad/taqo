@@ -189,7 +189,7 @@ class Leading:
 
         # we do not collect table permutations here
         # todo think about better solution
-        table_combinations = self.alias_to_table
+        table_combinations = list(itertools.combinations(self.alias_to_table, len(self.alias_to_table)))
         join_product = list(AllPairs([list(Joins) for _ in range(len(self.alias_to_table) - 1)]))
         scan_product = list(AllPairs([list(Scans) for _ in range(len(self.alias_to_table))]))
 
