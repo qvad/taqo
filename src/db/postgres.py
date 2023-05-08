@@ -187,10 +187,9 @@ class Leading:
         if len(self.alias_to_table) <= 1:
             return
 
-        # todo to reduce number of pairs combinations used here
-        # while its not produce overwhelming amount of optimizations
-        # it should provide enough number of combinations
-        table_combinations = list(self.filtered_permutations(self.alias_to_table))
+        # we do not collect table permutations here
+        # todo think about better solution
+        table_combinations = self.alias_to_table
         join_product = list(AllPairs([list(Joins) for _ in range(len(self.alias_to_table) - 1)]))
         scan_product = list(AllPairs([list(Scans) for _ in range(len(self.alias_to_table))]))
 
