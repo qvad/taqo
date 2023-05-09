@@ -52,24 +52,26 @@ class ScoreReport(Report):
                 query.get_best_optimization(
                     self.config).execution_time_ms / query.execution_time_ms)
 
-    def create_default_query_plot(self):
-        x_data = []
-        y_data = []
+    def create_default_query_plots(self):
+        file_names = [f'imgs/all_queries_defaults_yb.png',
+                      f'imgs/all_queries_defaults_pg.png']
+        
+        for i in range(2):
+            x_data = []
+            y_data = []
 
-        for tag, queries in self.queries.items():
-            for yb_pg_queries in queries:
-                query = yb_pg_queries[0]
-                if query.execution_time_ms:
-                    x_data.append(query.execution_plan.get_estimated_cost())
-                    y_data.append(query.execution_time_ms)
+            for tag, queries in self.queries.items():
+                for yb_pg_queries in queries:
+                    query = yb_pg_queries[i]
+                    if query.execution_time_ms:
+                        x_data.append(query.execution_plan.get_estimated_cost())
+                        y_data.append(query.execution_time_ms)
 
-        fig = self.generate_regression_and_standard_errors(x_data, y_data)
+            fig = self.generate_regression_and_standard_errors(x_data, y_data)
+            fig.savefig(f"report/{self.start_date}/{file_names[i]}", dpi=300)
+            plt.close()
 
-        file_name = f'imgs/all_queries_defaults.png'
-        fig.savefig(f"report/{self.start_date}/{file_name}", dpi=300)
-        plt.close()
-
-        return file_name
+        return file_names
 
     def create_optimizations_plot(self):
         x_data = []
@@ -141,9 +143,10 @@ class ScoreReport(Report):
 
     def build_report(self):
         self._start_table("2")
-        self.report += "|Default query plans|Optimizations\n"
-        self.report += f"a|image::{self.create_default_query_plot()}[Defaults,align=\"center\"]\n"
-        self.report += f"a|image::{self.create_optimizations_plot()}[Optimizations,align=\"center\"]\n"
+        self.report += "|Yugabyte|Postgres\n"
+        default_query_plots = self.create_default_query_plots()
+        self.report += f"a|image::{default_query_plots[0]}[Yugabyte,align=\"center\"]\n"
+        self.report += f"a|image::{default_query_plots[1]}[Postgres,align=\"center\"]\n"
         self._end_table()
 
         self.report += "\n== QO score\n"
