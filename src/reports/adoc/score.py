@@ -53,9 +53,9 @@ class ScoreReport(Report):
                     self.config).execution_time_ms / query.execution_time_ms)
 
     def create_default_query_plots(self):
-        file_names = [f'imgs/all_queries_defaults_yb.png',
-                      f'imgs/all_queries_defaults_pg.png']
-        
+        file_names = ['imgs/all_queries_defaults_yb.png',
+                      'imgs/all_queries_defaults_pg.png']
+
         for i in range(2):
             x_data = []
             y_data = []
@@ -87,7 +87,7 @@ class ScoreReport(Report):
 
         fig = self.generate_regression_and_standard_errors(x_data, y_data)
 
-        file_name = f'imgs/all_optimizations.png'
+        file_name = 'imgs/all_optimizations.png'
         fig.savefig(f"report/{self.start_date}/{file_name}", dpi=300)
         plt.close()
 
