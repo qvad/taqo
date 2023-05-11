@@ -1,15 +1,15 @@
 import os
-from math import log
 
 import numpy as np
 from typing import Type
 
 from matplotlib import pyplot as plt
+from matplotlib import rcParams
 from sql_formatter.core import format_sql
 
 from objects import ListOfQueries, Query
 from reports.abstract import Report
-from utils import allowed_diff, disabled_path
+from utils import allowed_diff
 
 
 class ScoreReport(Report):
@@ -73,26 +73,6 @@ class ScoreReport(Report):
 
         return file_names
 
-    def create_optimizations_plot(self):
-        x_data = []
-        y_data = []
-
-        for tag, queries in self.queries.items():
-            for yb_pg_queries in queries:
-                query = yb_pg_queries[0]
-                x_data += [q.execution_plan.get_estimated_cost() for q in query.optimizations
-                           if q.execution_time_ms != 0 and not disabled_path(q)]
-                y_data += [q.execution_time_ms for q in query.optimizations
-                           if q.execution_time_ms != 0 and not disabled_path(q)]
-
-        fig = self.generate_regression_and_standard_errors(x_data, y_data)
-
-        file_name = 'imgs/all_optimizations.png'
-        fig.savefig(f"report/{self.start_date}/{file_name}", dpi=300)
-        plt.close()
-
-        return file_name
-
     @staticmethod
     def generate_regression_and_standard_errors(x_data, y_data):
         x = np.array(x_data)
@@ -114,12 +94,18 @@ class ScoreReport(Report):
 
         return fig
 
-    def create_query_plot(self, best_optimization, optimizations, query):
+    def create_query_plot(self, best_optimization, optimizations, query, scale=""):
         if not optimizations:
             return "NO PLOT"
 
+        rcParams['font.family'] = 'serif'
+        rcParams['font.size'] = 6
         plt.xlabel('Execution time [ms]')
         plt.ylabel('Predicted cost')
+
+        if scale:
+            plt.xscale(scale)
+            plt.yscale(scale)
 
         plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms != 0],
                  [q.execution_plan.get_estimated_cost() for q in optimizations if
@@ -129,8 +115,8 @@ class ScoreReport(Report):
                  [best_optimization.execution_time_ms],
                  [best_optimization.execution_plan.get_estimated_cost()], 'go')
 
-        file_name = f'imgs/query_{self.reported_queries_counter}.png'
-        plt.savefig(f"report/{self.start_date}/{file_name}")
+        file_name = f'imgs/query_{self.reported_queries_counter}{scale}.png'
+        plt.savefig(f"report/{self.start_date}/{file_name}", dpi=300)
         plt.close()
 
         return file_name
@@ -339,8 +325,13 @@ class ScoreReport(Report):
 
             self.__report_near_queries(yb_query)
 
-        filename = self.create_query_plot(yb_best, yb_query.optimizations, yb_query)
-        self.report += f"image::{filename}[\"Query {self.reported_queries_counter}\",align=\"center\"]"
+        self._start_table("2")
+        self.report += "|Default|Log scale\n"
+        query_plot = self.create_query_plot(yb_best, yb_query.optimizations, yb_query)
+        query_plot_log = self.create_query_plot(yb_best, yb_query.optimizations, yb_query, "log")
+        self.report += f"a|image::{query_plot}[Default,align=\"center\"]\n"
+        self.report += f"a|image::{query_plot_log}[Log scale,align=\"center\"]\n"
+        self._end_table()
 
         self._add_double_newline()
 

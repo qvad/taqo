@@ -251,7 +251,7 @@ if __name__ == "__main__":
         num_queries=int(args.num_queries)
         if int(args.num_queries) > 0 else configuration.get("num-queries", -1),
         num_retries=configuration.get("num-retries", 5),
-        num_warmup=configuration.get("num-warmup", 2),
+        num_warmup=configuration.get("num-warmup", 1),
 
         parametrized=args.parametrized,
 
