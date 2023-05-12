@@ -229,9 +229,7 @@ if __name__ == "__main__":
         output=args.output,
         ddls=ddls,
         remote_data_path=args.remote_data_path,
-        ddl_prefix=args.ddl_prefix if args.ddl_prefix else (
-            args.db if args.db != "yugabyte" else ""
-        ),
+        ddl_prefix=args.ddl_prefix or (args.db if args.db != "yugabyte" else ""),
         with_optimizations=args.optimizations,
         plans_only=args.plans_only,
 

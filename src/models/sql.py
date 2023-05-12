@@ -50,6 +50,12 @@ class SQLModel(QTFModel):
 
         return created_tables, teardown_queries + create_queries + analyze_queries + import_queries
 
+    def get_model_path(self):
+        if self.config.model.startswith("/") or self.config.model.startswith("."):
+            return self.config.model
+        else:
+            return f"sql/{self.config.model}"
+
     def evaluate_ddl_queries(self, conn,
                              step_prefix: DDLStep,
                              db_prefix=None):
@@ -59,7 +65,7 @@ class SQLModel(QTFModel):
         file_name = step_prefix.name.lower()
 
         db_prefix = self.config.ddl_prefix or db_prefix
-        if db_prefix and exists(f"sql/{self.config.model}/{db_prefix}.{file_name}.sql"):
+        if db_prefix and exists(f"{self.get_model_path()}/{db_prefix}.{file_name}.sql"):
             file_name = f"{db_prefix}.{file_name}"
 
         model_queries = []
@@ -67,12 +73,12 @@ class SQLModel(QTFModel):
             with conn.cursor() as cur:
                 evaluate_sql(cur, f"SET statement_timeout = '{self.config.ddl_query_timeout}s'")
 
-                path_to_file = f"sql/{self.config.model}/{file_name}.sql"
+                path_to_file = f"{self.get_model_path()}/{file_name}.sql"
 
                 if not exists(path_to_file):
                     self.logger.warn(f"Unable to locate file {path_to_file}")
                 else:
-                    with open(f"sql/{self.config.model}/{file_name}.sql", "r") as sql_file:
+                    with open(f"{self.get_model_path()}/{file_name}.sql", "r") as sql_file:
                         full_queries = self.apply_variables('\n'.join(sql_file.readlines()))
                         for query in tqdm(full_queries.split(";")):
                             try:
@@ -218,7 +224,7 @@ class SQLModel(QTFModel):
 
     def get_queries(self, tables):
         queries = []
-        query_file_lists = sorted(list(glob.glob(f"sql/{self.config.model}/queries/*.sql")))
+        query_file_lists = sorted(list(glob.glob(f"{self.get_model_path()}/queries/*.sql")))
         for query in query_file_lists:
             with open(query, "r") as query_file:
                 full_queries = self.apply_variables(''.join(query_file.readlines()))
