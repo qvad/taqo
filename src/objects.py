@@ -29,6 +29,7 @@ class QueryTips:
     reject: List[str] = dataclasses.field(default_factory=list)
     tags: List[str] = dataclasses.field(default_factory=list)
     max_timeout: str = dataclasses.field(default_factory=str)
+    debug_hints: str = dataclasses.field(default_factory=str)
 
 
 @dataclasses.dataclass
@@ -38,7 +39,7 @@ class Query:
     query_hash: str = ""
     tables: List[Table] = None
 
-    optimizer_tips: QueryTips = None
+    optimizer_tips: QueryTips = QueryTips()
     explain_hints: str = ""
 
     execution_plan: 'ExecutionPlan' = None

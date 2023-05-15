@@ -219,6 +219,8 @@ class SQLModel(QTFModel):
                                      comment_line.replace("-- tags: ", "").split(",")]
                     if comment_line.startswith("-- max_timeout: "):
                         tips.max_timeout = comment_line.replace("-- max_timeout: ", "").strip()
+                    if comment_line.startswith("-- debug_hints: "):
+                        tips.debug_hints = comment_line.replace("-- debug_hints: ", "").strip()
 
         return tips
 

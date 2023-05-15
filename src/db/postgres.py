@@ -219,17 +219,20 @@ class PostgresQuery(Query):
     execution_plan: 'PostgresExecutionPlan' = None
     optimizations: List['PostgresOptimization'] = None
 
+    def get_debug_hints(self):
+        return f"/*+ {self.optimizer_tips.debug_hints} */ " if self.optimizer_tips.debug_hints else ""
+
     def get_query(self):
-        return self.query
+        return f"{self.get_debug_hints()}{self.query}"
 
     def get_explain(self):
-        return f"{Config().explain_clause} {self.query}"
+        return f"{Config().explain_clause} {self.get_query()}"
 
     def get_heuristic_explain(self):
-        return f"EXPLAIN {self.query}"
+        return f"EXPLAIN {self.get_query()}"
 
     def get_explain_analyze(self):
-        return f"EXPLAIN ANALYZE {self.query}"
+        return f"EXPLAIN ANALYZE {self.get_query()}"
 
     def tips_looks_fair(self, optimization):
         clean_plan = self.execution_plan.get_clean_plan()
@@ -296,14 +299,17 @@ class PostgresQuery(Query):
 class PostgresOptimization(PostgresQuery, Optimization):
     execution_plan: 'PostgresExecutionPlan' = None
 
+    def get_default_tipped_query(self):
+        return f"/*+ {self.optimizer_tips.debug_hints} {self.explain_hints} */ {self.query}"
+
     def get_query(self):
-        return f"/*+ {self.explain_hints} */ {self.query}"
+        return self.get_default_tipped_query()
 
     def get_explain(self):
-        return f"{Config().explain_clause}  /*+ {self.explain_hints} */ {self.query}"
+        return f"{Config().explain_clause} {self.get_default_tipped_query()}"
 
     def get_heuristic_explain(self):
-        return f"EXPLAIN /*+ {self.explain_hints} */ {self.query}"
+        return f"EXPLAIN {self.get_default_tipped_query()}"
 
 
 @dataclasses.dataclass
@@ -435,6 +441,7 @@ class PGListOfOptimizations(ListOfOptimizations):
                 PostgresOptimization(
                     query=self.query.query,
                     query_hash=self.query.query_hash,
+                    optimizer_tips=self.query.optimizer_tips,
                     explain_hints=explain_hints
                 )
             )

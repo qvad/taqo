@@ -165,6 +165,7 @@ substrings of `pg_hints`can be mentioned there:
 -- reject: NestLoop
 -- max_timeout: 5s
 -- tags: muted_nlj, 5s_max
+-- debug_hints: set (yb_enable_optimizer_statistics false)
 
 select a.c1,
        a.c2, ...
