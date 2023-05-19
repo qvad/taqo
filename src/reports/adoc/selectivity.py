@@ -177,8 +177,10 @@ class SelectivityReport(Report):
 
         self._start_source(["diff"])
 
-        diff = self._get_plan_diff(default.execution_plan.full_str,
-                                   all_analyze.execution_plan.full_str)
+        diff = self._get_plan_diff(
+            default.execution_plan.full_str,
+            all_analyze.execution_plan.full_str
+        )
         if not diff:
             diff = default.execution_plan.full_str
 

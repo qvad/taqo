@@ -415,8 +415,8 @@ class ScoreReport(Report):
             self._start_source(["diff"])
             # postgres plan should be red
             self.report += self._get_plan_diff(
-                yb_query.execution_plan.full_str,
                 pg_query.execution_plan.full_str,
+                yb_query.execution_plan.full_str,
             )
             self._end_source()
             self._end_collapsible()
@@ -424,8 +424,8 @@ class ScoreReport(Report):
             self._start_collapsible(f"{best_yb_pg_equality}PG best vs YB best")
             self._start_source(["diff"])
             self.report += self._get_plan_diff(
-                yb_best.execution_plan.full_str,
                 pg_best.execution_plan.full_str,
+                yb_best.execution_plan.full_str,
             )
             self._end_source()
             self._end_collapsible()
@@ -447,8 +447,10 @@ class ScoreReport(Report):
 
         self.report += f"{default_yb_equality}YB default vs YB best\n"
         self._start_source(["diff"])
-        diff = self._get_plan_diff(yb_query.execution_plan.full_str,
-                                   yb_best.execution_plan.full_str)
+        diff = self._get_plan_diff(
+            yb_query.execution_plan.full_str,
+            yb_best.execution_plan.full_str
+        )
         if not diff:
             diff = yb_query.execution_plan.full_str
 

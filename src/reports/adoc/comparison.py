@@ -119,7 +119,10 @@ class ComparisonReport(Report):
 
         self._start_source(["diff"])
 
-        diff = self._get_plan_diff(yb_query.execution_plan.full_str, pg_query.execution_plan.full_str)
+        diff = self._get_plan_diff(
+            pg_query.execution_plan.full_str,
+            yb_query.execution_plan.full_str,
+        )
         if not diff:
             diff = yb_query.execution_plan.full_str
 

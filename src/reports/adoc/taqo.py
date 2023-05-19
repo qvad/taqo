@@ -197,8 +197,8 @@ class TaqoReport(Report):
             if self.config.compare_with_pg:
                 self.report += \
                     f"!! Result hash|{query.result_hash}|{best_optimization.result_hash} (yb) != {pg_query.result_hash} (pg)" \
-                    if pg_query.result_hash != query.result_hash else \
-                    f"Result hash|`{query.result_hash}|{best_optimization.result_hash} (yb) != {pg_query.result_hash} (pg)"
+                        if pg_query.result_hash != query.result_hash else \
+                        f"Result hash|`{query.result_hash}|{best_optimization.result_hash} (yb) != {pg_query.result_hash} (pg)"
             elif best_optimization.result_hash != query.result_hash:
                 self.report += f"!! Result hash|{query.result_hash}|{best_optimization.result_hash}"
             else:
@@ -244,15 +244,19 @@ class TaqoReport(Report):
 
             self._start_collapsible("Best Postgres plan diff with YB default")
             self._start_source(["diff"])
-            self.report += self._get_plan_diff(best_pg.execution_plan.full_str,
-                                               query.execution_plan.full_str, )
+            self.report += self._get_plan_diff(
+                query.execution_plan.full_str,
+                best_pg.execution_plan.full_str,
+            )
             self._end_source()
             self._end_collapsible()
 
             self._start_collapsible("Best Postgres plan diff with YB best")
             self._start_source(["diff"])
-            self.report += self._get_plan_diff(best_pg.execution_plan.full_str,
-                                               best_optimization.execution_plan.full_str, )
+            self.report += self._get_plan_diff(
+                best_pg.execution_plan.full_str,
+                best_optimization.execution_plan.full_str,
+            )
             self._end_source()
             self._end_collapsible()
 
@@ -273,8 +277,10 @@ class TaqoReport(Report):
 
         self._start_source(["diff"])
 
-        diff = self._get_plan_diff(query.execution_plan.full_str,
-                                   best_optimization.execution_plan.full_str)
+        diff = self._get_plan_diff(
+            query.execution_plan.full_str,
+            best_optimization.execution_plan.full_str
+        )
         if not diff:
             diff = query.execution_plan.full_str
 

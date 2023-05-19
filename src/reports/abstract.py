@@ -81,9 +81,9 @@ class Report:
         self.report += """\n====\n\n"""
 
     @staticmethod
-    def _get_plan_diff(original, changed):
+    def _get_plan_diff(baseline, changed):
         return "\n".join(
-            text for text in difflib.unified_diff(original.split("\n"), changed.split("\n")) if
+            text for text in difflib.unified_diff(baseline.split("\n"), changed.split("\n")) if
             text[:3] not in ('+++', '---', '@@ '))
 
     def publish_report(self, report_name):
