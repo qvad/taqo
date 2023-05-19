@@ -1,6 +1,6 @@
 from sql_formatter.core import format_sql
 
-from objects import ListOfQueries, Query
+from objects import CollectResult, Query
 from reports.abstract import Report
 
 
@@ -12,12 +12,14 @@ class ComparisonReport(Report):
 
     @classmethod
     def generate_report(cls,
-                        loq_yb: ListOfQueries,
-                        loq_pg: ListOfQueries):
+                        loq_yb: CollectResult,
+                        loq_pg: CollectResult):
         report = ComparisonReport()
 
         report.define_version(loq_yb.db_version, loq_pg.db_version)
         report.report_model(loq_yb.model_queries)
+        report.report_config(loq_yb.config, "YB")
+        report.report_config(loq_pg.config, "PG")
 
         for query in zip(loq_yb.queries, loq_pg.queries):
             report.add_query(*query)

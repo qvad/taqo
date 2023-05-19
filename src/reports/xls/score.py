@@ -3,7 +3,7 @@ from typing import Type
 from matplotlib import pyplot as plt
 from sql_formatter.core import format_sql
 
-from objects import ListOfQueries, Query
+from objects import CollectResult, Query
 from db.postgres import PostgresQuery
 from reports.abstract import Report
 
@@ -17,7 +17,7 @@ class ScoreXlsReport(Report):
         self.queries = {}
 
     @classmethod
-    def generate_report(cls, loq: ListOfQueries, pg_loq: ListOfQueries = None):
+    def generate_report(cls, loq: CollectResult, pg_loq: CollectResult = None):
         report = ScoreXlsReport()
 
         for qid, query in enumerate(loq.queries):

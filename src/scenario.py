@@ -49,6 +49,7 @@ class Scenario:
             loq.model_queries, loq.queries = self.run_ddl_and_testing_queries(
                 self.sut_database.connection.conn, self.config.with_optimizations)
             loq.git_message = commit_message
+            loq.config = str(self.config)
 
             self.logger.info(f"Storing results to report/{self.config.output}")
             loader.store_queries_to_file(loq, self.config.output)
@@ -62,8 +63,6 @@ class Scenario:
     def run_ddl_and_testing_queries(self,
                                     connection,
                                     evaluate_optimizations=False):
-        queries = []
-        model_queries = []
         try:
             model = get_test_model()
             created_tables, model_queries = model.create_tables(connection)

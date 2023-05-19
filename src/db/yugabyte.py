@@ -7,7 +7,7 @@ from typing import List
 
 from config import ConnectionConfig
 from db.postgres import Postgres, PostgresExecutionPlan, PLAN_TREE_CLEANUP, PostgresQuery
-from objects import ExecutionPlan, ListOfQueries, ResultsLoader
+from objects import ExecutionPlan, CollectResult, ResultsLoader
 from utils import evaluate_sql
 
 DEFAULT_USERNAME = 'yugabyte'
@@ -297,7 +297,7 @@ class YugabyteLocalRepository(Yugabyte):
                         shell=True)
 
 
-class YugabyteListOfQueries(ListOfQueries):
+class YugabyteCollectResult(CollectResult):
     queries: List[YugabyteQuery] = None
 
 
@@ -305,4 +305,4 @@ class YugabyteResultsLoader(ResultsLoader):
 
     def __init__(self):
         super().__init__()
-        self.clazz = YugabyteListOfQueries
+        self.clazz = YugabyteCollectResult

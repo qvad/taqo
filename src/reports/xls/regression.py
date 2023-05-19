@@ -2,7 +2,7 @@ from typing import Type
 
 from sql_formatter.core import format_sql
 
-from objects import ListOfQueries, Query
+from objects import CollectResult, Query
 from reports.abstract import Report
 
 
@@ -15,7 +15,7 @@ class RegressionXlsReport(Report):
         self.queries = {}
 
     @classmethod
-    def generate_report(cls, first_loq: ListOfQueries, second_loq: ListOfQueries):
+    def generate_report(cls, first_loq: CollectResult, second_loq: CollectResult):
         report = RegressionXlsReport()
 
         for qid, query in enumerate(first_loq.queries):
