@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from sql_formatter.core import format_sql
 
-from objects import ListOfQueries, Query
+from objects import CollectResult, Query
 from reports.abstract import Report
 
 
@@ -28,13 +28,15 @@ class RegressionReport(Report):
     def generate_report(cls,
                         v1_name: str,
                         v2_name: str,
-                        loq_v1: ListOfQueries,
-                        loq_v2: ListOfQueries):
+                        loq_v1: CollectResult,
+                        loq_v2: CollectResult):
         report = RegressionReport()
 
         report.define_version_names(v1_name, v2_name)
         report.define_version(loq_v1.db_version, loq_v2.db_version)
         report.report_model(loq_v1.model_queries)
+        report.report_config(loq_v1.config, "YB")
+        report.report_config(loq_v2.config, "PG")
 
         for query in zip(loq_v1.queries, loq_v2.queries):
             if query[0].query_hash != query[1].query_hash:

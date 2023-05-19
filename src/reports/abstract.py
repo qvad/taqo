@@ -17,7 +17,7 @@ class Report:
                       f":source-highlighter: coderay\n" \
                       f":coderay-linenums-mode: inline\n\n"
 
-        self._start_collapsible("Configuration")
+        self._start_collapsible("Reporting configuration")
         self._start_source()
         self.report += str(self.config)
         self._end_source()
@@ -47,6 +47,14 @@ class Report:
             self._start_source(["sql"])
             self.report += "\n".join(
                 [query if query.endswith(";") else f"{query};" for query in model_queries])
+            self._end_source()
+            self._end_collapsible()
+
+    def report_config(self, config, collapsible_name):
+        if config:
+            self._start_collapsible(f"Collect configuration {collapsible_name}")
+            self._start_source(["sql"])
+            self.report += config
             self._end_source()
             self._end_collapsible()
 

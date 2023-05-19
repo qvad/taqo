@@ -269,7 +269,7 @@ def allowed_diff(config, original_execution_time, optimization_execution_time):
 
 
 def get_md5(string: str):
-    return str(hashlib.md5(string.encode('utf-8')).hexdigest())
+    return hashlib.md5(string.encode('utf-8')).hexdigest()
 
 
 def get_bool_from_str(string: str):

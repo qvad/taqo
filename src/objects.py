@@ -81,9 +81,10 @@ class Optimization(Query):
 
 
 @dataclasses.dataclass
-class ListOfQueries:
+class CollectResult:
     db_version: str = ""
     git_message: str = ""
+    config: str = ""
     model_queries: List[str] = None
     queries: List[Type[Query]] = None
 
@@ -93,7 +94,7 @@ class ListOfQueries:
         else:
             self.queries.append(new_element)
 
-        # CPUs are cheap in 2022
+        # CPUs are cheap
         self.queries.sort(key=lambda q: q.query_hash)
 
 
@@ -158,13 +159,13 @@ class EnhancedJSONEncoder(json.JSONEncoder):
 class ResultsLoader:
 
     def __init__(self):
-        self.clazz = ListOfQueries
+        self.clazz = CollectResult
 
     def get_queries_from_previous_result(self, previous_execution_path):
         with open(previous_execution_path, "r") as prev_result:
             return from_dict(self.clazz, json.load(prev_result), DaciteConfig(check_types=False))
 
-    def store_queries_to_file(self, queries: Type[ListOfQueries], output_json_name: str):
+    def store_queries_to_file(self, queries: Type[CollectResult], output_json_name: str):
         if not os.path.isdir("report"):
             os.mkdir("report")
 

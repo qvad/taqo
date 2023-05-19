@@ -1,6 +1,6 @@
 from sql_formatter.core import format_sql
 
-from objects import ListOfQueries, Query
+from objects import CollectResult, Query
 from reports.abstract import Report
 from utils import allowed_diff
 
@@ -20,12 +20,12 @@ class SelectivityReport(Report):
 
     @classmethod
     def generate_report(cls,
-                        loq_default: ListOfQueries,
-                        loq_default_analyze: ListOfQueries,
-                        loq_ta: ListOfQueries,
-                        loq_ta_analyze: ListOfQueries,
-                        loq_stats: ListOfQueries,
-                        loq_stats_analyze: ListOfQueries):
+                        loq_default: CollectResult,
+                        loq_default_analyze: CollectResult,
+                        loq_ta: CollectResult,
+                        loq_ta_analyze: CollectResult,
+                        loq_stats: CollectResult,
+                        loq_stats_analyze: CollectResult):
         report = SelectivityReport()
 
         report.report_model(loq_default.model_queries)

@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from matplotlib import rcParams
 from sql_formatter.core import format_sql
 
-from objects import ListOfQueries, Query
+from objects import CollectResult, Query
 from reports.abstract import Report
 from utils import allowed_diff
 
@@ -26,11 +26,13 @@ class ScoreReport(Report):
         }
 
     @classmethod
-    def generate_report(cls, loq: ListOfQueries, pg_loq: ListOfQueries = None):
+    def generate_report(cls, loq: CollectResult, pg_loq: CollectResult = None):
         report = ScoreReport()
 
         report.define_version(loq.db_version)
         report.report_model(loq.model_queries)
+        report.report_config(loq.config, "YB")
+        report.report_config(pg_loq.config, "PG")
 
         for qid, query in enumerate(loq.queries):
             report.add_query(query, pg_loq.queries[qid] if pg_loq else None)
