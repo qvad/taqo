@@ -97,6 +97,13 @@ class CollectResult:
         # CPUs are cheap
         self.queries.sort(key=lambda q: q.query_hash)
 
+    def find_query_by_hash(self, query_hash):
+        for query in self.queries:
+            if query.query_hash == query_hash:
+                return query
+
+        return None
+
 
 class EPNode:
     def __init__(self):

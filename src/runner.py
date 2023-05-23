@@ -5,11 +5,8 @@ from pyhocon import ConfigFactory
 from config import Config, init_logger, ConnectionConfig, DDLStep
 from db.factory import create_database
 from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD, PostgresResultsLoader
-from reports.adoc.comparison import ComparisonReport
 from reports.adoc.regression import RegressionReport
 from reports.adoc.score import ScoreReport
-from reports.xls.score import ScoreXlsReport
-from reports.xls.regression import RegressionXlsReport
 from reports.adoc.selectivity import SelectivityReport
 from reports.adoc.taqo import TaqoReport
 
@@ -236,7 +233,8 @@ if __name__ == "__main__":
         enable_statistics=args.enable_statistics or get_bool_from_str(
             configuration.get("enable-statistics", False)),
         explain_clause=args.explain_clause or configuration.get("explain-clause", "EXPLAIN"),
-        session_props=configuration.get("session-props") + (args.session_props.split(",") if args.session_props else []),
+        session_props=configuration.get("session-props") + (
+            args.session_props.split(",") if args.session_props else []),
         basic_multiplier=int(args.basic_multiplier),
 
         skip_percentage_delta=configuration.get("skip-percentage-delta", 0.05),
@@ -301,37 +299,12 @@ if __name__ == "__main__":
                 args.pg_results) if args.pg_results else None
 
             ScoreReport.generate_report(yb_queries, pg_queries)
-        elif args.type == "score_xls":
-            yb_queries = loader.get_queries_from_previous_result(args.results)
-            pg_queries = loader.get_queries_from_previous_result(
-                args.pg_results) if args.pg_results else None
-
-            ScoreXlsReport.generate_report(yb_queries, pg_queries)
         elif args.type == "regression":
-            report = RegressionReport()
-
             v1_queries = loader.get_queries_from_previous_result(args.v1_results)
             v2_queries = loader.get_queries_from_previous_result(args.v2_results)
 
-            report.generate_report(args.v1_name, args.v2_name, v1_queries, v2_queries)
-        elif args.type == "regression_xls":
-            report = RegressionXlsReport()
-
-            v1_queries = loader.get_queries_from_previous_result(args.v1_results)
-            v2_queries = loader.get_queries_from_previous_result(args.v2_results)
-
-            report.generate_report(v1_queries, v2_queries)
-        elif args.type == "comparison":
-            report = ComparisonReport()
-
-            yb_queries = loader.get_queries_from_previous_result(args.results)
-            pg_queries = loader.get_queries_from_previous_result(
-                args.pg_results) if args.pg_results else None
-
-            report.generate_report(yb_queries, pg_queries)
+            RegressionReport.generate_report(args.v1_name, args.v2_name, v1_queries, v2_queries)
         elif args.type == "selectivity":
-            report = SelectivityReport()
-
             default_queries = loader.get_queries_from_previous_result(args.default_results)
             default_analyze_queries = loader.get_queries_from_previous_result(
                 args.default_analyze_results)
@@ -341,7 +314,7 @@ if __name__ == "__main__":
             stats_analyze_queries = loader.get_queries_from_previous_result(
                 args.stats_analyze_results)
 
-            report.generate_report(default_queries, default_analyze_queries, ta_queries,
-                                   ta_analyze_queries, stats_queries, stats_analyze_queries)
+            SelectivityReport.generate_report(default_queries, default_analyze_queries, ta_queries,
+                                              ta_analyze_queries, stats_queries, stats_analyze_queries)
         else:
             raise AttributeError(f"Unknown test type defined {config.test}")
