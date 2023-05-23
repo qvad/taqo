@@ -37,6 +37,7 @@ class Report:
 
         if not os.path.isdir(f"report/{self.start_date}"):
             os.mkdir(f"report/{self.start_date}")
+            os.mkdir(f"report/{self.start_date}/imgs")
 
     def get_report_name(self):
         return ""
