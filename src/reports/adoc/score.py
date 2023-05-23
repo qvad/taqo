@@ -247,6 +247,7 @@ class ScoreReport(Report):
                 self._start_collapsible("Near best optimization hints")
                 self.report += add_to_report
                 self._end_collapsible()
+
     def build_xls_report(self):
         import xlsxwriter
 
