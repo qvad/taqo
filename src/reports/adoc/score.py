@@ -168,8 +168,8 @@ class ScoreReport(Report):
         self._start_table("4,1,1")
         self.report += "|Statistic|YB|PG\n"
         self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_bests) * 100 / total)}%|{'{:.2f}'.format(float(pg_bests) * 100 / total)}%\n"
-        self.report += f"|Geomeric mean QE best\n2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
-        self.report += f"|Geomeric mean QO default vs best|{'{:.2f}'.format(qo_yb_bests_geo ** (1 / total))}|{'{:.2f}'.format(qo_pg_bests_geo ** (1 / total))}\n"
+        self.report += f"|Geometric mean QE best\n2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
+        self.report += f"|Geometric mean QO default vs best|{'{:.2f}'.format(qo_yb_bests_geo ** (1 / total))}|{'{:.2f}'.format(qo_pg_bests_geo ** (1 / total))}\n"
         self._end_table()
 
         self.report += "\n[#top]\n== QE score\n"
