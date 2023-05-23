@@ -8,7 +8,6 @@ from matplotlib import rcParams
 
 from objects import CollectResult, Query
 from reports.abstract import Report
-from utils import allowed_diff
 
 
 @dataclass
@@ -90,18 +89,6 @@ class RegressionReport(Report):
         plt.close()
 
         return file_name
-
-    def __report_near_queries(self, query: Type[Query]):
-        if query.optimizations:
-            best_optimization = query.get_best_optimization(self.config)
-            if add_to_report := "".join(
-                    f"`{optimization.explain_hints}`\n\n"
-                    for optimization in query.optimizations
-                    if allowed_diff(self.config, best_optimization.execution_time_ms,
-                                    optimization.execution_time_ms)):
-                self._start_collapsible("Near best optimization hints")
-                self.report += add_to_report
-                self._end_collapsible()
 
     @staticmethod
     def fix_last_newline_in_result(result, rows):
