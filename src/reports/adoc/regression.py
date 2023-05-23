@@ -38,9 +38,11 @@ class RegressionReport(Report):
 
         report.define_version_names(v1_name, v2_name)
         report.define_version(loq_v1.db_version, loq_v2.db_version)
-        report.report_model(loq_v1.model_queries)
+
         report.report_config(loq_v1.config, v1_name)
         report.report_config(loq_v2.config, v2_name)
+
+        report.report_model(loq_v1.model_queries)
 
         for query in zip(loq_v1.queries, loq_v2.queries):
             if query[0].query_hash != query[1].query_hash:
@@ -98,46 +100,8 @@ class RegressionReport(Report):
             last_newline = splitted_result[-1]
             rows[0] = f"{last_newline}{rows[0]}"
             result += "\n"
+
         return result
-
-    def __report_heatmap(self, query: Type[Query]):
-        """
-        Here is the deal. In v2 plans we can separate each plan tree node by splitting by `->`
-        When constructing heatmap need to add + or - to the beginning of string `\n`.
-        So there is 2 splitters - \n and -> and need to construct correct result.
-
-        :param query:
-        :return:
-        """
-        if not (execution_plan_heatmap := query.heatmap()):
-            return
-
-        best_decision = max(row['weight'] for row in execution_plan_heatmap.values())
-        last_rowid = max(execution_plan_heatmap.keys())
-        result = ""
-        for row_id, row in execution_plan_heatmap.items():
-            rows = row['str'].split("\n")
-
-            if row['weight'] == best_decision:
-                result = self.fix_last_newline_in_result(result, rows)
-                result += "\n".join([f"+{line}" for line_id, line in enumerate(rows) if
-                                     line_id != (len(rows) - 1)]) + f"\n{rows[-1]}"
-            elif row['weight'] == 0:
-                result = self.fix_last_newline_in_result(result, rows)
-                result += "\n".join([f"-{line}" for line_id, line in enumerate(rows) if
-                                     line_id != (len(rows) - 1)]) + f"\n{rows[-1]}"
-            else:
-                result += f"{row['str']}"
-
-            # skip adding extra -> to the end of list
-            if row_id != last_rowid:
-                result += "->"
-
-        self._start_collapsible("Plan heatmap")
-        self._start_source(["diff"])
-        self.report += result
-        self._end_source()
-        self._end_collapsible()
 
     @staticmethod
     def generate_regression_and_standard_errors(x_data, y_data):
@@ -202,7 +166,7 @@ class RegressionReport(Report):
         yb_v2_bests = 0
         qe_bests_geo = 1
         qo_yb_v1_bests = 1
-        qa_yb_v2_bests = 1
+        qo_yb_v2_bests = 1
         total = 0
         for queries in self.queries.values():
             for query in queries:
@@ -213,12 +177,14 @@ class RegressionReport(Report):
                 yb_v2_best = yb_v2_query.get_best_optimization(self.config)
 
                 qe_bests_geo *= yb_v1_best.execution_time_ms / yb_v2_best.execution_time_ms
-                qo_yb_v1_bests *= (yb_v1_query.execution_time_ms if yb_v1_query.execution_time_ms > 0 else 1.0) / (
-                    yb_v1_best.execution_time_ms if yb_v1_best.execution_time_ms > 0 else 1)
-                qa_yb_v2_bests *= yb_v2_query.execution_time_ms / yb_v2_best.execution_time_ms if yb_v2_best.execution_time_ms != 0 else 9999999
+                qo_yb_v1_bests *= (yb_v1_query.execution_time_ms
+                                   if yb_v1_query.execution_time_ms > 0 else 1.0) / \
+                                  (yb_v1_best.execution_time_ms
+                                   if yb_v1_best.execution_time_ms > 0 else 1)
+                qo_yb_v2_bests *= yb_v2_query.execution_time_ms / yb_v2_best.execution_time_ms \
+                    if yb_v2_best.execution_time_ms != 0 else 9999999
                 yb_v1_bests += 1 if yb_v1_query.compare_plans(yb_v1_best.execution_plan) else 0
-                yb_v2_bests += 1 if yb_v2_query.compare_plans(
-                    yb_v2_best.execution_plan) else 0
+                yb_v2_bests += 1 if yb_v2_query.compare_plans(yb_v2_best.execution_plan) else 0
 
                 total += 1
 
@@ -226,7 +192,7 @@ class RegressionReport(Report):
         self.report += f"|Statistic|{self.v1_name}|{self.v2_name}\n"
         self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%|{'{:.2f}'.format(float(yb_v2_bests) * 100 / total)}%\n"
         self.report += f"|Geomeric mean QE best\n2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
-        self.report += f"|Geomeric mean QO default vs best|{'{:.2f}'.format(qo_yb_v1_bests ** (1 / total))}|{'{:.2f}'.format(qa_yb_v2_bests ** (1 / total))}\n"
+        self.report += f"|Geomeric mean QO default vs best|{'{:.2f}'.format(qo_yb_v1_bests ** (1 / total))}|{'{:.2f}'.format(qo_yb_v2_bests ** (1 / total))}\n"
         self._end_table()
 
         self.report += "\n[#top]\n== QE score\n"
@@ -254,11 +220,10 @@ class RegressionReport(Report):
                 best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(
                     yb_v2_best.execution_plan) else ""
 
-                ratio_x3 = yb_v1_query.execution_time_ms / (
-                        3 * yb_v2_query.execution_time_ms) if yb_v2_query.execution_time_ms != 0 else 99999999
-                ratio_x3_str = "{:.2f}".format(
-                    yb_v1_query.execution_time_ms / yb_v2_query.execution_time_ms
-                    if yb_v2_query.execution_time_ms != 0 else 99999999)
+                ratio_x3 = yb_v1_query.execution_time_ms / (3 * yb_v2_query.execution_time_ms) \
+                    if yb_v2_query.execution_time_ms != 0 else 99999999
+                ratio_x3_str = "{:.2f}".format(yb_v1_query.execution_time_ms / yb_v2_query.execution_time_ms
+                                               if yb_v2_query.execution_time_ms != 0 else 99999999)
                 ratio_color = "[green]" if ratio_x3 <= 1.0 else "[red]"
 
                 ratio_best = yb_v1_best.execution_time_ms / (
@@ -399,35 +364,50 @@ class RegressionReport(Report):
         self._add_double_newline()
 
         self._add_double_newline()
-        default_v1_equality = "(eq) " if v1_query.compare_plans(
-            v1_best.execution_plan) else ""
+        default_v1_equality = "(eq) " if v1_query.compare_plans(v1_best.execution_plan) else ""
 
         self._start_table("5")
         self.report += f"|Metric|{self.v1_name}|{self.v1_name} Best|{self.v2_name}|{self.v2_name} Best\n"
 
-        default_v2_equality = "(eq) " if v2_query.compare_plans(
-            v2_best.execution_plan) else ""
-        best_yb_pg_equality = "(eq) " if v1_best.compare_plans(
-            v2_best.execution_plan) else ""
-        default_v1_v2_equality = "(eq) " if v1_query.compare_plans(
-            v2_query.execution_plan) else ""
+        default_v2_equality = "(eq) " if v2_query.compare_plans(v2_best.execution_plan) else ""
+        best_yb_pg_equality = "(eq) " if v1_best.compare_plans(v2_best.execution_plan) else ""
+        default_v1_v2_equality = "(eq) " if v1_query.compare_plans(v2_query.execution_plan) else ""
 
         if 'order by' in v1_query.query:
             self._start_table_row()
-            self.report += \
-                f"!! Result hash|{v1_query.result_hash}|{v1_best.result_hash}|{v2_query.result_hash}|{v2_best.result_hash}" \
-                    if v2_query.result_hash != v1_query.result_hash else \
-                    f"Result hash|`{v1_query.result_hash}|{v1_best.result_hash}|{v2_query.result_hash}|{v2_best.result_hash}"
+            self.report += f"!! Result hash" \
+                           f"|{v1_query.result_hash}" \
+                           f"|{v1_best.result_hash}" \
+                           f"|{v2_query.result_hash}" \
+                           f"|{v2_best.result_hash}" \
+                if v2_query.result_hash != v1_query.result_hash else \
+                f"Result hash" \
+                f"|`{v1_query.result_hash}" \
+                f"|{v1_best.result_hash}" \
+                f"|{v2_query.result_hash}" \
+                f"|{v2_best.result_hash}"
             self._end_table_row()
 
         self._start_table_row()
-        self.report += f"Cardinality|{v1_query.result_cardinality}|{v1_best.result_cardinality}|{v2_query.result_cardinality}|{v2_best.result_cardinality}"
+        self.report += f"Cardinality" \
+                       f"|{v1_query.result_cardinality}" \
+                       f"|{v1_best.result_cardinality}" \
+                       f"|{v2_query.result_cardinality}" \
+                       f"|{v2_best.result_cardinality}"
         self._end_table_row()
         self._start_table_row()
-        self.report += f"Estimated cost|{v1_query.execution_plan.get_estimated_cost()}|{default_v1_equality}{v1_best.execution_plan.get_estimated_cost()}|{v2_query.execution_plan.get_estimated_cost()}|{default_v2_equality}{v2_best.execution_plan.get_estimated_cost()}"
+        self.report += f"Estimated cost" \
+                       f"|{v1_query.execution_plan.get_estimated_cost()}" \
+                       f"|{default_v1_equality}{v1_best.execution_plan.get_estimated_cost()}" \
+                       f"|{v2_query.execution_plan.get_estimated_cost()}" \
+                       f"|{default_v2_equality}{v2_best.execution_plan.get_estimated_cost()}"
         self._end_table_row()
         self._start_table_row()
-        self.report += f"Execution time|{'{:.2f}'.format(v1_query.execution_time_ms)}|{default_v1_equality}{'{:.2f}'.format(v1_best.execution_time_ms)}|{'{:.2f}'.format(v2_query.execution_time_ms)}|{default_v2_equality}{'{:.2f}'.format(v2_best.execution_time_ms)}"
+        self.report += f"Execution time" \
+                       f"|{'{:.2f}'.format(v1_query.execution_time_ms)}" \
+                       f"|{default_v1_equality}{'{:.2f}'.format(v1_best.execution_time_ms)}" \
+                       f"|{'{:.2f}'.format(v2_query.execution_time_ms)}" \
+                       f"|{default_v2_equality}{'{:.2f}'.format(v2_best.execution_time_ms)}"
         self._end_table_row()
 
         self._end_table()
@@ -529,13 +509,12 @@ class RegressionReport(Report):
                 first_query: Query = query[0]
                 second_query: Query = query[1]
 
-                ratio = second_query.execution_time_ms / (
-                    first_query.execution_time_ms) if first_query.execution_time_ms != 0 else 99999999
+                ratio = second_query.execution_time_ms / (first_query.execution_time_ms) \
+                    if first_query.execution_time_ms != 0 else 99999999
                 ratio_color = eq_bad_format if ratio > 1.0 else eq_format
 
                 worksheet.write(row, 0, '{:.2f}'.format(first_query.execution_time_ms))
-                worksheet.write(row, 1,
-                                f"{'{:.2f}'.format(second_query.execution_time_ms)}")
+                worksheet.write(row, 1, f"{'{:.2f}'.format(second_query.execution_time_ms)}")
                 worksheet.write(row, 2, f'{ratio}', ratio_color)
                 worksheet.write(row, 3, f'{format_sql(first_query.query)}')
                 worksheet.write(row, 4, f'{first_query.query_hash}')

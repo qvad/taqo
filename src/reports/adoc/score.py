@@ -27,9 +27,10 @@ class ScoreReport(Report):
         report = ScoreReport()
 
         report.define_version(loq.db_version)
-        report.report_model(loq.model_queries)
         report.report_config(loq.config, "YB")
         report.report_config(pg_loq.config, "PG")
+
+        report.report_model(loq.model_queries)
 
         for qid, query in enumerate(loq.queries):
             report.add_query(query, pg_loq.find_query_by_hash(query.query_hash) if pg_loq else None)
@@ -144,6 +145,8 @@ class ScoreReport(Report):
         qe_bests_geo = 1
         qo_yb_bests_geo = 1
         qo_pg_bests_geo = 1
+        slower_then_10x = 0
+        best_slower_then_10x = 0
         total = 0
         for queries in self.queries.values():
             for query in queries:
@@ -158,18 +161,24 @@ class ScoreReport(Report):
                 qe_bests_geo *= yb_best.execution_time_ms / pg_best.execution_time_ms if pg_success else 1
                 qo_yb_bests_geo *= (yb_query.execution_time_ms if yb_query.execution_time_ms > 0 else 1.0) / \
                                    (yb_best.execution_time_ms if yb_best.execution_time_ms > 0 else 1)
-                qo_pg_bests_geo *= pg_query.execution_time_ms / pg_best.execution_time_ms if pg_best.execution_time_ms != 0 else 9999999
+                qo_pg_bests_geo *= pg_query.execution_time_ms / pg_best.execution_time_ms \
+                    if pg_best.execution_time_ms != 0 else 9999999
                 yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
-                pg_bests += 1 if pg_success and pg_query.compare_plans(
-                    pg_best.execution_plan) else 0
+                pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best.execution_plan) else 0
+                slower_then_10x += 1 if (yb_query.execution_time_ms / pg_query.execution_time_ms) > 10 else 0
+                best_slower_then_10x += 1 if (yb_best.execution_time_ms / pg_query.execution_time_ms) > 10 else 0
 
                 total += 1
 
         self._start_table("4,1,1")
         self.report += "|Statistic|YB|PG\n"
-        self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_bests) * 100 / total)}%|{'{:.2f}'.format(float(pg_bests) * 100 / total)}%\n"
+        self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_bests) * 100 / total)}%" \
+                       f"|{'{:.2f}'.format(float(pg_bests) * 100 / total)}%\n"
         self.report += f"|Geometric mean QE best\n2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
-        self.report += f"|Geometric mean QO default vs best|{'{:.2f}'.format(qo_yb_bests_geo ** (1 / total))}|{'{:.2f}'.format(qo_pg_bests_geo ** (1 / total))}\n"
+        self.report += f"|Geometric mean QO default vs best|{'{:.2f}'.format(qo_yb_bests_geo ** (1 / total))}" \
+                       f"|{'{:.2f}'.format(qo_pg_bests_geo ** (1 / total))}\n"
+        self.report += f"|% Queries > 10x: YB default vs PG default\n2+m|{slower_then_10x}/{total}\n"
+        self.report += f"|% Queries > 10x: YB best vs PG default\n2+m|{best_slower_then_10x}/{total}\n"
         self._end_table()
 
         self.report += "\n[#top]\n== QE score\n"
@@ -210,7 +219,8 @@ class ScoreReport(Report):
                     if yb_best.execution_time_ms != 0 and pg_success else 99999999)
                 ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
 
-                bitmap_flag = "[blue]" if pg_success and "bitmap" in pg_query.execution_plan.full_str.lower() else "[black]"
+                bitmap_flag = "[blue]" \
+                    if pg_success and "bitmap" in pg_query.execution_plan.full_str.lower() else "[black]"
 
                 self.report += f"a|[black]#*{'{:.2f}'.format(yb_query.execution_time_ms)}*#\n" \
                                f"a|{default_yb_equality}#*{'{:.2f}'.format(yb_best.execution_time_ms)}*#\n" \
@@ -320,16 +330,16 @@ class ScoreReport(Report):
                 default_yb_pg_equality = yb_query.compare_plans(pg_query.execution_plan)
                 best_yb_pg_equality = yb_best.compare_plans(pg_best.execution_plan)
 
-                ratio_x3 = yb_query.execution_time_ms / (
-                        3 * pg_query.execution_time_ms) if pg_query.execution_time_ms != 0 else 99999999
-                ratio_x3_str = "{:.2f}".format(
-                    yb_query.execution_time_ms / pg_query.execution_time_ms if pg_query.execution_time_ms != 0 else 99999999)
+                ratio_x3 = yb_query.execution_time_ms / (3 * pg_query.execution_time_ms) \
+                    if pg_query.execution_time_ms != 0 else 99999999
+                ratio_x3_str = "{:.2f}".format(yb_query.execution_time_ms / pg_query.execution_time_ms
+                                               if pg_query.execution_time_ms != 0 else 99999999)
                 ratio_color = ratio_x3 > 1.0
 
-                ratio_best = yb_best.execution_time_ms / (
-                        3 * pg_best.execution_time_ms) if yb_best.execution_time_ms != 0 else 99999999
-                ratio_best_x3_str = "{:.2f}".format(
-                    yb_best.execution_time_ms / pg_best.execution_time_ms if yb_best.execution_time_ms != 0 else 99999999)
+                ratio_best = yb_best.execution_time_ms / (3 * pg_best.execution_time_ms) \
+                    if yb_best.execution_time_ms != 0 else 99999999
+                ratio_best_x3_str = "{:.2f}".format(yb_best.execution_time_ms / pg_best.execution_time_ms
+                                                    if yb_best.execution_time_ms != 0 else 99999999)
                 ratio_best_color = ratio_best > 1.0
 
                 bitmap_flag = "bitmap" in pg_query.execution_plan.full_str.lower()
@@ -389,12 +399,12 @@ class ScoreReport(Report):
 
             if row['weight'] == best_decision:
                 result = self.fix_last_newline_in_result(result, rows)
-                result += "\n".join([f"+{line}" for line_id, line in enumerate(rows) if
-                                     line_id != (len(rows) - 1)]) + f"\n{rows[-1]}"
+                result += "\n".join([f"+{line}" for line_id, line in enumerate(rows)
+                                     if line_id != (len(rows) - 1)]) + f"\n{rows[-1]}"
             elif row['weight'] == 0:
                 result = self.fix_last_newline_in_result(result, rows)
-                result += "\n".join([f"-{line}" for line_id, line in enumerate(rows) if
-                                     line_id != (len(rows) - 1)]) + f"\n{rows[-1]}"
+                result += "\n".join([f"-{line}" for line_id, line in enumerate(rows)
+                                     if line_id != (len(rows) - 1)]) + f"\n{rows[-1]}"
             else:
                 result += f"{row['str']}"
 
@@ -457,8 +467,7 @@ class ScoreReport(Report):
         self._add_double_newline()
 
         self._add_double_newline()
-        default_yb_equality = "(eq) " if yb_query.compare_plans(
-            yb_best.execution_plan) else ""
+        default_yb_equality = "(eq) " if yb_query.compare_plans(yb_best.execution_plan) else ""
         default_pg_equality = ""
         default_yb_pg_equality = ""
 
@@ -468,29 +477,45 @@ class ScoreReport(Report):
             self.report += "|Metric|YB|YB Best|PG|PG Best\n"
 
             pg_best = pg_query.get_best_optimization(self.config)
-            default_pg_equality = "(eq) " if pg_query.compare_plans(
-                pg_best.execution_plan) else ""
-            best_yb_pg_equality = "(eq) " if yb_best.compare_plans(
-                pg_best.execution_plan) else ""
-            default_yb_pg_equality = "(eq) " if yb_query.compare_plans(
-                pg_query.execution_plan) else ""
+            default_pg_equality = "(eq) " if pg_query.compare_plans(pg_best.execution_plan) else ""
+            best_yb_pg_equality = "(eq) " if yb_best.compare_plans(pg_best.execution_plan) else ""
+            default_yb_pg_equality = "(eq) " if yb_query.compare_plans(pg_query.execution_plan) else ""
 
             if 'order by' in yb_query.query:
                 self._start_table_row()
-                self.report += \
-                    f"!! Result hash|{yb_query.result_hash}|{yb_best.result_hash}|{pg_query.result_hash}|{pg_best.result_hash}" \
-                        if pg_query.result_hash != yb_query.result_hash else \
-                        f"Result hash|`{yb_query.result_hash}|{yb_best.result_hash}|{pg_query.result_hash}|{pg_best.result_hash}"
+                self.report += f"!! Result hash" \
+                               f"|{yb_query.result_hash}" \
+                               f"|{yb_best.result_hash}" \
+                               f"|{pg_query.result_hash}" \
+                               f"|{pg_best.result_hash}" \
+                    if pg_query.result_hash != yb_query.result_hash else \
+                    f"Result hash" \
+                    f"|`{yb_query.result_hash}" \
+                    f"|{yb_best.result_hash}" \
+                    f"|{pg_query.result_hash}" \
+                    f"|{pg_best.result_hash}"
                 self._end_table_row()
 
             self._start_table_row()
-            self.report += f"Cardinality|{yb_query.result_cardinality}|{yb_best.result_cardinality}|{pg_query.result_cardinality}|{pg_best.result_cardinality}"
+            self.report += f"Cardinality" \
+                           f"|{yb_query.result_cardinality}" \
+                           f"|{yb_best.result_cardinality}" \
+                           f"|{pg_query.result_cardinality}" \
+                           f"|{pg_best.result_cardinality}"
             self._end_table_row()
             self._start_table_row()
-            self.report += f"Estimated cost|{yb_query.execution_plan.get_estimated_cost()}|{default_yb_equality}{yb_best.execution_plan.get_estimated_cost()}|{pg_query.execution_plan.get_estimated_cost()}|{default_pg_equality}{pg_best.execution_plan.get_estimated_cost()}"
+            self.report += f"Estimated cost" \
+                           f"|{yb_query.execution_plan.get_estimated_cost()}" \
+                           f"|{default_yb_equality}{yb_best.execution_plan.get_estimated_cost()}" \
+                           f"|{pg_query.execution_plan.get_estimated_cost()}" \
+                           f"|{default_pg_equality}{pg_best.execution_plan.get_estimated_cost()}"
             self._end_table_row()
             self._start_table_row()
-            self.report += f"Execution time|{'{:.2f}'.format(yb_query.execution_time_ms)}|{default_yb_equality}{'{:.2f}'.format(yb_best.execution_time_ms)}|{'{:.2f}'.format(pg_query.execution_time_ms)}|{default_pg_equality}{'{:.2f}'.format(pg_best.execution_time_ms)}"
+            self.report += f"Execution time" \
+                           f"|{'{:.2f}'.format(yb_query.execution_time_ms)}" \
+                           f"|{default_yb_equality}{'{:.2f}'.format(yb_best.execution_time_ms)}" \
+                           f"|{'{:.2f}'.format(pg_query.execution_time_ms)}" \
+                           f"|{default_pg_equality}{'{:.2f}'.format(pg_best.execution_time_ms)}"
             self._end_table_row()
         else:
             self._start_table("3")
@@ -503,13 +528,19 @@ class ScoreReport(Report):
             self._end_table_row()
 
             self._start_table_row()
-            self.report += f"Cardinality|{yb_query.result_cardinality}|{yb_best.result_cardinality}"
+            self.report += f"Cardinality" \
+                           f"|{yb_query.result_cardinality}" \
+                           f"|{yb_best.result_cardinality}"
             self._end_table_row()
             self._start_table_row()
-            self.report += f"Optimizer cost|{yb_query.execution_plan.get_estimated_cost()}|{default_yb_equality}{yb_best.execution_plan.get_estimated_cost()}"
+            self.report += f"Optimizer cost" \
+                           f"|{yb_query.execution_plan.get_estimated_cost()}" \
+                           f"|{default_yb_equality}{yb_best.execution_plan.get_estimated_cost()}"
             self._end_table_row()
             self._start_table_row()
-            self.report += f"Execution time|{yb_query.execution_time_ms}|{default_yb_equality}{yb_best.execution_time_ms}"
+            self.report += f"Execution time" \
+                           f"|{yb_query.execution_time_ms}" \
+                           f"|{default_yb_equality}{yb_best.execution_time_ms}"
             self._end_table_row()
         self._end_table()
 
@@ -534,6 +565,7 @@ class ScoreReport(Report):
 
             self._start_collapsible(f"{default_yb_pg_equality}PG default vs YB default")
             self._start_source(["diff"])
+
             # postgres plan should be red
             self.report += self._get_plan_diff(
                 pg_query.execution_plan.full_str,

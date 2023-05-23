@@ -13,8 +13,6 @@ class TaqoReport(Report):
     def __init__(self):
         super().__init__()
 
-        os.mkdir(f"report/{self.start_date}/imgs")
-
         self.logger.info(f"Created report folder for this run at 'report/{self.start_date}'")
 
         self.failed_validation = []
@@ -26,9 +24,9 @@ class TaqoReport(Report):
         report = TaqoReport()
 
         report.define_version(loq.db_version)
-        report.report_model(loq.model_queries)
         report.report_config(loq.config, "YB")
         report.report_config(pg_loq.config, "PG")
+        report.report_model(loq.model_queries)
 
         for qid, query in enumerate(loq.queries):
             report.add_query(query, pg_loq.queries[qid] if pg_loq else None)
