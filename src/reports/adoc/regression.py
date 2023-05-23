@@ -190,9 +190,13 @@ class RegressionReport(Report):
 
         self._start_table("4,1,1")
         self.report += f"|Statistic|{self.v1_name}|{self.v2_name}\n"
-        self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%|{'{:.2f}'.format(float(yb_v2_bests) * 100 / total)}%\n"
-        self.report += f"|Geomeric mean QE best\n2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
-        self.report += f"|Geomeric mean QO default vs best|{'{:.2f}'.format(qo_yb_v1_bests ** (1 / total))}|{'{:.2f}'.format(qo_yb_v2_bests ** (1 / total))}\n"
+        self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%" \
+                       f"|{'{:.2f}'.format(float(yb_v2_bests) * 100 / total)}%\n"
+        self.report += f"|Geomeric mean QE best\n" \
+                       f"2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
+        self.report += f"|Geomeric mean QO default vs best" \
+                       f"|{'{:.2f}'.format(qo_yb_v1_bests ** (1 / total))}" \
+                       f"|{'{:.2f}'.format(qo_yb_v2_bests ** (1 / total))}\n"
         self._end_table()
 
         self.report += "\n[#top]\n== QE score\n"
@@ -200,8 +204,13 @@ class RegressionReport(Report):
         num_columns = 7
         for tag, queries in self.queries.items():
             self._start_table("1,1,1,1,1,1,4")
-            self.report += f"|{self.v1_name}|{self.v1_name} Best|{self.v2_name}|{self.v2_name} Best" \
-                           f"|Ratio {self.v1_name} vs {self.v2_name}|Ratio Best {self.v1_name} vs {self.v2_name}|Query\n"
+            self.report += f"|{self.v1_name}" \
+                           f"|{self.v1_name} Best" \
+                           f"|{self.v2_name}" \
+                           f"|{self.v2_name} Best" \
+                           f"|Ratio {self.v1_name} vs {self.v2_name}" \
+                           f"|Ratio Best {self.v1_name} vs {self.v2_name}" \
+                           f"|Query\n"
             self.report += f"{num_columns}+m|{tag}.sql\n"
             for query in queries:
                 yb_v1_query = query[0]
@@ -210,15 +219,14 @@ class RegressionReport(Report):
                 yb_v1_best = yb_v1_query.get_best_optimization(self.config)
                 yb_v2_best = yb_v2_query.get_best_optimization(self.config)
 
-                yb_ = yb_v2_query.execution_time_ms != 0
+                success = yb_v2_query.execution_time_ms != 0
 
-                default_v1_equality = "[green]" if yb_v1_query.compare_plans(
-                    yb_v1_best.execution_plan) else "[red]"
-                default_v2_equality = "[green]" if yb_ and yb_v2_query.compare_plans(
-                    yb_v2_best.execution_plan) else "[red]"
+                default_v1_equality = "[green]" \
+                    if yb_v1_query.compare_plans(yb_v1_best.execution_plan) else "[red]"
+                default_v2_equality = "[green]" \
+                    if success and yb_v2_query.compare_plans(yb_v2_best.execution_plan) else "[red]"
 
-                best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(
-                    yb_v2_best.execution_plan) else ""
+                best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_best.execution_plan) else ""
 
                 ratio_x3 = yb_v1_query.execution_time_ms / (3 * yb_v2_query.execution_time_ms) \
                     if yb_v2_query.execution_time_ms != 0 else 99999999
@@ -226,15 +234,14 @@ class RegressionReport(Report):
                                                if yb_v2_query.execution_time_ms != 0 else 99999999)
                 ratio_color = "[green]" if ratio_x3 <= 1.0 else "[red]"
 
-                ratio_best = yb_v1_best.execution_time_ms / (
-                        3 * yb_v2_best.execution_time_ms) \
-                    if yb_v1_best.execution_time_ms != 0 and yb_ else 99999999
-                ratio_best_x3_str = "{:.2f}".format(
-                    yb_v1_best.execution_time_ms / yb_v2_best.execution_time_ms
-                    if yb_v1_best.execution_time_ms != 0 and yb_ else 99999999)
+                ratio_best = yb_v1_best.execution_time_ms / (3 * yb_v2_best.execution_time_ms) \
+                    if yb_v1_best.execution_time_ms != 0 and success else 99999999
+                ratio_best_x3_str = "{:.2f}".format(yb_v1_best.execution_time_ms / yb_v2_best.execution_time_ms
+                                                    if yb_v1_best.execution_time_ms != 0 and success else 99999999)
                 ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
 
-                bitmap_flag = "[blue]" if yb_ and "bitmap" in yb_v2_query.execution_plan.full_str.lower() else "[black]"
+                bitmap_flag = "[blue]" \
+                    if success and "bitmap" in yb_v2_query.execution_plan.full_str.lower() else "[black]"
 
                 self.report += f"a|[black]#*{'{:.2f}'.format(yb_v1_query.execution_time_ms)}*#\n" \
                                f"a|{default_v1_equality}#*{'{:.2f}'.format(yb_v1_best.execution_time_ms)}*#\n" \

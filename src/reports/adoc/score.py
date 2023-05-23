@@ -51,8 +51,7 @@ class ScoreReport(Report):
             return -1
         else:
             return "{:.2f}".format(
-                query.get_best_optimization(
-                    self.config).execution_time_ms / query.execution_time_ms)
+                query.get_best_optimization(self.config).execution_time_ms / query.execution_time_ms)
 
     def create_default_query_plots(self):
         file_names = ['imgs/all_queries_defaults_yb.png',
@@ -145,6 +144,7 @@ class ScoreReport(Report):
         qe_bests_geo = 1
         qo_yb_bests_geo = 1
         qo_pg_bests_geo = 1
+        timed_out = 0
         slower_then_10x = 0
         best_slower_then_10x = 0
         total = 0
@@ -165,8 +165,9 @@ class ScoreReport(Report):
                     if pg_best.execution_time_ms != 0 else 9999999
                 yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
                 pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best.execution_plan) else 0
-                slower_then_10x += 1 if (yb_query.execution_time_ms / pg_query.execution_time_ms) > 10 else 0
-                best_slower_then_10x += 1 if (yb_best.execution_time_ms / pg_query.execution_time_ms) > 10 else 0
+                timed_out += 1 if yb_query.execution_time_ms == -1 else 0
+                slower_then_10x += 1 if (yb_query.execution_time_ms / pg_query.execution_time_ms) >= 10 else 0
+                best_slower_then_10x += 1 if (yb_best.execution_time_ms / pg_query.execution_time_ms) >= 10 else 0
 
                 total += 1
 
@@ -177,7 +178,8 @@ class ScoreReport(Report):
         self.report += f"|Geometric mean QE best\n2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
         self.report += f"|Geometric mean QO default vs best|{'{:.2f}'.format(qo_yb_bests_geo ** (1 / total))}" \
                        f"|{'{:.2f}'.format(qo_pg_bests_geo ** (1 / total))}\n"
-        self.report += f"|% Queries > 10x: YB default vs PG default\n2+m|{slower_then_10x}/{total}\n"
+        self.report += f"|% Queries > 10x: YB default vs PG default\n" \
+                       f"2+m|{slower_then_10x}/{total} (+{timed_out} timed out)\n"
         self.report += f"|% Queries > 10x: YB best vs PG default\n2+m|{best_slower_then_10x}/{total}\n"
         self._end_table()
 
@@ -197,26 +199,22 @@ class ScoreReport(Report):
 
                 pg_success = pg_query.execution_time_ms != 0
 
-                default_yb_equality = "[green]" if yb_query.compare_plans(
-                    yb_best.execution_plan) else "[red]"
-                default_pg_equality = "[green]" if pg_success and pg_query.compare_plans(
-                    pg_best.execution_plan) else "[red]"
+                default_yb_equality = "[green]" if yb_query.compare_plans(yb_best.execution_plan) else "[red]"
+                default_pg_equality = "[green]" \
+                    if pg_success and pg_query.compare_plans(pg_best.execution_plan) else "[red]"
 
-                best_yb_pg_equality = "(eq) " if yb_best.compare_plans(
-                    pg_best.execution_plan) else ""
+                best_yb_pg_equality = "(eq) " if yb_best.compare_plans(pg_best.execution_plan) else ""
 
-                ratio_x3 = yb_query.execution_time_ms / (
-                        3 * pg_query.execution_time_ms) if pg_query.execution_time_ms != 0 else 99999999
-                ratio_x3_str = "{:.2f}".format(
-                    yb_query.execution_time_ms / pg_query.execution_time_ms if pg_query.execution_time_ms != 0 else 99999999)
+                ratio_x3 = yb_query.execution_time_ms / (3 * pg_query.execution_time_ms) \
+                    if yb_best.execution_time_ms != 0 and pg_success else 99999999
+                ratio_x3_str = "{:.2f}".format(yb_query.execution_time_ms / pg_query.execution_time_ms
+                                               if yb_best.execution_time_ms != 0 and pg_success else 99999999)
                 ratio_color = "[green]" if ratio_x3 <= 1.0 else "[red]"
 
-                ratio_best = yb_best.execution_time_ms / (
-                        3 * pg_best.execution_time_ms) \
+                ratio_best = yb_best.execution_time_ms / (3 * pg_best.execution_time_ms) \
                     if yb_best.execution_time_ms != 0 and pg_success else 99999999
-                ratio_best_x3_str = "{:.2f}".format(
-                    yb_best.execution_time_ms / pg_best.execution_time_ms
-                    if yb_best.execution_time_ms != 0 and pg_success else 99999999)
+                ratio_best_x3_str = "{:.2f}".format(yb_best.execution_time_ms / pg_best.execution_time_ms
+                                                    if yb_best.execution_time_ms != 0 and pg_success else 99999999)
                 ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
 
                 bitmap_flag = "[blue]" \
