@@ -187,31 +187,13 @@ class Leading:
         if len(self.alias_to_table) <= 1:
             return
 
-        # we do not collect table permutations here
-        # todo think about better solution
-        table_combinations = list(itertools.combinations(self.alias_to_table, len(self.alias_to_table)))
-        join_product = list(AllPairs([list(Joins) for _ in range(len(self.alias_to_table) - 1)]))
         scan_product = list(AllPairs([list(Scans) for _ in range(len(self.alias_to_table))]))
 
-        for tables, joins, scans in AllPairs([table_combinations, join_product, scan_product]):
-            prev_el = None
-            joins = itertools.cycle(joins)
-            query_joins = ""
-            joined_tables = []
-
-            for table in tables:
-                prev_el = f"( {prev_el} {table.alias} )" if prev_el else table.alias
-                joined_tables.append(table.alias)
-
-                if prev_el != table.alias:
-                    query_joins += f" {next(joins).construct(joined_tables)}"
-
-            leading_hint = f"{self.LEADING} ({prev_el})"
+        for scans in scan_product:
             scan_hints = " ".join(
-                f"{scan.value}({tables[table_idx].alias})" for table_idx, scan in
-                enumerate(scans))
+                f"{scan.value}({self.alias_to_table[table_idx].alias})" for table_idx, scan in enumerate(scans))
 
-            self.joins.append(f"{leading_hint} {query_joins} {scan_hints}")
+            self.joins.append(f"{scan_hints}")
 
 
 @dataclasses.dataclass
