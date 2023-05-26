@@ -11,7 +11,7 @@ from reports.adoc.selectivity import SelectivityReport
 from reports.adoc.taqo import TaqoReport
 
 from scenario import Scenario
-from utils import get_bool_from_str
+from utils import get_bool_from_object
 
 
 def parse_ddls(ddl_ops):
@@ -40,6 +40,9 @@ if __name__ == "__main__":
 
     parser.add_argument('action',
                         help='Action to perform - collect or report')
+    parser.add_argument('--options',
+                        help='Options to overwrite configuration file properties',
+                        nargs='+', type=str)
 
     parser.add_argument('--db',
                         default="yugabyte",
@@ -203,6 +206,22 @@ if __name__ == "__main__":
     configuration = ConfigFactory.parse_file(args.config)
     ddls = parse_ddls(args.ddls)
 
+    options_config = {}
+    if args.options:
+        for option in args.options:
+            key, value = option.split('=', 1)
+            if value.startswith('int:'):
+                value = int(value.replace('int:', ''))
+            elif value.startswith('bool:'):
+                """
+                --to key1=bool:True
+                """
+                value = value.replace('bool:', '').lower() == 'true'
+
+            options_config[key] = value
+
+    configuration = configuration | options_config
+
     config = Config(
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
 
@@ -230,26 +249,26 @@ if __name__ == "__main__":
         with_optimizations=args.optimizations,
         plans_only=args.plans_only,
 
-        enable_statistics=args.enable_statistics or get_bool_from_str(
+        enable_statistics=args.enable_statistics or get_bool_from_object(
             configuration.get("enable-statistics", False)),
         explain_clause=args.explain_clause or configuration.get("explain-clause", "EXPLAIN"),
         session_props=configuration.get("session-props") +
                       (args.session_props.split(",") if args.session_props else []),
         basic_multiplier=int(args.basic_multiplier),
 
-        skip_percentage_delta=configuration.get("skip-percentage-delta", 0.05),
-        skip_timeout_delta=configuration.get("skip-timeout-delta", 1),
-        ddl_query_timeout=configuration.get("ddl-query-timeout", 3600),
-        test_query_timeout=configuration.get("test-query-timeout", 1200),
-        look_near_best_plan=configuration.get("look-near-best-plan", True),
-        all_pairs_threshold=configuration.get("all-pairs-threshold", 3),
+        skip_percentage_delta=float(configuration.get("skip-percentage-delta", 0.05)),
+        skip_timeout_delta=int(configuration.get("skip-timeout-delta", 1)),
+        ddl_query_timeout=int(configuration.get("ddl-query-timeout", 3600)),
+        test_query_timeout=int(configuration.get("test-query-timeout", 1200)),
+        look_near_best_plan=get_bool_from_object(configuration.get("look-near-best-plan", True)),
+        all_pairs_threshold=int(configuration.get("all-pairs-threshold", 3)),
 
         num_queries=int(args.num_queries)
         if int(args.num_queries) > 0 else configuration.get("num-queries", -1),
-        num_retries=configuration.get("num-retries", 5),
-        num_warmup=configuration.get("num-warmup", 1),
+        num_retries=int(configuration.get("num-retries", 5)),
+        num_warmup=int(configuration.get("num-warmup", 1)),
 
-        parametrized=args.parametrized,
+        parametrized=get_bool_from_object(args.parametrized),
 
         asciidoctor_path=configuration.get("asciidoctor-path", "asciidoc"),
 

@@ -272,7 +272,7 @@ def get_md5(string: str):
     return hashlib.md5(string.encode('utf-8')).hexdigest()
 
 
-def get_bool_from_str(string: str):
+def get_bool_from_object(string: str | bool | int):
     return string in {True, 1, "True", "true", "TRUE", "T"}
 
 
