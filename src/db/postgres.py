@@ -125,7 +125,7 @@ class Leading:
     def construct(self):
         if self.config.all_pairs_threshold == -1:
             self.get_all_combinations()
-        elif len(self.alias_to_table) < self.config.all_pairs_threshold:
+        elif len(self.alias_to_table) <= self.config.all_pairs_threshold:
             self.get_all_combinations()
         else:
             self.get_all_pairs_combinations()
