@@ -13,6 +13,12 @@ from objects import Query
 
 PARAMETER_VARIABLE = r"[^'](\%\((.*?)\))"
 WITH_ORDINALITY = r"[Ww][Ii][Tt][Hh]\s*[Oo][Rr][Dd][Ii][Nn][Aa][Ll][Ii][Tt][yY]\s*[Aa][Ss]\s*.*(.*)"
+SQL_KEYWORDS = ['GROUP', 'UNION', 'CHECK', 'IS', 'DELETE', 'OUTER', 'IN', 'INTO', 'FROM', 'EXCEPT', 'NOT', 'LEFT',
+                'ILIKE', 'JOIN', 'WHERE', 'TABLE', 'VIEW', 'DROP', 'UPDATE', 'DESC', 'UNIQUE', 'ON', 'OR', 'BY', 'SOME',
+                'KEY', 'TRUNCATE', 'REPLACE', 'SELECT', 'FULL', 'FOREIGN', 'DISTINCT', 'RIGHT', 'DATABASE', 'INTERSECT',
+                'LIMIT', 'DEFAULT', 'ADD', 'ALL', 'BETWEEN', 'INDEX', 'COLUMN', 'EXISTS', 'INSERT', 'SET', 'AS',
+                'HAVING', 'INNER', 'ASC', 'LIKE', 'CROSS', 'ORDER', 'CONSTRAINT', 'CASE', 'NULL', 'ANY', 'VALUES',
+                'AND', 'PRIMARY', 'ALTER', 'CREATE']
 
 
 def current_milli_time():
@@ -144,12 +150,12 @@ def extract_execution_time_from_analyze(result):
 
 
 def check_alias_validity(alias: str):
-    lower_alias = alias.lower()
+    upper_alias = alias.upper()
 
-    if " " in lower_alias:
+    if " " in upper_alias:
         return False
 
-    return lower_alias not in {'on', 'where', 'group by', 'from'}
+    return upper_alias not in SQL_KEYWORDS
 
 
 def get_alias_table_names(sql_str, tables_in_sut):
