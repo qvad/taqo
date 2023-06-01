@@ -47,7 +47,7 @@ class ConnectionConfig:
     database: str = None
 
     def __str__(self):
-        return f"{self.host}:{self.port}@{self.username}:{self.password}, database '{self.database}'"
+        return f"{self.host}:{self.port}@{self.username}:*******, database '{self.database}'"
 
 
 @dataclasses.dataclass
