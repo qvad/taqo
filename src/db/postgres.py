@@ -125,8 +125,10 @@ class Leading:
     def construct(self):
         if self.config.all_pairs_threshold == -1:
             self.get_all_combinations()
-        elif len(self.alias_to_table) <= self.config.all_pairs_threshold:
+        elif len(self.alias_to_table) < self.config.all_pairs_threshold:
             self.get_all_combinations()
+        elif len(self.alias_to_table) == self.config.all_pairs_threshold:
+            self.get_all_pairs_with_all_table_permutations()
         else:
             self.get_all_pairs_combinations()
 
@@ -179,9 +181,36 @@ class Leading:
             tables_and_idxs = list({f"{Scans.INDEX.value}({table.alias})"
                                     for field in table.fields if field.is_index})
             tables_and_idxs += {f"{Scans.INDEX_ONLY.value}({table.alias})"
-                                    for field in table.fields if field.is_index}
+                                for field in table.fields if field.is_index}
             tables_and_idxs.append(f"{Scans.SEQ.value}({table.alias})")
             self.table_scan_hints.append(tables_and_idxs)
+
+    def get_all_pairs_with_all_table_permutations(self):
+        # algorithm with all possible table permutations
+        # but with all pairs scans
+        table_permutations = list(itertools.permutations(self.alias_to_table))
+        join_product = list(AllPairs([list(Joins) for _ in range(len(self.alias_to_table) - 1)]))
+        scan_product = list(AllPairs([list(Scans) for _ in range(len(self.alias_to_table))]))
+
+        for tables, joins, scans in AllPairs([table_permutations, join_product, scan_product]):
+            prev_el = None
+            joins = itertools.cycle(joins)
+            query_joins = ""
+            joined_tables = []
+
+            for table in tables:
+                prev_el = f"( {prev_el} {table.alias} )" if prev_el else table.alias
+                joined_tables.append(table.alias)
+
+                if prev_el != table.alias:
+                    query_joins += f" {next(joins).construct(joined_tables)}"
+
+            leading_hint = f"{self.LEADING} ({prev_el})"
+            scan_hints = " ".join(
+                f"{scan.value}({tables[table_idx].alias})" for table_idx, scan in
+                enumerate(scans))
+
+            self.joins.append(f"{leading_hint} {query_joins} {scan_hints}")
 
     def get_all_pairs_combinations(self):
         if len(self.alias_to_table) <= 1:
