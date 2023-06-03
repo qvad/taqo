@@ -48,6 +48,8 @@ class SQLModel(QTFModel):
             with conn.cursor() as cur:
                 created_tables = self.load_tables_from_public(cur)
 
+        self.load_table_stats(conn.cursor(), created_tables)
+
         return created_tables, teardown_queries + create_queries + analyze_queries + import_queries
 
     def get_model_path(self):
@@ -132,8 +134,8 @@ class SQLModel(QTFModel):
         self.logger.info("Loading tables...")
         cur.execute(
             """
-            select table_name, table_schema 
-            from information_schema.tables 
+            select table_name, table_schema
+            from information_schema.tables
             where table_schema = 'public' or table_schema = 'pg_catalog';
             """)
         tables = []
@@ -191,9 +193,39 @@ class SQLModel(QTFModel):
             except Exception as e:
                 self.logger.exception(result, e)
 
-            created_tables.append(Table(name=table_name, fields=fields, size=0))
+            created_tables.append(Table(name=table_name, fields=fields, rows=0, size=0))
 
         return created_tables
+
+    def load_table_stats(self, cur, tables):
+        self.logger.info("Loading table statistics...")
+        tmap = {}
+        for t in tables:
+            if t.name in tmap:
+                raise AssertionError(f"Found multiple tables with the same name: {t.name}")
+            tmap[t.name] = t
+
+        evaluate_sql(
+            cur,
+            f"""
+            select
+                c.relname table_name,
+                c.reltuples as rows
+            from
+                pg_class c,
+                pg_namespace ns
+            where
+                ns.oid = c.relnamespace
+                and c.relkind = 'r'
+                and ns.nspname in ('public', 'pg_catalog')
+                and c.relname =any(array{list(tmap)});
+                 """
+             )
+
+        tstats = cur.fetchall()
+
+        for ts in tstats:
+            tmap[ts[0]].rows = ts[1]
 
     @staticmethod
     def get_comments(full_query):
