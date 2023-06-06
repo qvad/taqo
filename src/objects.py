@@ -39,7 +39,7 @@ class Query:
     query_hash: str = ""
     tables: List[Table] = None
 
-    optimizer_tips: QueryTips = QueryTips()
+    optimizer_tips: QueryTips = dataclasses.field(default_factory=QueryTips)
     explain_hints: str = ""
 
     execution_plan: 'ExecutionPlan' = None
