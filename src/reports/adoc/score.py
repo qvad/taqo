@@ -305,12 +305,16 @@ class ScoreReport(Report):
 
         worksheet.write(0, 0, "YB", head_format)
         worksheet.write(0, 1, "YB Best", head_format)
-        worksheet.write(0, 2, "PG", head_format)
-        worksheet.write(0, 3, "PG Best", head_format)
-        worksheet.write(0, 4, "Ratio YB vs PG", head_format)
-        worksheet.write(0, 5, "Best YB vs PG", head_format)
-        worksheet.write(0, 6, "Query", head_format)
-        worksheet.write(0, 7, "Query Hash", head_format)
+        worksheet.write(0, 2, "YB EQ", head_format)
+        worksheet.write(0, 3, "PG", head_format)
+        worksheet.write(0, 4, "PG Best", head_format)
+        worksheet.write(0, 5, "PG EQ", head_format)
+        worksheet.write(0, 6, "Ratio YB vs PG", head_format)
+        worksheet.write(0, 7, "Default EQ", head_format)
+        worksheet.write(0, 8, "Best YB vs PG", head_format)
+        worksheet.write(0, 9, "Best EQ", head_format)
+        worksheet.write(0, 10, "Query", head_format)
+        worksheet.write(0, 11, "Query Hash", head_format)
 
         row = 1
         # Iterate over the data and write it out row by row.
@@ -362,16 +366,20 @@ class ScoreReport(Report):
                 worksheet.write(row, 1,
                                 f"{'{:.2f}'.format(yb_best.execution_time_ms)}",
                                 eq_format if default_yb_equality else None)
-                worksheet.write(row, 2,
+                worksheet.write(row, 2, default_yb_equality)
+                worksheet.write(row, 3,
                                 f"{'{:.2f}'.format(pg_query.execution_time_ms)}",
                                 bm_format if bitmap_flag else None)
-                worksheet.write(row, 3,
+                worksheet.write(row, 4,
                                 f"{'{:.2f}'.format(pg_best.execution_time_ms)}",
                                 eq_format if default_pg_equality else None)
-                worksheet.write(row, 4, f"{ratio_x3_str}", df_pf_format)
-                worksheet.write(row, 5, f"{ratio_best_x3_str}", best_pg_format)
-                worksheet.write(row, 6, f'{format_sql(pg_query.query)}')
-                worksheet.write(row, 7, f'{pg_query.query_hash}')
+                worksheet.write(row, 5, default_pg_equality)
+                worksheet.write(row, 6, f"{ratio_x3_str}", df_pf_format)
+                worksheet.write(row, 7, default_yb_pg_equality)
+                worksheet.write(row, 8, f"{ratio_best_x3_str}", best_pg_format)
+                worksheet.write(row, 9, best_yb_pg_equality)
+                worksheet.write(row, 10, f'{format_sql(pg_query.query)}')
+                worksheet.write(row, 11, f'{pg_query.query_hash}')
                 row += 1
 
         workbook.close()

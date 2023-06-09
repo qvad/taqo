@@ -78,35 +78,25 @@ def calculate_avg_execution_time(cur,
     for iteration in range(num_retries + num_warmup):
         # noinspection PyUnresolvedReferences
         try:
+            sut_database.prepare_query_execution(cur)
             start_time = current_milli_time()
             query.parameters = evaluate_sql(cur, query_str)
 
-            result = None
-            if iteration >= num_warmup and with_analyze:
-                _, result = get_result(cur, is_dml)
-                connection.rollback()
-                # todo make wrapper for this
-                sut_database.prepare_query_execution(cur)
-
-                # get cardinality for queries with analyze
-                evaluate_sql(cur, query.get_query())
-                cardinality, _ = get_result(cur, is_dml)
-                connection.rollback()
-                sut_database.prepare_query_execution(cur)
-
-                sum_execution_times += extract_execution_time_from_analyze(result)
-                query.result_cardinality = cardinality
-            else:
-                sum_execution_times += current_milli_time() - start_time
-
             if iteration == 0:
-                if not result:
-                    cardinality, result = get_result(cur, is_dml)
+                cardinality, result = get_result(cur, is_dml)
+                if with_analyze:
+                    query.result_cardinality = extract_actual_cardinality(result)
+                    query.result_hash = "NONE"
+                else:
                     query.result_cardinality = cardinality
-                    connection.rollback()
-                    sut_database.prepare_query_execution(cur)
+                    query.result_hash = get_md5(result)
+            elif iteration >= num_warmup:
+                if with_analyze:
+                    _, result = get_result(cur, is_dml)
 
-                query.result_hash = get_md5(result)
+                    sum_execution_times += extract_execution_time_from_analyze(result)
+                else:
+                    sum_execution_times += current_milli_time() - start_time
         except psycopg2.errors.QueryCanceled:
             # failed by timeout - it's ok just skip optimization
             query.execution_time_ms = -1
@@ -120,6 +110,8 @@ def calculate_avg_execution_time(cur,
             traceback.print_exc(limit=None, file=None, chain=True)
             return False
         finally:
+            connection.rollback()
+
             if iteration >= num_warmup:
                 actual_evaluations += 1
 
@@ -141,7 +133,17 @@ def query_is_dml(query_str_lower):
 
 
 def extract_execution_time_from_analyze(result):
+    extracted = -1
     matches = re.finditer(r"Execution\sTime:\s(\d+\.\d+)\sms", result, re.MULTILINE)
+    for matchNum, match in enumerate(matches, start=1):
+        extracted = float(match.groups()[0])
+        break
+
+    return extracted
+
+
+def extract_actual_cardinality(result):
+    matches = re.finditer(r"\(actual\stime.*rows=(\d+).*\)", result.split("\n")[0], re.MULTILINE)
     for matchNum, match in enumerate(matches, start=1):
         result = float(match.groups()[0])
         break

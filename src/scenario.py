@@ -80,8 +80,6 @@ class Scenario:
         counter = 1
         for original_query in queries:
             with conn.cursor() as cur:
-                self.sut_database.prepare_query_execution(cur)
-
                 try:
                     self.sut_database.set_query_timeout(cur, self.config.test_query_timeout)
 
@@ -90,32 +88,36 @@ class Scenario:
                         f"Evaluating query {short_query}... [{counter}/{len(queries)}]")
 
                     try:
+                        self.sut_database.prepare_query_execution(cur)
                         evaluate_sql(cur, original_query.get_explain())
                         original_query.execution_plan = self.config.database.get_execution_plan(
                             '\n'.join(
                                 str(item[0]) for item in cur.fetchall()))
 
                         conn.rollback()
-                        self.sut_database.prepare_query_execution(cur)
                     except psycopg2.errors.QueryCanceled:
                         try:
+                            # try to get at least heuristic plan
+                            self.sut_database.prepare_query_execution(cur)
                             evaluate_sql(cur, original_query.get_heuristic_explain())
                             original_query.execution_plan = self.config.database.get_execution_plan(
                                 '\n'.join(
                                     str(item[0]) for item in cur.fetchall()))
 
                             conn.rollback()
-                            self.sut_database.prepare_query_execution(cur)
                         except psycopg2.errors.QueryCanceled:
                             self.logger.error("Unable to get execution plan even w/o analyze")
                             original_query.execution_plan = self.config.database.get_execution_plan(
                                 '')
+                            conn.rollback()
 
                     if self.config.plans_only:
                         original_query.execution_time_ms = \
                             original_query.execution_plan.get_estimated_cost()
                     else:
+                        query_str = original_query.get_explain_analyze() if self.config.server_side_execution else None
                         calculate_avg_execution_time(cur, original_query, self.sut_database,
+                                                     query_str=query_str,
                                                      num_retries=int(self.config.num_retries),
                                                      connection=conn)
 
@@ -142,8 +144,8 @@ class Scenario:
         self.logger.debug(f"{len(list_of_optimizations)} optimizations generated")
         progress_bar = tqdm(list_of_optimizations)
         num_skipped = 0
-        min_execution_time = original_query.execution_time_ms if original_query.execution_time_ms > 0 else (
-                    self.config.test_query_timeout * 1000)
+        min_execution_time = original_query.execution_time_ms \
+            if original_query.execution_time_ms > 0 else (self.config.test_query_timeout * 1000)
         original_query.optimizations = []
         execution_plans_checked = set()
 
@@ -164,13 +166,13 @@ class Scenario:
             self.try_to_get_default_explain_hints(cur, optimization, original_query)
 
             try:
+                self.sut_database.prepare_query_execution(cur)
                 evaluate_sql(cur, optimization.get_explain())
                 optimization.execution_plan = database.get_execution_plan(
                     '\n'.join(
                         str(item[0]) for item in cur.fetchall()))
 
                 connection.rollback()
-                self.sut_database.prepare_query_execution(cur)
             except psycopg2.errors.QueryCanceled as e:
                 # failed by timeout - it's ok just skip optimization
                 self.logger.debug(f"Getting execution plan failed with {e}")
@@ -183,6 +185,7 @@ class Scenario:
             exec_plan_md5 = get_md5(optimization.execution_plan.get_clean_plan())
             not_unique_plan = exec_plan_md5 in execution_plans_checked
             execution_plans_checked.add(exec_plan_md5)
+            query_str = optimization.get_explain_analyze() if self.config.server_side_execution else None
 
             if self.config.plans_only:
                 original_query.execution_time_ms = \
@@ -191,6 +194,7 @@ class Scenario:
                     cur,
                     optimization,
                     self.sut_database,
+                    query_str=query_str,
                     num_retries=int(self.config.num_retries),
                     connection=connection):
                 num_skipped += 1
