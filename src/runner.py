@@ -173,6 +173,10 @@ if __name__ == "__main__":
     parser.add_argument('--explain-clause',
                         default=None,
                         help='Explain clause that will be placed before query. Default "EXPLAIN"')
+    parser.add_argument('--server-side-execution',
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help='Evaluate queries on server side, for PG using "EXPLAIN ANALYZE"')
     parser.add_argument('--session-props',
                         default="",
                         help='Additional session properties queries')
@@ -248,6 +252,7 @@ if __name__ == "__main__":
         ddl_prefix=args.ddl_prefix or (args.db if args.db != "yugabyte" else ""),
         with_optimizations=args.optimizations,
         plans_only=args.plans_only,
+        server_side_execution=get_bool_from_object(args.server_side_execution),
 
         enable_statistics=args.enable_statistics or get_bool_from_object(
             configuration.get("enable-statistics", False)),

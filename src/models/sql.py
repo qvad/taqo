@@ -81,6 +81,9 @@ class SQLModel(QTFModel):
                     with open(f"{self.get_model_path()}/{file_name}.sql", "r") as sql_file:
                         full_queries = self.apply_variables('\n'.join(sql_file.readlines()))
                         for query in tqdm(full_queries.split(";")):
+                            if query.lstrip().startswith("--"):
+                                continue
+
                             try:
                                 if cleaned := query.lstrip():
                                     model_queries.append(cleaned)
