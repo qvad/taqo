@@ -24,9 +24,17 @@ DEBUG_MESSAGE_LEVEL = "SET pg_hint_plan.message_level = debug;"
 
 PLAN_CLEANUP_REGEX = r"\s\(actual time.*\)|\s\(never executed\)|\s\(cost.*\)|" \
                      r"\sMemory:.*|Planning Time.*|Execution Time.*|Peak Memory Usage.*|" \
+                     r"Storage Read Requests:.*|Storage Read Execution Time:.*|Storage Write Requests:.*|" \
+                     r"Catalog Read Requests:.*|Catalog Read Execution Time:.*|Catalog Write Requests:.*|" \
+                     r"Catalog Reads Requests:.*|Catalog Reads Execution Time:.*|Catalog Writes Requests:.*|" \
+                     r"Storage Flushes Requests:.*|Storage Execution Time:.*|" \
+                     r"Storage Table Read Requests:.*|Storage Table Read Execution Time:.*|Output:.*|" \
+                     r"Storage Index Read Requests:.*|Storage Index Read Execution Time:.*|" \
+                     r"Storage Flush Requests:.*|" \
+                     r"Metric rocksdb_.*:.*|" \
                      r"Read RPC Count:.*|Read RPC Wait Time:.*|DocDB Scanned Rows:.*|" \
                      r".*Partial Aggregate:.*|YB\s|Remote\s|" \
-                     r"JIT:.*|\s+Functions:.*|\s+Options:.*|\s+Timing:.*"  # PG14 JIT info
+                     r"JIT:.*|\s+Functions:.*|\s+Options:.*|\s+Timing:.*"
 PLAN_RPC_CALLS = r"\nRead RPC Count:\s(\d+)"
 PLAN_RPC_WAIT_TIMES = r"\nRead RPC Wait Time:\s([+-]?([0-9]*[.])?[0-9]+)"
 PLAN_DOCDB_SCANNED_ROWS = r"\nDocDB Scanned Rows:\s(\d+)"
