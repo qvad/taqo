@@ -9,8 +9,8 @@ import psycopg2
 from allpairspy import AllPairs
 
 from config import Config, ConnectionConfig, DDLStep
-from objects import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table, Optimization, \
-    CollectResult, ResultsLoader
+from objects import Query, ExecutionPlan, ListOfOptimizations, Table, Optimization, \
+    CollectResult, ResultsLoader, PlanNode
 from db.database import Database
 from utils import evaluate_sql, allowed_diff
 
@@ -40,6 +40,16 @@ PLAN_RPC_WAIT_TIMES = r"\nRead RPC Wait Time:\s([+-]?([0-9]*[.])?[0-9]+)"
 PLAN_DOCDB_SCANNED_ROWS = r"\nDocDB Scanned Rows:\s(\d+)"
 PLAN_PEAK_MEMORY = r"\nPeak memory:\s(\d+)"
 PLAN_TREE_CLEANUP = r"\n\s*->\s*|\n\s*"
+
+re_plan_node_header = [
+    '(\S+(?:\s+\S+)*)',
+    '\s+',
+    '\(cost=(\d+\.\d*)\.\.(\d+\.\d*)\s+rows=(\d+)\s+width=(\d+)\)',
+    '\s+',
+    '\((?:(?:actual time=(\d+\.\d*)\.\.(\d+\.\d*) +rows=(\d+) +loops=(\d+))|(?:(never executed)))\)',
+]
+
+pat_plan_node_header = re.compile(''.join(re_plan_node_header))
 
 
 class Postgres(Database):
@@ -333,31 +343,50 @@ class PostgresOptimization(PostgresQuery, Optimization):
 
 @dataclasses.dataclass
 class PostgresExecutionPlan(ExecutionPlan):
-    full_str: str
+    def parse_plan(self):
+        prev_level = 0
+        current_path = []
+        for node_str in self.full_str.split('->'):
+            node = PlanNode()
+            node.level = prev_level
+            # trailing spaces after the previous newline is the indent of the next node
+            node_end = node_str.rfind('\n')
+            indent = int(node_str.count(' ', node_end))
+            prev_level = indent // 2
+            # subtract the indentation from each plan node header added by postgres explain.c for "->  "
+            if prev_level > 1:
+                prev_level -= 2
 
-    def parse_tree(self):
-        root = EPNode()
-        current_node = root
-        for line in self.full_str.split("\n"):
-            if line.strip().startswith("->"):
-                level = int(line.find("->") / 2)
-                previous_node = current_node
-                current_node = EPNode()
-                current_node.level = level
-                current_node.full_str += line
+            node_props = node_str[:node_end].splitlines()
 
-                if previous_node.level <= current_node.level:
-                    previous_node.childs.append(current_node)
-                    current_node.root = previous_node
+            if match := pat_plan_node_header.search(node_props[0]):
+                node.name = match.group(1)
+                node.startup_cost = match.group(2)
+                node.total_cost = match.group(3)
+                node.plan_rows = match.group(4)
+                node.plan_width = match.group(5)
+                if match.group(10) == 'never executed':
+                    node.nloops = 0
                 else:
-                    walking_node = previous_node.root
-                    while walking_node.level != current_node.level:
-                        walking_node = walking_node.root
-                    walking_node = walking_node.root
-                    walking_node.childs.append(current_node)
-                    current_node.root = walking_node
+                    node.startup_ms = match.group(6)
+                    node.total_ms = match.group(7)
+                    node.rows = match.group(8)
+                    node.nloops = match.group(9)
             else:
-                current_node.full_str += line
+                print(f'Unrecognized node header format: {pat_plan_node_header}')  # log or error out
+
+            for prop in node_props[1:]:
+                if prop.startswith(' '):
+                    node.properties.append(prop.strip())
+
+            if not current_path:
+                current_path.append(node)
+            else:
+                while len(current_path) > node.level:
+                    current_path.pop()
+                current_path[-1].children.append(node)
+
+        return current_path[0] if current_path else None
 
     def __cmp__(self, other):
         if isinstance(other, str):

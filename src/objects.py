@@ -98,23 +98,68 @@ class CollectResult:
         self.queries.sort(key=lambda q: q.query_hash)
 
     def find_query_by_hash(self, query_hash):
-        for query in self.queries:
-            if query.query_hash == query_hash:
-                return query
+        return next(
+            (query for query in self.queries if query.query_hash == query_hash),
+            None,
+        )
 
-        return None
 
+class PlanNode:
+    level: int
+    name: str
+    properties: List[str]
+    children: List['PlanNode']
 
-class EPNode:
+    total_cost: float
+    plan_rows: float
+    plan_width: int
+    startup_ms: float
+    total_ms: float
+    rows: float
+    nloops: float
+
     def __init__(self):
-        self.root: 'EPNode' | None = None
-        self.childs: List['EPNode'] = []
-        self.type: str = ""
-        self.full_str: str = ""
-        self.level: int = 0
+        self.level = 0
+        self.name = ""
+        self.properties = []
+        self.children = []
+
+        self.startup_cost = 0.0
+        self.total_cost = 0.0
+        self.plan_rows = 0.0
+        self.plan_width = 0
+        self.startup_ms = 0
+        self.total_ms = 0
+        self.rows = 0.0
+        self.nloops = 0.0
+
+    def __cmp__(self, other):
+        pass  # todo
 
     def __str__(self):
-        return self.full_str
+        return self.get_full_str(estimate=False, actual=False, properties=False)
+
+    def get_full_str(self, estimate=True, actual=True, properties=False):
+        s = f'{self.level}: {self.name}'
+        if estimate:
+            s += f'  (cost={self.startup_cost}..{self.total_cost} rows={self.plan_rows} width={self.plan_width})'
+        if actual:
+            if self.nloops == 0:
+                s += '  (never executed)'
+            else:
+                s += f'  (actual time={self.startup_ms}..{self.total_ms} rows={self.rows} nloops={self.nloops})'
+        if properties and len(self.properties) > 0:
+            s += self.properties.__str__()
+        return s
+
+    def get_tree_str(self, estimate=True, actual=True, properties=False):
+        s = self.get_full_str(estimate, actual, properties, False)
+        for child in self.children:
+            s += '\n'
+            for _ in range(child.level):
+                s += '  '
+            s += child.get_tree_str(estimate, actual, properties)
+        return s
 
 
 @dataclasses.dataclass
