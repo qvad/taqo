@@ -9,8 +9,8 @@ import psycopg2
 from allpairspy import AllPairs
 
 from config import Config, ConnectionConfig, DDLStep
-from objects import Query, EPNode, ExecutionPlan, ListOfOptimizations, Table, Optimization, \
-    CollectResult, ResultsLoader
+from objects import Query, ExecutionPlan, ListOfOptimizations, Table, Optimization, \
+    CollectResult, ResultsLoader, PlanNode, ScanNode
 from db.database import Database
 from utils import evaluate_sql, allowed_diff
 
@@ -41,6 +41,18 @@ PLAN_DOCDB_SCANNED_ROWS = r"\nDocDB Scanned Rows:\s(\d+)"
 PLAN_PEAK_MEMORY = r"\nPeak memory:\s(\d+)"
 PLAN_TREE_CLEANUP = r"\n\s*->\s*|\n\s*"
 
+re_plan_node_header = [
+    '(\S+(?:\s+\S+)*)',
+    '\s+',
+    '\(cost=(\d+\.\d*)\.\.(\d+\.\d*)\s+rows=(\d+)\s+width=(\d+)\)',
+    '\s+',
+    '\((?:(?:actual time=(\d+\.\d*)\.\.(\d+\.\d*) +rows=(\d+) +loops=(\d+))|(?:(?P<never>never executed)))\)',
+]
+
+pat_plan_node_header = re.compile(''.join(re_plan_node_header))
+
+re_decompose_scan_node = '(?P<type>\S+(?:\s+\S+)* Scan(?P<backward>\s+Backward)*)(?: using (?P<index>\S+))* on (?P<table>\S+)(?: (?P<alias>\S+))*'
+pat_decompose_scan_node = re.compile(re_decompose_scan_node)
 
 class Postgres(Database):
 
@@ -333,31 +345,75 @@ class PostgresOptimization(PostgresQuery, Optimization):
 
 @dataclasses.dataclass
 class PostgresExecutionPlan(ExecutionPlan):
-    full_str: str
+    def decompose_node_name(self, node_name):
+        index_name = table_name = table_alias = is_backward = None
+        if match := pat_decompose_scan_node.search(node_name):
+            node_type = match.group('type')
+            index_name = match.group('index')
+            is_backward = match.group('backward') != None
+            table_name = match.group('table')
+            table_alias = match.group('alias')
+        else:
+            node_type = node_name
+        return (node_type, table_name, table_alias, index_name, is_backward)
 
-    def parse_tree(self):
-        root = EPNode()
-        current_node = root
-        for line in self.full_str.split("\n"):
-            if line.strip().startswith("->"):
-                level = int(line.find("->") / 2)
-                previous_node = current_node
-                current_node = EPNode()
-                current_node.level = level
-                current_node.full_str += line
+    def parse_plan(self):
+        prev_level = 0
+        current_path = []
+        for node_str in self.full_str.split('->'):
+            node_level = prev_level
+            # trailing spaces after the previous newline is the indent of the next node
+            node_end = node_str.rfind('\n')
+            indent = int(node_str.count(' ', node_end))
+            # postgres explain.c adds 6 whitespaces at each indentation level with "  ->  "
+            # for each node header. add back 4 for "->  " before division because we split
+            # it at each '->'.
+            prev_level = int((indent + 4) / 6)
 
-                if previous_node.level <= current_node.level:
-                    previous_node.childs.append(current_node)
-                    current_node.root = previous_node
+            node_props = node_str[:node_end].splitlines()
+
+            if match := pat_plan_node_header.search(node_props[0]):
+                node_name = match.group(1)
+                (node_type, table_name, table_alias, index_name, is_backward) = self.decompose_node_name(node_name)
+
+                if table_name:
+                    node = ScanNode()
+                    node.table_name = table_name
+                    node.table_alias = table_alias
+                    node.index_name = index_name
+                    node.is_backward = is_backward
                 else:
-                    walking_node = previous_node.root
-                    while walking_node.level != current_node.level:
-                        walking_node = walking_node.root
-                    walking_node = walking_node.root
-                    walking_node.childs.append(current_node)
-                    current_node.root = walking_node
+                    node = PlanNode()
+                node.node_type = node_type
+
+                node.level = node_level
+                node.name = node_name
+                node.startup_cost = match.group(2)
+                node.total_cost = match.group(3)
+                node.plan_rows = match.group(4)
+                node.plan_width = match.group(5)
+                if match.group('never'):
+                    node.nloops = 0
+                else:
+                    node.startup_ms = match.group(6)
+                    node.total_ms = match.group(7)
+                    node.rows = match.group(8)
+                    node.nloops = match.group(9)
             else:
-                current_node.full_str += line
+                print(f'Unrecognized node header format: {pat_plan_node_header}')  # log or error out
+
+            for prop in node_props[1:]:
+                if prop.startswith(' '):
+                    node.properties.append(prop.strip())
+
+            if not current_path:
+                current_path.append(node)
+            else:
+                while len(current_path) > node.level:
+                    current_path.pop()
+                current_path[-1].child_nodes.append(node)
+
+        return current_path[0] if current_path else None
 
     def __cmp__(self, other):
         if isinstance(other, str):

@@ -98,23 +98,93 @@ class CollectResult:
         self.queries.sort(key=lambda q: q.query_hash)
 
     def find_query_by_hash(self, query_hash):
-        for query in self.queries:
-            if query.query_hash == query_hash:
-                return query
+        return next(
+            (query for query in self.queries if query.query_hash == query_hash),
+            None,
+        )
 
-        return None
 
-
-class EPNode:
+class PlanNode:
     def __init__(self):
-        self.root: 'EPNode' | None = None
-        self.childs: List['EPNode'] = []
-        self.type: str = ""
-        self.full_str: str = ""
         self.level: int = 0
+        self.node_type: str = None
+        self.name: str = None
+        self.properties: List[str] = []
+        self.child_nodes: List[PlanNode] = []
+
+        self.startup_cost: float = 0.0
+        self.total_cost: float = 0.0
+        self.plan_rows: float = 0.0
+        self.plan_width: int = 0
+
+        self.startup_ms: float = 0
+        self.total_ms: float = 0
+        self.rows: float = 0.0
+        self.nloops: float = 0.0
+
+    def __cmp__(self, other):
+        pass  # todo
 
     def __str__(self):
-        return self.full_str
+        return f'{self.level}:{self.node_type}'
+
+    def get_full_str(self, estimate=True, actual=True, properties=False):
+        s = str(self)
+        if estimate:
+            s += f'  (cost={self.startup_cost}..{self.total_cost} rows={self.plan_rows} width={self.plan_width})'
+        if actual:
+            if self.nloops == 0:
+                s += '  (never executed)'
+            else:
+                s += f'  (actual time={self.startup_ms}..{self.total_ms} rows={self.rows} nloops={self.nloops})'
+        if properties and len(self.properties) > 0:
+            s += str(self.properties)
+        return s
+
+
+class ScanNode(PlanNode):
+    def __init__(self):
+        super().__init__()
+        self.table_name: str = None
+        self.table_alias: str = None
+        self.index_name: str = None
+
+    def __str__(self):
+        s = f'{self.level}:{self.node_type}: '
+        s += f'table={self.table_name} alias={self.table_alias} index={self.index_name}'
+        return s
+
+
+class PlanNodeVisitor:
+    def visit(self, node):
+        method = f'visit_{node.__class__.__name__}'
+        visitor = getattr(self, method, self.generic_visit)
+        return visitor(node)
+
+    def generic_visit(self, node):
+        for child in node.child_nodes:
+            self.visit(child)
+
+
+class PlanPrinter(PlanNodeVisitor):
+    def __init__(self, estimate=True, actual=True):
+        super().__init__()
+        self.plan_tree_str: str = ""
+        self.estimate = estimate
+        self.actual = actual
+
+    def visit(self, node):
+        for _ in range(node.level):
+            self.plan_tree_str += '  '
+        self.plan_tree_str += node.get_full_str(self.estimate, self.actual)
+        self.plan_tree_str += '\n'
+        self.generic_visit(node)
+
+    @staticmethod
+    def build_plan_tree_str(node, estimate=True, actual=True):
+        printer = PlanPrinter(estimate, actual)
+        printer.visit(node)
+        return printer.plan_tree_str
 
 
 @dataclasses.dataclass
