@@ -114,7 +114,7 @@ class PlanNode:
         self.level: int = 0
         self.node_type: str = None
         self.name: str = None
-        self.properties: List[str] = []
+        self.properties = {}
         self.child_nodes: List[PlanNode] = []
 
         self.startup_cost: float = 0.0
