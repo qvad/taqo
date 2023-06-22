@@ -273,8 +273,8 @@ class PostgresQuery(Query):
             for join in Joins)
 
     def compare_plans(self, execution_plan: Type['ExecutionPlan']):
-        if clean_plan := self.execution_plan.get_clean_plan():
-            return clean_plan == self.execution_plan.get_clean_plan(execution_plan)
+        if self.execution_plan:
+            return self.execution_plan.get_clean_plan() == self.execution_plan.get_clean_plan(execution_plan)
         else:
             return False
 
@@ -430,6 +430,7 @@ class PostgresExecutionPlan(ExecutionPlan):
                                   re.MULTILINE)
             for matchNum, match in enumerate(matches, start=1):
                 return float(match.groups()[0])
+            return 0
         except Exception as e:
             return 0
 

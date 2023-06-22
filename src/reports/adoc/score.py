@@ -166,8 +166,10 @@ class ScoreReport(Report):
                 yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
                 pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best.execution_plan) else 0
                 timed_out += 1 if yb_query.execution_time_ms == -1 else 0
-                slower_then_10x += 1 if (yb_query.execution_time_ms / pg_query.execution_time_ms) >= 10 else 0
-                best_slower_then_10x += 1 if (yb_best.execution_time_ms / pg_query.execution_time_ms) >= 10 else 0
+                slower_then_10x += 1 if pg_query.execution_time_ms and \
+                                        (yb_query.execution_time_ms / pg_query.execution_time_ms) >= 10 else 0
+                best_slower_then_10x += 1 if pg_query.execution_time_ms and \
+                                             (yb_best.execution_time_ms / pg_query.execution_time_ms) >= 10 else 0
 
                 total += 1
 
@@ -339,12 +341,13 @@ class ScoreReport(Report):
                 ratio_color = ratio_x3 > 1.0
 
                 ratio_best = yb_best.execution_time_ms / (3 * pg_best.execution_time_ms) \
-                    if yb_best.execution_time_ms != 0 else 99999999
-                ratio_best_x3_str = "{:.2f}".format(yb_best.execution_time_ms / pg_best.execution_time_ms
-                                                    if yb_best.execution_time_ms != 0 else 99999999)
+                    if yb_best.execution_time_ms != 0 and pg_best.execution_time_ms != 0 else 99999999
+                ratio_best_x3_str = "{:.2f}".format(
+                    yb_best.execution_time_ms / pg_best.execution_time_ms
+                    if yb_best.execution_time_ms != 0 and pg_best.execution_time_ms != 0 else 99999999)
                 ratio_best_color = ratio_best > 1.0
 
-                bitmap_flag = "bitmap" in pg_query.execution_plan.full_str.lower()
+                bitmap_flag = pg_query.execution_plan and "bitmap" in pg_query.execution_plan.full_str.lower()
 
                 best_pg_format = None
                 if ratio_best_color and best_yb_pg_equality:
