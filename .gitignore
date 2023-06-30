@@ -4,6 +4,10 @@ report/
 
 sql/proprietary/
 
+# macOS specific
+.DS_Store
+*.dylib
+
 # GitHub generated ignores
 # Byte-compiled / optimized / DLL files
 __pycache__/
