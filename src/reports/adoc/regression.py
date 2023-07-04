@@ -183,8 +183,8 @@ class RegressionReport(Report):
                 yb_v1_best = yb_v1_query.get_best_optimization(self.config)
                 yb_v2_best = yb_v2_query.get_best_optimization(self.config)
 
-                qe_bests_geo *= yb_v1_best.execution_time_ms / yb_v2_best.execution_time_ms
                 qe_default_geo *= yb_v1_query.execution_time_ms / yb_v2_query.execution_time_ms
+                qe_bests_geo *= yb_v1_best.execution_time_ms / yb_v2_best.execution_time_ms
                 qo_yb_v1_bests *= (yb_v1_query.execution_time_ms
                                    if yb_v1_query.execution_time_ms > 0 else 1.0) / \
                                   (yb_v1_best.execution_time_ms
@@ -200,7 +200,7 @@ class RegressionReport(Report):
         self.report += f"|Statistic|{self.v1_name}|{self.v2_name}\n"
         self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%" \
                        f"|{'{:.2f}'.format(float(yb_v2_bests) * 100 / total)}%\n"
-        self.report += f"|Geomeric mean QE default\n" \
+        self.report += f"|Geometric mean QE default\n" \
                        f"2+m|{'{:.2f}'.format(qe_default_geo ** (1 / total))}\n"
         self.report += f"|Geomeric mean QE best\n" \
                        f"2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
