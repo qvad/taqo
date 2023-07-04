@@ -183,8 +183,8 @@ class RegressionReport(Report):
                 yb_v1_best = yb_v1_query.get_best_optimization(self.config)
                 yb_v2_best = yb_v2_query.get_best_optimization(self.config)
 
-                qe_default_geo *= yb_v1_query.execution_time_ms / yb_v2_query.execution_time_ms
-                qe_bests_geo *= yb_v1_best.execution_time_ms / yb_v2_best.execution_time_ms
+                qe_default_geo *= yb_v2_query.execution_time_ms / yb_v1_query.execution_time_ms
+                qe_bests_geo *= yb_v2_best.execution_time_ms / yb_v1_best.execution_time_ms
                 qo_yb_v1_bests *= (yb_v1_query.execution_time_ms
                                    if yb_v1_query.execution_time_ms > 0 else 1.0) / \
                                   (yb_v1_best.execution_time_ms
@@ -531,7 +531,7 @@ class RegressionReport(Report):
                 first_query: Query = query[0]
                 second_query: Query = query[1]
 
-                ratio = second_query.execution_time_ms / (first_query.execution_time_ms) \
+                ratio = first_query.execution_time_ms / (second_query.execution_time_ms) \
                     if first_query.execution_time_ms != 0 else 99999999
                 ratio_color = eq_bad_format if ratio > 1.0 else eq_format
 
