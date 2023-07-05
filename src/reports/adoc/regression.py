@@ -196,17 +196,25 @@ class RegressionReport(Report):
 
                 total += 1
 
-        self._start_table("4,1,1")
-        self.report += f"|Statistic|{self.v1_name}|{self.v2_name}\n"
-        self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%" \
-                       f"|{'{:.2f}'.format(float(yb_v2_bests) * 100 / total)}%\n"
-        self.report += f"|Geometric mean QE default\n" \
-                       f"2+m|{'{:.2f}'.format(qe_default_geo ** (1 / total))}\n"
-        self.report += f"|Geomeric mean QE best\n" \
-                       f"2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
-        self.report += f"|Geomeric mean QO default vs best" \
-                       f"|{'{:.2f}'.format(qo_yb_v1_bests ** (1 / total))}" \
-                       f"|{'{:.2f}'.format(qo_yb_v2_bests ** (1 / total))}\n"
+        if v2_has_optimizations:
+            self._start_table("4,1,1")
+            self.report += f"|Statistic|{self.v1_name}|{self.v2_name}\n"
+            self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%" \
+                           f"|{'{:.2f}'.format(float(yb_v2_bests) * 100 / total)}%\n"
+            self.report += f"|Geometric mean QE default\n" \
+                           f"2+m|{'{:.2f}'.format(qe_default_geo ** (1 / total))}\n"
+            self.report += f"|Geometric mean QE best\n" \
+                           f"2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
+            self.report += f"|Geometric mean QO default vs best" \
+                           f"|{'{:.2f}'.format(qo_yb_v1_bests ** (1 / total))}" \
+                           f"|{'{:.2f}'.format(qo_yb_v2_bests ** (1 / total))}\n"
+        else:
+            self._start_table("4,1")
+            self.report += f"|Statistic|{self.v1_name}\n"
+            self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%\n"
+            self.report += f"|Geometric mean QE {self.v1_name} Default vs {self.v2_name}\n|{'{:.2f}'.format(qe_default_geo ** (1 / total))}\n"
+            self.report += f"|Geometric mean QE {self.v1_name} Best vs {self.v2_name}\n|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
+            self.report += f"|Geometric mean QO {self.v1_name} Default vs Best|{'{:.2f}'.format(qo_yb_v1_bests ** (1 / total))}\n"
         self._end_table()
 
         self.report += "\n[#top]\n== QE score\n"
@@ -221,7 +229,7 @@ class RegressionReport(Report):
                            f"|{self.v1_name} Best" \
                            f"|{self.v2_name}" \
                            f"{v2_best_col}" \
-                           f"|Ratio {self.v2_name} vs {self.v1_name}" \
+                           f"|Ratio {self.v2_name} vs Default {self.v1_name}" \
                            f"|Ratio {v2_prefix} {self.v2_name} vs Best {self.v1_name}" \
                            f"|Query\n"
             self.report += f"{num_columns}+m|{tag}.sql\n"
