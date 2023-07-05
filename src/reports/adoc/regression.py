@@ -181,7 +181,7 @@ class RegressionReport(Report):
                     v2_has_optimizations = False
 
                 yb_v1_best = yb_v1_query.get_best_optimization(self.config)
-                yb_v2_best = yb_v2_query.get_best_optimization(self.config)
+                yb_v2_best = yb_v2_query.get_best_optimization(self.config) if v2_has_optimizations else yb_v1_best
 
                 qe_default_geo *= yb_v2_query.execution_time_ms / yb_v1_query.execution_time_ms
                 qe_bests_geo *= yb_v2_best.execution_time_ms / yb_v1_best.execution_time_ms
@@ -196,25 +196,20 @@ class RegressionReport(Report):
 
                 total += 1
 
+        self._start_table("4,1,1")
+        self.report += f"|Statistic|{self.v1_name}|{self.v2_name}\n"
+        self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%" \
+                       f"|{'{:.2f}'.format(float(yb_v2_bests) * 100 / total)}%\n"
+        self.report += f"|Geomeric mean QE default\n" \
+                       f"2+m|{'{:.2f}'.format(qe_default_geo ** (1 / total))}\n"
+
         if v2_has_optimizations:
-            self._start_table("4,1,1")
-            self.report += f"|Statistic|{self.v1_name}|{self.v2_name}\n"
-            self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%" \
-                           f"|{'{:.2f}'.format(float(yb_v2_bests) * 100 / total)}%\n"
-            self.report += f"|Geometric mean QE default\n" \
-                           f"2+m|{'{:.2f}'.format(qe_default_geo ** (1 / total))}\n"
-            self.report += f"|Geometric mean QE best\n" \
+            self.report += f"|Geomeric mean QE best\n" \
                            f"2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
-            self.report += f"|Geometric mean QO default vs best" \
-                           f"|{'{:.2f}'.format(qo_yb_v1_bests ** (1 / total))}" \
-                           f"|{'{:.2f}'.format(qo_yb_v2_bests ** (1 / total))}\n"
-        else:
-            self._start_table("4,1")
-            self.report += f"|Statistic|{self.v1_name}\n"
-            self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%\n"
-            self.report += f"|Geometric mean QE {self.v1_name} Default vs {self.v2_name}\n|{'{:.2f}'.format(qe_default_geo ** (1 / total))}\n"
-            self.report += f"|Geometric mean QE {self.v1_name} Best vs {self.v2_name}\n|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
-            self.report += f"|Geometric mean QO {self.v1_name} Default vs Best|{'{:.2f}'.format(qo_yb_v1_bests ** (1 / total))}\n"
+
+        self.report += f"|Geomeric mean QO default vs best" \
+                       f"|{'{:.2f}'.format(qo_yb_v1_bests ** (1 / total))}" \
+                       f"|{'{:.2f}'.format(qo_yb_v2_bests ** (1 / total))}\n"
         self._end_table()
 
         self.report += "\n[#top]\n== QE score\n"
@@ -238,7 +233,7 @@ class RegressionReport(Report):
                 yb_v2_query = query[1]
 
                 yb_v1_best = yb_v1_query.get_best_optimization(self.config)
-                yb_v2_best = yb_v2_query.get_best_optimization(self.config)
+                yb_v2_best = yb_v2_query.get_best_optimization(self.config) if v2_has_optimizations else yb_v1_best
 
                 success = yb_v2_query.execution_time_ms != 0
 
@@ -247,7 +242,10 @@ class RegressionReport(Report):
                 default_v2_equality = "[green]" \
                     if success and yb_v2_query.compare_plans(yb_v2_best.execution_plan) else "[red]"
 
-                best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_best.execution_plan) else ""
+                if v2_has_optimizations:
+                    best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_best.execution_plan) else ""
+                else:
+                    best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_query.execution_plan) else ""
 
                 ratio_x3 = yb_v2_query.execution_time_ms / yb_v1_query.execution_time_ms \
                     if yb_v1_query.execution_time_ms != 0 else 99999999
@@ -255,11 +253,18 @@ class RegressionReport(Report):
                                                if yb_v2_query.execution_time_ms != 0 else 99999999)
                 ratio_color = "[green]" if ratio_x3 <= 1.0 else "[red]"
 
-                ratio_best = yb_v2_best.execution_time_ms / yb_v1_best.execution_time_ms \
-                    if yb_v1_best.execution_time_ms != 0 and success else 99999999
-                ratio_best_x3_str = "{:.2f}".format(yb_v2_best.execution_time_ms / yb_v1_best.execution_time_ms
-                                                    if yb_v1_best.execution_time_ms != 0 and success else 99999999)
-                ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
+                if v2_has_optimizations:
+                    ratio_best = yb_v2_best.execution_time_ms / yb_v1_best.execution_time_ms \
+                        if yb_v1_best.execution_time_ms != 0 and success else 99999999
+                    ratio_best_x3_str = "{:.2f}".format(yb_v2_best.execution_time_ms / yb_v1_best.execution_time_ms
+                                                        if yb_v1_best.execution_time_ms != 0 and success else 99999999)
+                    ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
+                else:
+                    ratio_best = yb_v2_query.execution_time_ms / yb_v1_best.execution_time_ms \
+                        if yb_v1_best.execution_time_ms != 0 and success else 99999999
+                    ratio_best_x3_str = "{:.2f}".format(yb_v2_query.execution_time_ms / yb_v1_best.execution_time_ms
+                                                        if yb_v1_best.execution_time_ms != 0 and success else 99999999)
+                    ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
 
                 bitmap_flag = "[blue]" \
                     if success and "bitmap" in yb_v2_query.execution_plan.full_str.lower() else "[black]"
@@ -366,10 +371,10 @@ class RegressionReport(Report):
 
     # noinspection InsecureHash
     def __report_query(self, v1_query: Type[Query], v2_query: Type[Query]):
-        v1_best = v1_query.get_best_optimization(self.config)
-        v2_best = v2_query.get_best_optimization(self.config)
-
         v2_has_optimizations = v2_query.optimizations is not None
+
+        v1_best = v1_query.get_best_optimization(self.config)
+        v2_best = v2_query.get_best_optimization(self.config) if v2_has_optimizations else v1_best
 
         self.reported_queries_counter += 1
 
@@ -484,7 +489,7 @@ class RegressionReport(Report):
         self._start_source(["diff"])
         self.report += self._get_plan_diff(
             v1_best.execution_plan.full_str,
-            v2_best.execution_plan.full_str,
+            v2_best.execution_plan.full_str if v2_has_optimizations else v2_query.execution_plan.full_str,
         )
         self._end_source()
         self._end_collapsible()
@@ -539,7 +544,7 @@ class RegressionReport(Report):
                 first_query: Query = query[0]
                 second_query: Query = query[1]
 
-                ratio = first_query.execution_time_ms / (second_query.execution_time_ms) \
+                ratio = second_query.execution_time_ms / (first_query.execution_time_ms) \
                     if first_query.execution_time_ms != 0 else 99999999
                 ratio_color = eq_bad_format if ratio > 1.0 else eq_format
 
