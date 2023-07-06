@@ -1,18 +1,30 @@
 import dataclasses
-import json
-import os
+
 from typing import List, Dict, Type
 
-from dacite import Config as DaciteConfig
-from dacite import from_dict
-
 from config import Config
+
+
+@dataclasses.dataclass
+class FieldInTableHelper:
+    table_name: str
+    field_name: str
+
+    def copy(self):
+        return FieldInTableHelper(self.table_name, self.field_name)
+
+    def __hash__(self):
+        return hash(f"{self.table_name}.{self.field_name}")
 
 
 @dataclasses.dataclass
 class Field:
     name: str = None
     is_index: bool = None
+    indexes: List[str] = None
+
+    def copy(self):
+        return Field(self.name, self.is_index, self.indexes.copy())
 
 
 @dataclasses.dataclass
@@ -22,6 +34,16 @@ class Table:
     fields: List[Field] = None
     rows: int = 0
     size: int = 0
+
+    def copy(self):
+        fields = []
+        for field in self.fields:
+            fields.append(field.copy())
+
+        return Table(self.alias, self.name, fields, self.size)
+
+    def __hash__(self):
+        return hash(f"{self.alias}.{self.name}")
 
 
 @dataclasses.dataclass
@@ -75,34 +97,16 @@ class Query:
     def get_best_optimization(self, config):
         pass
 
+    def __eq__(self, other):
+        return self.query_hash == other.query_hash
+
+    def __hash__(self):
+        return hash(self.query_hash)
+
 
 @dataclasses.dataclass
 class Optimization(Query):
     pass
-
-
-@dataclasses.dataclass
-class CollectResult:
-    db_version: str = ""
-    git_message: str = ""
-    config: str = ""
-    model_queries: List[str] = None
-    queries: List[Type[Query]] = None
-
-    def append(self, new_element):
-        if not self.queries:
-            self.queries = [new_element, ]
-        else:
-            self.queries.append(new_element)
-
-        # CPUs are cheap
-        self.queries.sort(key=lambda q: q.query_hash)
-
-    def find_query_by_hash(self, query_hash):
-        return next(
-            (query for query in self.queries if query.query_hash == query_hash),
-            None,
-        )
 
 
 class PlanNode:
@@ -225,27 +229,3 @@ class ListOfOptimizations:
                         break
 
         return skip_optimization
-
-
-class EnhancedJSONEncoder(json.JSONEncoder):
-    def default(self, o):
-        if dataclasses.is_dataclass(o):
-            return dataclasses.asdict(o)
-        return super().default(o)
-
-
-class ResultsLoader:
-
-    def __init__(self):
-        self.clazz = CollectResult
-
-    def get_queries_from_previous_result(self, previous_execution_path):
-        with open(previous_execution_path, "r") as prev_result:
-            return from_dict(self.clazz, json.load(prev_result), DaciteConfig(check_types=False))
-
-    def store_queries_to_file(self, queries: Type[CollectResult], output_json_name: str):
-        if not os.path.isdir("report"):
-            os.mkdir("report")
-
-        with open(f"report/{output_json_name}.json", "w") as result_file:
-            result_file.write(json.dumps(queries, cls=EnhancedJSONEncoder))

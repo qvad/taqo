@@ -1,6 +1,8 @@
 import dataclasses
 import logging
 import sys
+import pprint
+from copy import copy
 from enum import Enum
 from typing import List, Set
 
@@ -78,6 +80,10 @@ class Config(metaclass=Singleton):
 
     test: str = None
     model: str = None
+    baseline_path: str = None
+    baseline_results: bool = None
+    all_index_check: bool = None
+    load_catalog_tables: bool = None
     basic_multiplier: int = None
 
     ddls: Set[DDLStep] = None
@@ -100,41 +106,13 @@ class Config(metaclass=Singleton):
     clear: bool = False
 
     def __str__(self):
-        return "Configuration" + \
-               f"DB - {self.database.__class__.__name__}\n" \
-               f"\n" \
-               f"remote_data_path - {self.remote_data_path}\n" \
-               f"ddl_prefix - {self.ddl_prefix}\n" \
-               f"with_optimizations - {self.with_optimizations}\n" \
-               f"source_path - {self.source_path}\n" \
-               f"output - {self.output}\n" \
-               f"\n" \
-               f"revision - {self.revision}\n" \
-               f"num_nodes - {self.num_nodes}\n" \
-               f"tserver_flags - {self.tserver_flags}\n" \
-               f"master_flags - {self.master_flags}\n" \
-               f"\n" \
-               f"(initial) connection - {self.connection}\n" \
-               f"enable_statistics - {self.enable_statistics}\n" \
-               f"explain_clause - {self.explain_clause}\n" \
-               f"session_props - {self.session_props}\n" \
-               f"\n" \
-               f"test - {self.test}\n" \
-               f"model - {self.model}\n" \
-               f"basic_multiplier - {self.basic_multiplier}\n" \
-               f"ddls - {[m.name for m in self.ddls]}\n" \
-               f"clean_db - {self.clean_db}\n" \
-               f"allow_destroy_db - {self.allow_destroy_db}\n" \
-               f"clean_build - {self.clean_build}\n" \
-               f"skip_percentage_delta - {self.skip_percentage_delta}\n" \
-               f"look_near_best_plan - {self.look_near_best_plan}\n" \
-               f"num_queries - {self.num_queries}\n" \
-               f"parametrized - {self.parametrized}\n" \
-               f"num_retries - {self.num_retries}\n" \
-               f"num_warmup - {self.num_warmup}\n" \
-               f"skip_timeout_delta - {self.skip_timeout_delta}\n" \
-               f"ddl_query_timeout - {self.ddl_query_timeout}\n" \
-               f"test_query_timeout - {self.test_query_timeout}\n" \
-               f"all_pairs_threshold - {self.all_pairs_threshold}\n" \
-               f"asciidoctor_path - {self.asciidoctor_path}\n" \
-               f"clear - {self.clear}\n"
+        skipped_fields = ['logger', 'database', 'baseline_results']
+
+        self_dict = copy(vars(self))
+        for field in skipped_fields:
+            self_dict.pop(field)
+
+        self_dict['connection'] = str(self_dict['connection'])
+        self_dict['ddls'] = str([m.name for m in self.ddls])
+
+        return str(pprint.pformat(self_dict))

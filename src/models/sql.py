@@ -13,7 +13,7 @@ from config import DDLStep
 from objects import QueryTips, Field
 from db.postgres import PostgresQuery, Table
 from models.abstract import QTFModel
-from utils import get_alias_table_names, evaluate_sql, get_md5
+from utils import get_alias_table_names, evaluate_sql, get_md5, get_model_path
 
 
 class SQLModel(QTFModel):
@@ -52,12 +52,6 @@ class SQLModel(QTFModel):
 
         return created_tables, teardown_queries + create_queries + analyze_queries + import_queries
 
-    def get_model_path(self):
-        if self.config.model.startswith("/") or self.config.model.startswith("."):
-            return self.config.model
-        else:
-            return f"sql/{self.config.model}"
-
     def evaluate_ddl_queries(self, conn,
                              step_prefix: DDLStep,
                              db_prefix=None):
@@ -67,7 +61,7 @@ class SQLModel(QTFModel):
         file_name = step_prefix.name.lower()
 
         db_prefix = self.config.ddl_prefix or db_prefix
-        if db_prefix and exists(f"{self.get_model_path()}/{db_prefix}.{file_name}.sql"):
+        if db_prefix and exists(f"{get_model_path(self.config.model)}/{db_prefix}.{file_name}.sql"):
             file_name = f"{db_prefix}.{file_name}"
 
         model_queries = []
@@ -75,12 +69,12 @@ class SQLModel(QTFModel):
             with conn.cursor() as cur:
                 evaluate_sql(cur, f"SET statement_timeout = '{self.config.ddl_query_timeout}s'")
 
-                path_to_file = f"{self.get_model_path()}/{file_name}.sql"
+                path_to_file = f"{get_model_path(self.config.model)}/{file_name}.sql"
 
                 if not exists(path_to_file):
                     self.logger.warn(f"Unable to locate file {path_to_file}")
                 else:
-                    with open(f"{self.get_model_path()}/{file_name}.sql", "r") as sql_file:
+                    with open(f"{get_model_path(self.config.model)}/{file_name}.sql", "r") as sql_file:
                         full_queries = self.apply_variables('\n'.join(sql_file.readlines()))
                         for query in tqdm(full_queries.split(";")):
                             try:
@@ -131,12 +125,14 @@ class SQLModel(QTFModel):
     def load_tables_from_public(self, cur):
         created_tables = []
 
+        load_catalog_clause = " or table_schema = 'pg_catalog'" if self.config.load_catalog_tables else ""
+
         self.logger.info("Loading tables...")
         cur.execute(
-            """
-            select table_name, table_schema
-            from information_schema.tables
-            where table_schema = 'public' or table_schema = 'pg_catalog';
+            f"""
+            select table_name, table_schema 
+            from information_schema.tables 
+            where table_schema = 'public' {load_catalog_clause};
             """)
         tables = []
         result = list(cur.fetchall())
@@ -189,7 +185,8 @@ class SQLModel(QTFModel):
             try:
                 for column in columns:
                     is_indexed = any(column == row[2] for row in result)
-                    fields.append(Field(column, is_indexed))
+                    indexes = list(row[1] for row in result if column == row[2])
+                    fields.append(Field(column, is_indexed, indexes))
             except Exception as e:
                 self.logger.exception(result, e)
 
@@ -258,7 +255,7 @@ class SQLModel(QTFModel):
 
     def get_queries(self, tables):
         queries = []
-        query_file_lists = sorted(list(glob.glob(f"{self.get_model_path()}/queries/*.sql")))
+        query_file_lists = sorted(list(glob.glob(f"{get_model_path(self.config.model)}/queries/*.sql")))
         for query in query_file_lists:
             with open(query, "r") as query_file:
                 full_queries = self.apply_variables(''.join(query_file.readlines()))

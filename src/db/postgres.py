@@ -8,9 +8,9 @@ from typing import List, Type
 import psycopg2
 from allpairspy import AllPairs
 
+from collect import CollectResult, ResultsLoader
 from config import Config, ConnectionConfig, DDLStep
-from objects import Query, ExecutionPlan, ListOfOptimizations, Table, Optimization, \
-    CollectResult, ResultsLoader, PlanNode, ScanNode
+from objects import Query, ExecutionPlan, ListOfOptimizations, Table, Optimization, PlanNode, ScanNode
 from db.database import Database
 from utils import evaluate_sql, allowed_diff
 
@@ -53,6 +53,7 @@ pat_plan_node_header = re.compile(''.join(re_plan_node_header))
 
 re_decompose_scan_node = '(?P<type>\S+(?:\s+\S+)* Scan(?P<backward>\s+Backward)*)(?: using (?P<index>\S+))* on (?P<table>\S+)(?: (?P<alias>\S+))*'
 pat_decompose_scan_node = re.compile(re_decompose_scan_node)
+
 
 class Postgres(Database):
 
@@ -136,44 +137,25 @@ class Joins(Enum):
 class Leading:
     LEADING = "Leading"
 
-    def __init__(self, config: Config, alias_to_table: List[Table]):
+    def __init__(self, config: Config, tables: List[Table]):
         self.config = config
-        self.alias_to_table = alias_to_table
+        self.tables = tables
         self.joins = []
         self.table_scan_hints = []
 
     def construct(self):
         if self.config.all_pairs_threshold == -1:
             self.get_all_combinations()
-        elif len(self.alias_to_table) < self.config.all_pairs_threshold:
+        elif len(self.tables) < self.config.all_pairs_threshold:
             self.get_all_combinations()
-        elif len(self.alias_to_table) == self.config.all_pairs_threshold:
+        elif len(self.tables) == self.config.all_pairs_threshold:
             self.get_all_pairs_with_all_table_permutations()
         else:
             self.get_all_pairs_combinations()
 
-    def filtered_permutations(self, tables):
-        # todo check how it works
-        perms = list(itertools.permutations(tables))
-
-        if len(tables) < self.config.all_pairs_threshold:
-            return perms
-
-        combs = list(itertools.combinations(tables, len(tables) - 1))
-
-        result = []
-        for perm in perms:
-            perm_join = "".join([table.name for table in perm])
-            for comb in combs:
-                comb_join = "".join([table.name for table in comb])
-                if comb_join in perm_join:
-                    result.append(perm)
-
-        return result
-
     def get_all_combinations(self):
         # algorithm with all possible combinations
-        for tables_perm in itertools.permutations(self.alias_to_table):
+        for tables_perm in itertools.permutations(self.tables):
             prev_el = None
             joins = []
             joined_tables = []
@@ -197,20 +179,33 @@ class Leading:
             for join in joins:
                 self.joins.append(f"{self.LEADING} ( {prev_el} ) {join}")
 
-        for table in self.alias_to_table:
-            tables_and_idxs = list({f"{Scans.INDEX.value}({table.alias})"
-                                    for field in table.fields if field.is_index})
-            tables_and_idxs += {f"{Scans.INDEX_ONLY.value}({table.alias})"
-                                for field in table.fields if field.is_index}
-            tables_and_idxs.append(f"{Scans.SEQ.value}({table.alias})")
+        for table in self.tables:
+            tables_and_idxs = [f"{Scans.SEQ.value}({table.alias})",
+                               f"{Scans.INDEX.value}({table.alias})",
+                               f"{Scans.INDEX_ONLY.value}({table.alias})"]
+
+            if self.config.all_index_check:
+                indexes = []
+                for field in table.fields:
+                    if field.is_index:
+                        indexes += field.indexes
+
+                tables_and_idxs += {f"{Scans.INDEX.value}({table.alias} {index})" for index in indexes}
+                tables_and_idxs += {f"{Scans.INDEX_ONLY.value}({table.alias} {index})" for index in indexes}
+            else:
+                tables_and_idxs += {f"{Scans.INDEX.value}({table.alias})"
+                                    for field in table.fields if field.is_index}
+                tables_and_idxs += {f"{Scans.INDEX_ONLY.value}({table.alias})"
+                                    for field in table.fields if field.is_index}
+
             self.table_scan_hints.append(tables_and_idxs)
 
     def get_all_pairs_with_all_table_permutations(self):
         # algorithm with all possible table permutations
         # but with all pairs scans
-        table_permutations = list(itertools.permutations(self.alias_to_table))
-        join_product = list(AllPairs([list(Joins) for _ in range(len(self.alias_to_table) - 1)]))
-        scan_product = list(AllPairs([list(Scans) for _ in range(len(self.alias_to_table))]))
+        table_permutations = list(itertools.permutations(self.tables))
+        join_product = list(AllPairs([list(Joins) for _ in range(len(self.tables) - 1)]))
+        scan_product = list(AllPairs(self.get_table_scan_hints()))
 
         for tables, joins, scans in AllPairs([table_permutations, join_product, scan_product]):
             prev_el = None
@@ -226,23 +221,39 @@ class Leading:
                     query_joins += f" {next(joins).construct(joined_tables)}"
 
             leading_hint = f"{self.LEADING} ({prev_el})"
-            scan_hints = " ".join(
-                f"{scan.value}({tables[table_idx].alias})" for table_idx, scan in
-                enumerate(scans))
+            scan_hints = " ".join(scans)
 
             self.joins.append(f"{leading_hint} {query_joins} {scan_hints}")
 
     def get_all_pairs_combinations(self):
-        if len(self.alias_to_table) <= 1:
+        if len(self.tables) <= 1:
             return
 
-        scan_product = list(AllPairs([list(Scans) for _ in range(len(self.alias_to_table))]))
+        self.table_scan_hints = list(AllPairs(self.get_table_scan_hints()))
 
-        for scans in scan_product:
-            scan_hints = " ".join(
-                f"{scan.value}({self.alias_to_table[table_idx].alias})" for table_idx, scan in enumerate(scans))
+    def get_table_scan_hints(self):
+        table_scan_hints = []
+        for table in self.tables:
+            tables_and_idxs = [f"{Scans.SEQ.value}({table.alias})",
+                               f"{Scans.INDEX.value}({table.alias})",
+                               f"{Scans.INDEX_ONLY.value}({table.alias})"]
 
-            self.joins.append(f"{scan_hints}")
+            if self.config.all_index_check:
+                indexes = []
+                for field in table.fields:
+                    if field.is_index:
+                        indexes += field.indexes
+
+                tables_and_idxs += [f"{Scans.INDEX.value}({table.alias} {index})" for index in indexes]
+                tables_and_idxs += [f"{Scans.INDEX_ONLY.value}({table.alias} {index})" for index in indexes]
+            else:
+                tables_and_idxs += [f"{Scans.INDEX.value}({table.alias})"
+                                    for field in table.fields if field.is_index]
+                tables_and_idxs += [f"{Scans.INDEX_ONLY.value}({table.alias})"
+                                    for field in table.fields if field.is_index]
+
+            table_scan_hints.append(tables_and_idxs)
+        return table_scan_hints
 
 
 @dataclasses.dataclass
@@ -269,8 +280,7 @@ class PostgresQuery(Query):
         clean_plan = self.execution_plan.get_clean_plan()
 
         return not any(
-            join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan
-            for join in Joins)
+            join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan for join in Joins)
 
     def compare_plans(self, execution_plan: Type['ExecutionPlan']):
         if self.execution_plan:
@@ -300,10 +310,8 @@ class PostgresQuery(Query):
                     for plan_line in plan_heatmap.values():
                         for optimization_line in no_cost_plan.split("->"):
                             if SequenceMatcher(
-                                    a=optimization.execution_plan.get_no_tree_plan_str(
-                                        plan_line['str']),
-                                    b=optimization.execution_plan.get_no_tree_plan_str(
-                                        optimization_line)
+                                    a=optimization.execution_plan.get_no_tree_plan_str(plan_line['str']),
+                                    b=optimization.execution_plan.get_no_tree_plan_str(optimization_line)
                             ).ratio() > 0.9:
                                 plan_line['weight'] += 1
 
@@ -316,7 +324,7 @@ class PostgresQuery(Query):
         if best_optimization.optimizations:
             if best_optimization.execution_time_ms < 0:
                 best_optimization = best_optimization.optimizations[0]
-            for optimization in best_optimization.optimizations:
+            for optimization in self.optimizations:
                 if 0 < optimization.execution_time_ms < best_optimization.execution_time_ms:
                     best_optimization = optimization
 

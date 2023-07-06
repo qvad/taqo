@@ -6,6 +6,7 @@ dacite~=1.8.0
 sqlparse~=0.4.4
 sql_metadata
 sql_formatter
+pglast
 allpairspy~=2.5.0
 xlsxwriter
 numpy~=1.24.2

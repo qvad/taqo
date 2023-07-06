@@ -1,24 +1,19 @@
 import hashlib
+import json
 import re
 import time
 import traceback
+import pglast
 from copy import copy
 
 import psycopg2
-from sql_metadata import Parser
 
 from config import Config
 from db.database import Database
-from objects import Query
+from objects import Query, FieldInTableHelper
 
 PARAMETER_VARIABLE = r"[^'](\%\((.*?)\))"
 WITH_ORDINALITY = r"[Ww][Ii][Tt][Hh]\s*[Oo][Rr][Dd][Ii][Nn][Aa][Ll][Ii][Tt][yY]\s*[Aa][Ss]\s*.*(.*)"
-SQL_KEYWORDS = ['GROUP', 'UNION', 'CHECK', 'IS', 'DELETE', 'OUTER', 'IN', 'INTO', 'FROM', 'EXCEPT', 'NOT', 'LEFT',
-                'ILIKE', 'JOIN', 'WHERE', 'TABLE', 'VIEW', 'DROP', 'UPDATE', 'DESC', 'UNIQUE', 'ON', 'OR', 'BY', 'SOME',
-                'KEY', 'TRUNCATE', 'REPLACE', 'SELECT', 'FULL', 'FOREIGN', 'DISTINCT', 'RIGHT', 'DATABASE', 'INTERSECT',
-                'LIMIT', 'DEFAULT', 'ADD', 'ALL', 'BETWEEN', 'INDEX', 'COLUMN', 'EXISTS', 'INSERT', 'SET', 'AS',
-                'HAVING', 'INNER', 'ASC', 'LIKE', 'CROSS', 'ORDER', 'CONSTRAINT', 'CASE', 'NULL', 'ANY', 'VALUES',
-                'AND', 'PRIMARY', 'ALTER', 'CREATE']
 
 
 def current_milli_time():
@@ -151,46 +146,98 @@ def extract_actual_cardinality(result):
     return result
 
 
-def check_alias_validity(alias: str):
-    upper_alias = alias.upper()
+def get_tables(object, tables_in_sut):
+    def _parse_tables(tables, object, tables_in_sut):
+        if isinstance(object, list):
+            for subfield in object:
+                _parse_tables(tables, subfield, tables_in_sut)
+        elif isinstance(object, dict):
+            for key, value in object.items():
+                if key == 'RangeVar':
+                    table_name = value['relname']
+                    alias = value['alias']['aliasname'] if value.get('alias') else table_name
 
-    if " " in upper_alias:
-        return False
+                    for real_table in tables_in_sut:
+                        if table_name == real_table.name:
+                            table_copy = real_table.copy()
+                            table_copy.alias = alias
 
-    return upper_alias not in SQL_KEYWORDS
+                            tables.add(table_copy)
+
+                _parse_tables(tables, value, tables_in_sut)
+
+        return tables
+
+    return _parse_tables(set(), object, tables_in_sut)
+
+
+def get_fields(object, tables_in_query):
+    def _parse_fields(fields, object, tables):
+        if isinstance(object, list):
+            for subfield in object:
+                _parse_fields(fields, subfield, tables)
+        elif isinstance(object, dict):
+            for key, value in object.items():
+                if key == 'ColumnRef':
+                    value = value['fields']
+                    if len(value) == 2:
+                        table = value[0]["String"]["sval"]
+                        field = value[1]["String"]["sval"]
+
+                        fields.add(FieldInTableHelper(table, field))
+                    else:
+                        if value[0].get("String"):
+                            fields.add(FieldInTableHelper("UNKNOWN", value[0]["String"]["sval"]))
+
+                _parse_fields(fields, value, tables)
+
+        return fields
+
+    fields_in_query = set()
+
+    # crunch for select max(c1) from t1
+    # search across all known tables and tables in query and add all possible combination
+    for field_in_query in _parse_fields(set(), object, tables_in_query):
+        if field_in_query.table_name == "UNKNOWN":
+            for table_in_query in tables_in_query:
+                for field in table_in_query.fields:
+                    if field.name == field_in_query.field_name:
+                        new_field = field_in_query.copy()
+                        new_field.table_name = table_in_query.alias
+                        fields_in_query.add(new_field)
+        else:
+            fields_in_query.add(field_in_query)
+
+    return fields_in_query
 
 
 def get_alias_table_names(sql_str, tables_in_sut):
-    table_names = [table.name for table in tables_in_sut]
-
     # 'WITH ORDINALITY' clauses get misinterpreted as
-    # aliases so remove them from the query. 
-    parser = Parser(remove_with_ordinality(sql_str))
+    # aliases so remove them from the query.
+    sql_str = remove_with_ordinality(sql_str)
 
-    # todo this code contains too many magic
-    # todo so it has more smell rather that magic
-    # 'where' may occur in table_name_in_query aliases_in_query
-    tables_in_query = parser.tables
-    aliases_in_query = parser.tables_aliases
+    _, _, sql_wo_parameters = parse_clear_and_parametrized_sql(sql_str)
 
-    result_tables = {alias: table_name for alias, table_name in aliases_in_query.items()
-                     if check_alias_validity(alias) and table_name in table_names}
+    statement_json = pglast.parser.parse_sql_json(sql_wo_parameters)
+    statement_dict = json.loads(statement_json)
 
-    if not len(result_tables) == len(tables_in_query) == len(aliases_in_query):
-        # add tables w/o aliases
-        for table in tables_in_query:
-            if table not in result_tables.keys():
-                result_tables[table] = table
+    tables_in_query = get_tables(statement_dict, tables_in_sut)
+    fields_in_query = get_fields(statement_dict, tables_in_query)
 
     # return usable table objects list
     table_objects_in_query = []
-    for alias, table_name_in_query in result_tables.items():
-        for real_table in tables_in_sut:
-            if table_name_in_query == real_table.name \
-                    or ('.' in table_name_in_query
-                        and table_name_in_query.split(".")[1] == real_table.name):
-                real_table.alias = alias
-                table_objects_in_query.append(real_table)
+    for table_in_query in tables_in_query:
+        table_copy = table_in_query.copy()
+
+        new_fields = []
+        for field_in_table in table_copy.fields:
+            for field in fields_in_query:
+                if table_copy.alias == field.table_name and field_in_table.name == field.field_name:
+                    new_fields.append(field_in_table)
+
+        table_copy.fields = new_fields
+
+        table_objects_in_query.append(table_copy)
 
     return table_objects_in_query
 
@@ -282,6 +329,13 @@ def get_md5(string: str):
 
 def get_bool_from_object(string: str | bool | int):
     return string in {True, 1, "True", "true", "TRUE", "T"}
+
+
+def get_model_path(model):
+    if model.startswith("/") or model.startswith("."):
+        return model
+    else:
+        return f"sql/{model}"
 
 
 def disabled_path(query):

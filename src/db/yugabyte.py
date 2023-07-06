@@ -5,9 +5,10 @@ import subprocess
 from time import sleep
 from typing import List
 
+from collect import CollectResult, ResultsLoader
 from config import ConnectionConfig
 from db.postgres import Postgres, PostgresExecutionPlan, PLAN_TREE_CLEANUP, PostgresQuery
-from objects import ExecutionPlan, CollectResult, ResultsLoader
+from objects import ExecutionPlan
 from utils import evaluate_sql
 
 DEFAULT_USERNAME = 'yugabyte'

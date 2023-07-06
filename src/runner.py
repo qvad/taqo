@@ -1,17 +1,18 @@
 import argparse
+from os.path import exists
 
 from pyhocon import ConfigFactory
 
 from config import Config, init_logger, ConnectionConfig, DDLStep
 from db.factory import create_database
 from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD, PostgresResultsLoader
-from reports.adoc.regression import RegressionReport
-from reports.adoc.score import ScoreReport
-from reports.adoc.selectivity import SelectivityReport
-from reports.adoc.taqo import TaqoReport
+from reports.regression import RegressionReport
+from reports.score import ScoreReport
+from reports.selectivity import SelectivityReport
+from reports.taqo import TaqoReport
 
 from scenario import Scenario
-from utils import get_bool_from_object
+from utils import get_bool_from_object, get_model_path
 
 
 def parse_ddls(ddl_ops):
@@ -34,6 +35,17 @@ def parse_ddls(ddl_ops):
     return result
 
 
+def parse_model_config(model):
+    path_to_file = f"{get_model_path(model)}/model.conf"
+
+    if exists(path_to_file):
+        parsed_model_config = ConfigFactory.parse_file(path_to_file)
+        global_option = get_bool_from_object(configuration.get("all-index-check", True))
+
+        configuration['all-index-check'] = global_option and parsed_model_config.get("all-index-check", True)
+        configuration['load-catalog-tables'] = parsed_model_config.get("load-catalog-tables", False)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Query Optimizer Testing framework for PostgreSQL compatible DBs')
@@ -48,6 +60,9 @@ if __name__ == "__main__":
                         default="yugabyte",
                         help='Database to run against')
 
+    parser.add_argument('--baseline',
+                        default="",
+                        help='Link to baseline run results (JSON)')
     parser.add_argument('--config',
                         default="config/default.conf",
                         help='Configuration file path')
@@ -209,6 +224,9 @@ if __name__ == "__main__":
 
     configuration = ConfigFactory.parse_file(args.config)
     ddls = parse_ddls(args.ddls)
+    model = args.model
+
+    parse_model_config(model)
 
     options_config = {}
     if args.options:
@@ -225,6 +243,7 @@ if __name__ == "__main__":
             options_config[key] = value
 
     configuration = configuration | options_config
+    loader = PostgresResultsLoader()
 
     config = Config(
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
@@ -245,7 +264,11 @@ if __name__ == "__main__":
                                     password=args.password,
                                     database=args.database),
 
-        model=args.model,
+        model=model,
+        all_index_check=configuration.get("all-index-check", True),
+        load_catalog_tables=configuration.get("load-catalog-tables", False),
+        baseline_path=args.baseline,
+        baseline_results=loader.get_queries_from_previous_result(args.baseline) if args.baseline else None,
         output=args.output,
         ddls=ddls,
         remote_data_path=args.remote_data_path,
@@ -254,8 +277,7 @@ if __name__ == "__main__":
         plans_only=args.plans_only,
         server_side_execution=get_bool_from_object(args.server_side_execution),
 
-        enable_statistics=args.enable_statistics or get_bool_from_object(
-            configuration.get("enable-statistics", False)),
+        enable_statistics=args.enable_statistics or get_bool_from_object(configuration.get("enable-statistics", False)),
         explain_clause=args.explain_clause or configuration.get("explain-clause", "EXPLAIN"),
         session_props=configuration.get("session-props") +
                       (args.session_props.split(",") if args.session_props else []),
@@ -284,14 +306,11 @@ if __name__ == "__main__":
     config.logger.info("------------------------------------------------------------")
     config.logger.info("Query Optimizer Testing Framework for Postgres compatible DBs")
 
-    loader = PostgresResultsLoader()
-
     if args.action == "collect":
         config.logger.info("")
         config.logger.info(f"Collecting results for model: {config.model}")
         config.logger.info("Configuration:")
-        for line in str(config).split("\n"):
-            config.logger.info(line)
+        config.logger.info(str(config))
         config.logger.info("------------------------------------------------------------")
 
         if args.output is None:

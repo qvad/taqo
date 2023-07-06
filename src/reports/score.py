@@ -5,8 +5,9 @@ from matplotlib import pyplot as plt
 from matplotlib import rcParams
 from sql_formatter.core import format_sql
 
+from collect import CollectResult
 from db.postgres import PostgresQuery
-from objects import CollectResult, Query
+from objects import Query
 from reports.abstract import Report
 from utils import allowed_diff
 
@@ -32,7 +33,7 @@ class ScoreReport(Report):
 
         report.report_model(loq.model_queries)
 
-        for qid, query in enumerate(loq.queries):
+        for query in loq.queries:
             report.add_query(query, pg_loq.find_query_by_hash(query.query_hash) if pg_loq else None)
 
         report.build_report()
