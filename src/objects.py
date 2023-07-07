@@ -40,7 +40,7 @@ class Table:
         for field in self.fields:
             fields.append(field.copy())
 
-        return Table(self.alias, self.name, fields, self.size)
+        return Table(self.alias, self.name, fields, self.rows, self.size)
 
     def __hash__(self):
         return hash(f"{self.alias}.{self.name}")

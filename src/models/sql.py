@@ -130,8 +130,8 @@ class SQLModel(QTFModel):
         self.logger.info("Loading tables...")
         cur.execute(
             f"""
-            select table_name, table_schema 
-            from information_schema.tables 
+            select table_name, table_schema
+            from information_schema.tables
             where table_schema = 'public' {load_catalog_clause};
             """)
         tables = []
@@ -223,6 +223,7 @@ class SQLModel(QTFModel):
 
         for ts in tstats:
             tmap[ts[0]].rows = ts[1]
+            self.logger.debug(f"{ts[0]}: {tmap[ts[0]].rows} rows")
 
     @staticmethod
     def get_comments(full_query):
