@@ -179,26 +179,7 @@ class Leading:
             for join in joins:
                 self.joins.append(f"{self.LEADING} ( {prev_el} ) {join}")
 
-        for table in self.tables:
-            tables_and_idxs = [f"{Scans.SEQ.value}({table.alias})",
-                               f"{Scans.INDEX.value}({table.alias})",
-                               f"{Scans.INDEX_ONLY.value}({table.alias})"]
-
-            if self.config.all_index_check:
-                indexes = []
-                for field in table.fields:
-                    if field.is_index:
-                        indexes += field.indexes
-
-                tables_and_idxs += {f"{Scans.INDEX.value}({table.alias} {index})" for index in indexes}
-                tables_and_idxs += {f"{Scans.INDEX_ONLY.value}({table.alias} {index})" for index in indexes}
-            else:
-                tables_and_idxs += {f"{Scans.INDEX.value}({table.alias})"
-                                    for field in table.fields if field.is_index}
-                tables_and_idxs += {f"{Scans.INDEX_ONLY.value}({table.alias})"
-                                    for field in table.fields if field.is_index}
-
-            self.table_scan_hints.append(tables_and_idxs)
+        self.table_scan_hints = itertools.product(*self.get_table_scan_hints())
 
     def get_all_pairs_with_all_table_permutations(self):
         # algorithm with all possible table permutations
@@ -234,9 +215,9 @@ class Leading:
     def get_table_scan_hints(self):
         table_scan_hints = []
         for table in self.tables:
-            tables_and_idxs = [f"{Scans.SEQ.value}({table.alias})",
+            tables_and_idxs = {f"{Scans.SEQ.value}({table.alias})",
                                f"{Scans.INDEX.value}({table.alias})",
-                               f"{Scans.INDEX_ONLY.value}({table.alias})"]
+                               f"{Scans.INDEX_ONLY.value}({table.alias})"}
 
             if self.config.all_index_check:
                 indexes = []
@@ -244,15 +225,28 @@ class Leading:
                     if field.is_index:
                         indexes += field.indexes
 
-                tables_and_idxs += [f"{Scans.INDEX.value}({table.alias} {index})" for index in indexes]
-                tables_and_idxs += [f"{Scans.INDEX_ONLY.value}({table.alias} {index})" for index in indexes]
+                tables_and_idxs |= {
+                    f"{Scans.INDEX.value}({table.alias} {index})"
+                    for index in indexes
+                }
+                tables_and_idxs |= {
+                    f"{Scans.INDEX_ONLY.value}({table.alias} {index})"
+                    for index in indexes
+                }
             else:
-                tables_and_idxs += [f"{Scans.INDEX.value}({table.alias})"
-                                    for field in table.fields if field.is_index]
-                tables_and_idxs += [f"{Scans.INDEX_ONLY.value}({table.alias})"
-                                    for field in table.fields if field.is_index]
+                tables_and_idxs |= {
+                    f"{Scans.INDEX.value}({table.alias})"
+                    for field in table.fields
+                    if field.is_index
+                }
+                tables_and_idxs |= {
+                    f"{Scans.INDEX_ONLY.value}({table.alias})"
+                    for field in table.fields
+                    if field.is_index
+                }
 
-            table_scan_hints.append(tables_and_idxs)
+            table_scan_hints.append(list(tables_and_idxs))
+
         return table_scan_hints
 
 
@@ -504,14 +498,14 @@ class PGListOfOptimizations(ListOfOptimizations):
     def get_all_optimizations(self) -> List[Optimization]:
         optimizations = []
         for leading_join in self.leading.joins:
-            for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
+            for table_scan_hint in self.leading.table_scan_hints:
                 explain_hints = f"{leading_join} {' '.join(table_scan_hint)}"
 
                 self.add_optimization(explain_hints, optimizations)
 
         if not optimizations and self.leading.table_scan_hints:
             # case w/o any joins
-            for table_scan_hint in itertools.product(*self.leading.table_scan_hints):
+            for table_scan_hint in self.leading.table_scan_hints:
                 explain_hints = f"{' '.join(table_scan_hint)}"
 
                 self.add_optimization(explain_hints, optimizations)
