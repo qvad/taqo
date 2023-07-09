@@ -175,7 +175,7 @@ class RegressionReport(Report):
                 yb_v1_query = query[0]
                 yb_v2_query = query[1]
 
-                if not yb_v2_query.optimizations:
+                if yb_v2_query.optimizations is None:
                     v2_has_optimizations = False
 
                 yb_v1_best = yb_v1_query.get_best_optimization(self.config)
