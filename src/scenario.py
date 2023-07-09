@@ -186,7 +186,7 @@ class Scenario:
             self.try_to_get_default_explain_hints(cur, optimization, original_query)
 
             # check that execution plan is unique
-            evaluate_sql(cur, optimization.get_explain())
+            evaluate_sql(cur, optimization.get_heuristic_explain())
             execution_plan = database.get_execution_plan(
                 '\n'.join(str(item[0]) for item in cur.fetchall())
             )
