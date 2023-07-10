@@ -28,7 +28,7 @@ SELECT t1000000.c_text,
         WHERE t500000.c_float < %(5000) LIMIT 1)
 FROM t1000000
 WHERE t1000000.c_real in
-      (SELECT t50k.c_real from t50000 as t50k where t50000.c_real < %(100))
+      (SELECT t50k.c_real from t50000 as t50k where t50k.c_real < %(100))
 ORDER BY t1000000.c_decimal
 LIMIT 1000;
 
@@ -62,6 +62,6 @@ SELECT t1000000.c_text,
         WHERE t500000.c_float < %(5000) LIMIT 1)
 FROM t1000000
 WHERE t1000000.c_real in
-      (SELECT t50k.c_real from t50000 as t50k where t50000.c_real < %(100))
+      (SELECT t50k.c_real from t50000 as t50k where t50k.c_real < %(100))
 ORDER BY t1000000.c_decimal
 LIMIT 1000;
