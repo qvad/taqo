@@ -231,10 +231,12 @@ def get_alias_table_names(sql_str, tables_in_sut):
 
         new_fields = []
         for field_in_table in table_copy.fields:
-            for field in fields_in_query:
-                if table_copy.alias == field.table_name and field_in_table.name == field.field_name:
-                    new_fields.append(field_in_table)
-
+            new_fields.extend(
+                field_in_table
+                for field in fields_in_query
+                if table_copy.alias == field.table_name
+                and field_in_table.name == field.field_name
+            )
         table_copy.fields = new_fields
 
         table_objects_in_query.append(table_copy)

@@ -36,10 +36,7 @@ class Table:
     size: int = 0
 
     def copy(self):
-        fields = []
-        for field in self.fields:
-            fields.append(field.copy())
-
+        fields = [field.copy() for field in self.fields]
         return Table(self.alias, self.name, fields, self.rows, self.size)
 
     def __hash__(self):
