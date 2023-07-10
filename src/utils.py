@@ -182,9 +182,13 @@ def get_fields(object, tables_in_query):
                     value = value['fields']
                     if len(value) == 2:
                         table = value[0]["String"]["sval"]
-                        field = value[1]["String"]["sval"]
-
-                        fields.add(FieldInTableHelper(table, field))
+                        if 'A_Star' in value[1]:
+                            table = [table_object for table_object in tables if table_object.name == table][0]
+                            for field_in_table in table.fields:
+                                fields.add(FieldInTableHelper(table, field_in_table.name))
+                        elif 'String' in value[1]:
+                            field = value[1]["String"]["sval"]
+                            fields.add(FieldInTableHelper(table, field))
                     else:
                         if value[0].get("String"):
                             fields.add(FieldInTableHelper("UNKNOWN", value[0]["String"]["sval"]))
