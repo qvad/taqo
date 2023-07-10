@@ -94,6 +94,9 @@ class Query:
     def get_best_optimization(self, config):
         pass
 
+    def get_reportable_query(self):
+        pass
+
     def __eq__(self, other):
         return self.query_hash == other.query_hash
 

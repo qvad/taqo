@@ -12,7 +12,7 @@ from collect import CollectResult, ResultsLoader
 from config import Config, ConnectionConfig, DDLStep
 from objects import Query, ExecutionPlan, ListOfOptimizations, Table, Optimization, PlanNode, ScanNode
 from db.database import Database
-from utils import evaluate_sql, allowed_diff
+from utils import evaluate_sql, allowed_diff, parse_clear_and_parametrized_sql
 
 DEFAULT_USERNAME = 'postgres'
 DEFAULT_PASSWORD = 'postgres'
@@ -281,6 +281,10 @@ class PostgresQuery(Query):
             return self.execution_plan.get_clean_plan() == self.execution_plan.get_clean_plan(execution_plan)
         else:
             return False
+
+    def get_reportable_query(self):
+        _, _, sql_wo_parameters = parse_clear_and_parametrized_sql(self.query.replace("|", "\|"))
+        return sql_wo_parameters
 
     def __str__(self):
         return f"Query - \"{self.query}\"\n" \

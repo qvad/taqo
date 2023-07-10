@@ -276,7 +276,7 @@ class RegressionReport(Report):
                                f"a|{ratio_best_color}#*{best_yb_pg_equality}{ratio_best_x3_str}*#\n"
                 self.report += f"a|[#{yb_v1_query.query_hash}_top]\n<<{yb_v1_query.query_hash}>>\n"
                 self._start_source(["sql"])
-                self.report += format_sql(yb_v2_query.query.replace("|", "\|"))
+                self.report += format_sql(yb_v2_query.get_reportable_query())
                 self._end_source()
                 self.report += "\n"
                 self._end_table_row()
@@ -384,7 +384,7 @@ class RegressionReport(Report):
         self._add_double_newline()
 
         self._start_source(["sql"])
-        self.report += format_sql(v1_query.query.replace("|", "\|"))
+        self.report += format_sql(v1_query.get_reportable_query())
         self._end_source()
 
         if v2_has_optimizations:
