@@ -502,17 +502,12 @@ class PGListOfOptimizations(ListOfOptimizations):
     def get_all_optimizations(self) -> List[Optimization]:
         optimizations = []
         for leading_join in self.leading.joins:
-            for table_scan_hint in self.leading.table_scan_hints:
-                explain_hints = f"{leading_join} {' '.join(table_scan_hint)}"
-
-                self.add_optimization(explain_hints, optimizations)
+            self.add_optimization(leading_join, optimizations)
 
         if not optimizations and self.leading.table_scan_hints:
             # case w/o any joins
             for table_scan_hint in self.leading.table_scan_hints:
-                explain_hints = f"{' '.join(table_scan_hint)}"
-
-                self.add_optimization(explain_hints, optimizations)
+                self.add_optimization(f"{' '.join(table_scan_hint)}", optimizations)
 
         return optimizations
 
