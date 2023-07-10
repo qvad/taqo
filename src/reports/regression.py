@@ -530,10 +530,14 @@ class RegressionReport(Report):
         eq_bad_format.set_bg_color('#fff2cc')
 
         worksheet.write(0, 0, "First", head_format)
-        worksheet.write(0, 1, "Second", head_format)
-        worksheet.write(0, 2, "Ratio", head_format)
-        worksheet.write(0, 3, "Query", head_format)
-        worksheet.write(0, 4, "Query Hash", head_format)
+        worksheet.write(0, 1, "Best First", head_format)
+        worksheet.write(0, 2, "Second", head_format)
+        worksheet.write(0, 3, "Second / First", head_format)
+        worksheet.write(0, 4, "Second - First", head_format)
+        worksheet.write(0, 5, "Second / Best First", head_format)
+        worksheet.write(0, 6, "Second - Best First", head_format)
+        worksheet.write(0, 7, "Query", head_format)
+        worksheet.write(0, 8, "Query Hash", head_format)
 
         row = 1
         # Iterate over the data and write it out row by row.
@@ -542,17 +546,31 @@ class RegressionReport(Report):
                 first_query: Query = query[0]
                 second_query: Query = query[1]
 
-                ratio = first_query.execution_time_ms / (second_query.execution_time_ms) \
+                ratio = second_query.execution_time_ms / first_query.execution_time_ms \
                     if first_query.execution_time_ms != 0 else 99999999
                 ratio_color = eq_bad_format if ratio > 1.0 else eq_format
+                delta = second_query.execution_time_ms - first_query.execution_time_ms
+
+                v1_best_time = first_query.get_best_optimization(self.config).execution_time_ms
+                ratio_v2_vs_v1_best = second_query.execution_time_ms / v1_best_time \
+                    if v1_best_time != 0 else 99999999
+                ratio_v2_vs_v1_best_color = eq_bad_format \
+                    if ratio_v2_vs_v1_best > 1.0 else eq_format
+                v2_vs_v1_best_delta = second_query.execution_time_ms - v1_best_time
 
                 worksheet.write(row, 0, '{:.2f}'.format(first_query.execution_time_ms))
-                worksheet.write(row, 1, f"{'{:.2f}'.format(second_query.execution_time_ms)}")
-                worksheet.write(row, 2, f'{ratio}', ratio_color)
-                worksheet.write(row, 3, f'{format_sql(first_query.query)}')
-                worksheet.write(row, 4, f'{first_query.query_hash}')
+                worksheet.write(row, 1, '{:.2f}'.format(v1_best_time))
+                worksheet.write(row, 2, '{:.2f}'.format(second_query.execution_time_ms))
+                worksheet.write(row, 3, f'{ratio}', ratio_color)
+                worksheet.write(row, 4, f'{delta}', ratio_color)
+                worksheet.write(row, 5, f'{ratio_v2_vs_v1_best}', ratio_v2_vs_v1_best_color)
+                worksheet.write(row, 6, '{:.2f}'.format(v2_vs_v1_best_delta),
+                                ratio_v2_vs_v1_best_color)
+                worksheet.write(row, 7, f'{format_sql(first_query.query)}')
+                worksheet.write(row, 8, f'{first_query.query_hash}')
                 row += 1
 
+        worksheet.autofit()
         workbook.close()
 
     def define_version_names(self, v1_name, v2_name):
