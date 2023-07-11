@@ -180,7 +180,7 @@ class Scenario:
 
             # set maximum execution time if this is first query,
             # or we are evaluating queries near best execution time
-            if self.config.look_near_best_plan:
+            if self.config.look_near_best_plan or len(original_query.optimizations) == 1:
                 self.set_query_timeout_based_on_previous_execution(cur, min_execution_time, original_query)
 
             self.try_to_get_default_explain_hints(cur, optimization, original_query)
