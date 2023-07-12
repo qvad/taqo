@@ -123,78 +123,65 @@ class SQLModel(QTFModel):
                           null=null_format)
 
     def load_tables_from_public(self, cur):
-        created_tables = []
+        catalog_schema = ", 'pg_catalog'" if self.config.load_catalog_tables else ""
 
-        load_catalog_clause = " or table_schema = 'pg_catalog'" if self.config.load_catalog_tables else ""
-
-        self.logger.info("Loading tables...")
-        cur.execute(
+        # we are assuming no table name conflicts between public and pg_catalog schemas for now.
+        # column_width (defined width) is -1 for text, array type, etc. types with unbound length)
+        self.logger.info("Loading tables, columns and indexes...")
+        evaluate_sql(
+            cur,
             f"""
-            select table_name, table_schema
-            from information_schema.tables
-            where table_schema = 'public' {load_catalog_clause};
+            select
+                relname as table_name,
+                attname as column_name,
+                attnum as column_position,
+                case when attlen > 0 then attlen else atttypmod end column_width,
+                coalesce(index_names, '{{}}') as index_names
+            from
+                pg_namespace nc
+                join pg_class c on nc.oid = relnamespace
+                join pg_attribute a on attrelid = c.oid
+                left join (
+                    select
+                        array_agg(relname) as index_names,
+                        indrelid,
+                        keycol
+                    from (
+                        select relname, indrelid, unnest(indkey) keycol
+                        from pg_index ix join pg_class ci on ix.indexrelid = ci.oid
+                    ) indexes
+                    group by
+                        indrelid,
+                        keycol
+                ) i on i.indrelid = c.oid
+                       and i.keycol = a.attnum
+            where
+                relkind = 'r'
+                and attnum >= 0
+                and nspname in ('public'{catalog_schema})
+            order by
+                nspname,
+                relname,
+                attnum;
             """)
-        tables = []
-        result = list(cur.fetchall())
-        tables.extend((row[0], row[1])
-                      for row in result
-                      if row[1] not in ["information_schema"])
 
-        self.logger.info("Loading columns and constraints...")
-        for table_name, schema_name in tables:
-            evaluate_sql(
-                cur,
-                f"""
-                select column_name
-                from information_schema.columns
-                where table_schema = '{schema_name}'
-                and table_name  = '{table_name}';
-                """
-            )
+        created_tables = []
+        table = Table()
+        for tname, cname, cpos, clen, inames in cur.fetchall():
+            if tname != table.name:
+                table = Table(name=tname, fields=[], rows=0, size=0)
+                created_tables.append(table)
 
-            columns = [row[0] for row in list(cur.fetchall())]
-
-            evaluate_sql(
-                cur,
-                f"""
-                select
-                    t.relname as table_name,
-                    i.relname as index_name,
-                    a.attname as column_name
-                from
-                    pg_class t,
-                    pg_class i,
-                    pg_index ix,
-                    pg_attribute a
-                where
-                    t.oid = ix.indrelid
-                    and i.oid = ix.indexrelid
-                    and a.attrelid = t.oid
-                    and a.attnum = ANY(ix.indkey)
-                    and t.relkind = 'r'
-                    and t.relname like '{table_name}'
-                order by
-                    t.relname,
-                    i.relname;
-                """
-            )
-
-            fields = []
-
-            result = list(cur.fetchall())
-            try:
-                for column in columns:
-                    is_indexed = any(column == row[2] for row in result)
-                    indexes = list(row[1] for row in result if column == row[2])
-                    fields.append(Field(column, is_indexed, indexes))
-            except Exception as e:
-                self.logger.exception(result, e)
-
-            created_tables.append(Table(name=table_name, fields=fields, rows=0, size=0))
+            table.fields.append(Field(name=cname, position=cpos,
+                                      is_index=(inames != None),
+                                      indexes=inames,
+                                      defined_width=clen))
 
         return created_tables
 
     def load_table_stats(self, cur, tables):
+        catalog_schema = ", 'pg_catalog'" if self.config.load_catalog_tables else ""
+
         self.logger.info("Loading table statistics...")
         tmap = {}
         for t in tables:
@@ -214,16 +201,51 @@ class SQLModel(QTFModel):
             where
                 ns.oid = c.relnamespace
                 and c.relkind = 'r'
-                and ns.nspname in ('public', 'pg_catalog')
+                and ns.nspname in ('public'{catalog_schema})
                 and c.relname =any(array{list(tmap)});
                  """
              )
 
-        tstats = cur.fetchall()
+        for tname, rows in cur.fetchall():
+            tmap[tname].rows = rows
 
-        for ts in tstats:
-            tmap[ts[0]].rows = ts[1]
-            self.logger.debug(f"{ts[0]}: {tmap[ts[0]].rows} rows")
+
+        self.logger.info("Loading column statistics...")
+        evaluate_sql(
+            cur,
+            f"""
+            select
+                c.relname as table_name,
+                a.attname as column_name,
+                a.attnum as column_position,
+                s.stawidth as avg_width
+            from
+                pg_namespace ns
+                join pg_class c on ns.oid = c.relnamespace
+                join pg_attribute a on a.attrelid = c.oid
+                left join pg_statistic s on s.starelid = c.oid
+                                            and a.attnum = s.staattnum
+            where
+                c.relkind = 'r'
+                and a.attnum > 0
+                and ns.nspname in ('public'{catalog_schema})
+                and c.relname =any(array{list(tmap)});
+                 """
+             )
+
+        for tname, cname, cpos, cwidth in cur.fetchall():
+            if cwidth:
+                field = tmap[tname].fields[cpos-1]
+                if field.name != cname or field.position != cpos:
+                    raise AssertionError(''.join([
+                        f"Field position mismatch in table {tname}:",
+                        f" the fields[{cpos-1}] should be {cname}",
+                        f" but {field.name} and its position={field.position}"]))
+                field.avg_width = cwidth
+
+        self.logger.debug("Loaded table and column metadata:")
+        for t in tables:
+            self.logger.debug(f"{t}")
 
     @staticmethod
     def get_comments(full_query):
