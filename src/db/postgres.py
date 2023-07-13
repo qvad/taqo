@@ -54,6 +54,13 @@ pat_plan_node_header = re.compile(''.join(re_plan_node_header))
 re_decompose_scan_node = '(?P<type>\S+(?:\s+\S+)* Scan(?P<backward>\s+Backward)*)(?: using (?P<index>\S+))* on (?P<table>\S+)(?: (?P<alias>\S+))*'
 pat_decompose_scan_node = re.compile(re_decompose_scan_node)
 
+re_decompose_hash_properties = [
+    'Buckets: (?P<buckets>\d+)(?: originally (?P<orig_buckets>\d+))*  ',
+    'Batches: (?P<batches>\d+)(?: originally (?P<orig_batches>\d+))*  ',
+    'Memory Usage: (?P<peak_mem>\d+)kB',
+]
+pat_decompose_hash_properties = re.compile(''.join(re_decompose_hash_properties))
+
 
 class Postgres(Database):
 
@@ -364,6 +371,7 @@ class PostgresExecutionPlan(ExecutionPlan):
         return (node_type, table_name, table_alias, index_name, is_backward)
 
     def parse_plan(self):
+        node = None
         prev_level = 0
         current_path = []
         for node_str in self.full_str.split('->'):
@@ -406,11 +414,26 @@ class PostgresExecutionPlan(ExecutionPlan):
                     node.rows = match.group(8)
                     node.nloops = match.group(9)
             else:
-                print(f'Unrecognized node header format: {pat_plan_node_header}')  # log or error out
+                break
 
             for prop in node_props[1:]:
                 if prop.startswith(' '):
-                    node.properties.append(prop.strip())
+                    prop_str = prop.strip()
+                    if match := pat_decompose_hash_properties.search(prop_str):
+                        node.properties['Hash Buckets'] = match.group('buckets')
+
+                        if orig_buckets := match.group('orig_buckets'):
+                            node.properties['Original Hash Buckets'] = orig_buckets
+
+                        node.properties['Hash Batches'] = match.group('batches')
+
+                        if orig_batches := match.group('orig_batches'):
+                            node.properties['Original Hash Batches'] = orig_batches
+
+                        node.properties['Peak Memory Usage'] = match.group('peak_mem')
+                    else:
+                        if (keylen := prop_str.find(':')) > 0:
+                            node.properties[prop_str[:keylen]] = prop_str[keylen+1:].strip()
 
             if not current_path:
                 current_path.append(node)

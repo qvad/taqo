@@ -20,11 +20,15 @@ class FieldInTableHelper:
 @dataclasses.dataclass
 class Field:
     name: str = None
+    position: int = None
     is_index: bool = None
     indexes: List[str] = None
+    defined_width: int = None
+    avg_width: int = None
 
     def copy(self):
-        return Field(self.name, self.is_index, self.indexes.copy())
+        return Field(self.name, self.position, self.is_index, self.indexes.copy(),
+                     self.defined_width, self.avg_width)
 
 
 @dataclasses.dataclass
@@ -114,7 +118,7 @@ class PlanNode:
         self.level: int = 0
         self.node_type: str = None
         self.name: str = None
-        self.properties: List[str] = []
+        self.properties = {}
         self.child_nodes: List[PlanNode] = []
 
         self.startup_cost: float = 0.0
