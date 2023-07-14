@@ -11,6 +11,7 @@ from allpairspy import AllPairs
 from collect import CollectResult, ResultsLoader
 from config import Config, ConnectionConfig, DDLStep
 from objects import Query, ExecutionPlan, ListOfOptimizations, Table, Optimization, PlanNode, ScanNode
+from db.abstract import PlanNodeAccessor
 from db.database import Database
 from utils import evaluate_sql, allowed_diff, parse_clear_and_parametrized_sql
 
@@ -41,25 +42,26 @@ PLAN_DOCDB_SCANNED_ROWS = r"\nDocDB Scanned Rows:\s(\d+)"
 PLAN_PEAK_MEMORY = r"\nPeak memory:\s(\d+)"
 PLAN_TREE_CLEANUP = r"\n\s*->\s*|\n\s*"
 
-re_plan_node_header = [
-    '(\S+(?:\s+\S+)*)',
+plan_node_header_pattern = re.compile(''.join([
+    '(?P<name>\S+(?:\s+\S+)*)',
     '\s+',
-    '\(cost=(\d+\.\d*)\.\.(\d+\.\d*)\s+rows=(\d+)\s+width=(\d+)\)',
+    '\(cost=(?P<sc>\d+\.\d*)\.\.(?P<tc>\d+\.\d*)\s+rows=(?P<prows>\d+)\s+width=(?P<width>\d+)\)',
     '\s+',
-    '\((?:(?:actual time=(\d+\.\d*)\.\.(\d+\.\d*) +rows=(\d+) +loops=(\d+))|(?:(?P<never>never executed)))\)',
-]
+    '\((?:(?:actual time=(?P<st>\d+\.\d*)\.\.(?P<tt>\d+\.\d*) +rows=(?P<rows>\d+)',
+    ' +loops=(?P<loops>\d+))|(?:(?P<never>never executed)))\)',
+]))
 
-pat_plan_node_header = re.compile(''.join(re_plan_node_header))
+node_name_decomposing_pattern = re.compile(''.join([
+    '(?P<type>\S+(?:\s+\S+)* Scan)(?P<backward>\s+Backward)*(?: using (?P<index>\S+))*'
+    ' on (?P<table>\S+)(?: (?P<alias>\S+))*']))
 
-re_decompose_scan_node = '(?P<type>\S+(?:\s+\S+)* Scan(?P<backward>\s+Backward)*)(?: using (?P<index>\S+))* on (?P<table>\S+)(?: (?P<alias>\S+))*'
-pat_decompose_scan_node = re.compile(re_decompose_scan_node)
-
-re_decompose_hash_properties = [
+hash_property_decomposing_pattern = re.compile(''.join([
     'Buckets: (?P<buckets>\d+)(?: originally (?P<orig_buckets>\d+))*  ',
     'Batches: (?P<batches>\d+)(?: originally (?P<orig_batches>\d+))*  ',
     'Memory Usage: (?P<peak_mem>\d+)kB',
-]
-pat_decompose_hash_properties = re.compile(''.join(re_decompose_hash_properties))
+]))
+
+PG_DISABLE_COST = 10000000000.00
 
 
 class Postgres(Database):
@@ -360,11 +362,60 @@ class PostgresOptimization(PostgresQuery, Optimization):
         return f"EXPLAIN {self.get_default_tipped_query()}"
 
 
+class PostgresPlanNodeAccessor(PlanNodeAccessor):
+    @staticmethod
+    def has_valid_cost(self):
+        return float(self.total_cost) < PG_DISABLE_COST
+
+    @staticmethod
+    def is_seq_scan(node):
+        return node.node_type == 'Seq Scan' or node.node_type == 'YB Seq Scan'
+
+    @staticmethod
+    def is_index_scan(node):
+        return node.node_type == 'Index Scan'
+
+    @staticmethod
+    def is_index_only_scan(node):
+        return node.node_type == 'Index Only Scan'
+
+    @staticmethod
+    def get_index_cond(node, with_label=False):
+        return node.get_property('Index Cond', with_label)
+
+    @staticmethod
+    def may_have_table_fetch_by_rowid(node):
+        return (PostgresPlanNodeAccessor.is_index_scan(node)
+                and not node.index_name.endswith('_pkey'))
+
+    @staticmethod
+    def get_remote_filter(node, with_label=False):
+        return node.get_property('Remote Index Filter'
+                                 if PostgresPlanNodeAccessor.may_have_table_fetch_by_rowid(node)
+                                 else 'Remote Filter', with_label)
+
+    @staticmethod
+    def get_remote_tfbr_filter(node, with_label=False):
+        return (node.get_property('Remote Filter', with_label)
+                if node.may_have_table_fetch_by_rowid() else '')
+
+    @staticmethod
+    def get_local_filter(node, with_label=False):
+        return node.get_property('Filter', with_label)
+
+    @staticmethod
+    def get_rows_removed_by_recheck(node, with_label=False):
+        return (node.get_property('Rows Removed by Index Recheck', with_label)
+                or node.get_property('Rows Removed by Recheck', with_label))
+
+
 @dataclasses.dataclass
 class PostgresExecutionPlan(ExecutionPlan):
-    def decompose_node_name(self, node_name):
+    __node_accessor = PostgresPlanNodeAccessor()
+
+    def make_node(self, node_name):
         index_name = table_name = table_alias = is_backward = None
-        if match := pat_decompose_scan_node.search(node_name):
+        if match := node_name_decomposing_pattern.search(node_name):
             node_type = match.group('type')
             index_name = match.group('index')
             is_backward = match.group('backward') != None
@@ -372,7 +423,9 @@ class PostgresExecutionPlan(ExecutionPlan):
             table_alias = match.group('alias')
         else:
             node_type = node_name
-        return (node_type, table_name, table_alias, index_name, is_backward)
+        return (ScanNode(self.__node_accessor, node_type, table_name, table_alias,
+                         index_name, is_backward)
+                if table_name else PlanNode(self.__node_accessor, node_type))
 
     def parse_plan(self):
         node = None
@@ -390,40 +443,30 @@ class PostgresExecutionPlan(ExecutionPlan):
 
             node_props = node_str[:node_end].splitlines()
 
-            if match := pat_plan_node_header.search(node_props[0]):
-                node_name = match.group(1)
-                (node_type, table_name, table_alias, index_name, is_backward) = self.decompose_node_name(node_name)
-
-                if table_name:
-                    node = ScanNode()
-                    node.table_name = table_name
-                    node.table_alias = table_alias
-                    node.index_name = index_name
-                    node.is_backward = is_backward
-                else:
-                    node = PlanNode()
-                node.node_type = node_type
+            if match := plan_node_header_pattern.search(node_props[0]):
+                node_name = match.group('name')
+                node = self.make_node(node_name)
 
                 node.level = node_level
                 node.name = node_name
-                node.startup_cost = match.group(2)
-                node.total_cost = match.group(3)
-                node.plan_rows = match.group(4)
-                node.plan_width = match.group(5)
+                node.startup_cost = match.group('sc')
+                node.total_cost = match.group('tc')
+                node.plan_rows = match.group('prows')
+                node.plan_width = match.group('width')
                 if match.group('never'):
                     node.nloops = 0
                 else:
-                    node.startup_ms = match.group(6)
-                    node.total_ms = match.group(7)
-                    node.rows = match.group(8)
-                    node.nloops = match.group(9)
+                    node.startup_ms = match.group('st')
+                    node.total_ms = match.group('tt')
+                    node.rows = match.group('rows')
+                    node.nloops = match.group('loops')
             else:
                 break
 
             for prop in node_props[1:]:
                 if prop.startswith(' '):
                     prop_str = prop.strip()
-                    if match := pat_decompose_hash_properties.search(prop_str):
+                    if match := hash_property_decomposing_pattern.search(prop_str):
                         node.properties['Hash Buckets'] = match.group('buckets')
 
                         if orig_buckets := match.group('orig_buckets'):

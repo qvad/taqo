@@ -3,6 +3,7 @@ import dataclasses
 from typing import List, Dict, Type
 
 from config import Config
+from db.abstract import PlanNodeAccessor
 
 
 @dataclasses.dataclass
@@ -114,9 +115,10 @@ class Optimization(Query):
 
 
 class PlanNode:
-    def __init__(self):
+    def __init__(self, accessor: PlanNodeAccessor, node_type):
+        self.acc = accessor
+        self.node_type: str = node_type
         self.level: int = 0
-        self.node_type: str = None
         self.name: str = None
         self.properties = {}
         self.child_nodes: List[PlanNode] = []
@@ -140,28 +142,82 @@ class PlanNode:
     def get_full_str(self, estimate=True, actual=True, properties=False):
         s = str(self)
         if estimate:
-            s += f'  (cost={self.startup_cost}..{self.total_cost} rows={self.plan_rows} width={self.plan_width})'
+            s += f'  (cost={self.startup_cost}..{self.total_cost} rows={self.plan_rows}' \
+                ' width={self.plan_width})'
         if actual:
             if self.nloops == 0:
                 s += '  (never executed)'
             else:
-                s += f'  (actual time={self.startup_ms}..{self.total_ms} rows={self.rows} nloops={self.nloops})'
+                s += f'  (actual time={self.startup_ms}..{self.total_ms} rows={self.rows}' \
+                    ' nloops={self.nloops})'
         if properties and len(self.properties) > 0:
             s += str(self.properties)
         return s
 
+    def has_valid_cost(self):
+        return self.acc.has_valid_cost(self)
+
 
 class ScanNode(PlanNode):
-    def __init__(self):
-        super().__init__()
-        self.table_name: str = None
-        self.table_alias: str = None
-        self.index_name: str = None
+    def __init__(self, accessor, node_type, table_name, table_alias, index_name, is_backward):
+        super().__init__(accessor, node_type)
+        self.table_name: str = table_name
+        self.table_alias: str = table_alias
+        self.index_name: str = index_name
+        self.is_backward: bool = is_backward
+
+        self.is_seq_scan = self.acc.is_seq_scan(self)
+        self.is_index_scan = self.acc.is_index_scan(self)
+        self.is_index_only_scan = self.acc.is_index_only_scan(self)
+        self.is_any_index_scan = self.is_index_scan or self.is_index_only_scan
 
     def __str__(self):
         s = f'{self.level}:{self.node_type}: '
         s += f'table={self.table_name} alias={self.table_alias} index={self.index_name}'
         return s
+
+    def get_search_condition_str(self, with_label=False):
+        return ('  ' if with_label else ' AND ').join(
+            filter(lambda cond: cond,
+                   [self.get_index_cond(with_label),
+                    self.get_remote_filter(with_label),
+                    self.get_remote_tfbr_filter(with_label),
+                    self.get_local_filter(with_label),
+                    ]))
+
+    def get_property(self, key, with_label=False):
+        value = self.properties.get(key)
+        return value if not with_label else f'{key}: {value}' if value else ''
+
+    def get_index_cond(self, with_label=False):
+        return self.acc.get_index_cond(self, with_label)
+
+    def may_have_table_fetch_by_rowid(self):
+        return self.acc.may_have_table_fetch_by_rowid(self)
+
+    def get_remote_filter(self, with_label=False):
+        return self.acc.get_remote_filter(self, with_label)
+
+    # TFBR: Table Fetch By Rowid
+    def get_remote_tfbr_filter(self, with_label=False):
+        return self.acc.get_remote_tfbr_filter(self, with_label)
+
+    def get_local_filter(self, with_label=False):
+        return self.acc.get_local_filter(self, with_label)
+
+    def get_rows_removed_by_recheck(self, with_label=False):
+        return self.acc.get_rows_removed_by_recheck(self, with_label)
+
+    def has_no_filter(self):
+        return (not self.get_remote_filter()
+                and not self.get_remote_tfbr_filter()
+                and not self.get_local_filter()
+                and not self.get_rows_removed_by_recheck())
+
+    def get_actual_row_adjusted_cost(self):
+        return ((float(self.total_cost) - float(self.startup_cost))
+                * float(self.rows) / float(self.plan_rows)
+                + float(self.startup_cost))
 
 
 class PlanNodeVisitor:
