@@ -602,7 +602,7 @@ class ScoreReport(Report):
         self._end_source()
         self._end_collapsible()
 
-        self._start_collapsible(f"YB best plan")
+        self._start_collapsible(f"{default_yb_equality}YB best plan")
         self._start_source(["diff"])
         self.report += yb_best.execution_plan.full_str
         self._end_source()
