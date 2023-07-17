@@ -90,6 +90,10 @@ class Postgres(Database):
             except Exception as e:
                 self.logger.exception(f"Failed to create testing database {e}")
 
+    def set_query_timeout(self, cur, timeout):
+        self.logger.debug(f"Setting statement timeout to {timeout} seconds")
+        evaluate_sql(cur, f"SET statement_timeout = '{timeout}s'")
+
     def get_list_optimizations(self, original_query):
         return PGListOfOptimizations(
             self.config, original_query).get_all_optimizations()

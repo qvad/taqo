@@ -65,10 +65,6 @@ class Yugabyte(Postgres):
 
             evaluate_sql(cur, ENABLE_STATISTICS_HINT)
 
-    def set_query_timeout(self, cur, timeout):
-        self.logger.debug(f"Setting statement timeout to {timeout} seconds")
-        evaluate_sql(cur, f"SET statement_timeout = '{timeout}s'")
-
     def change_version_and_compile(self, revision_or_path=None):
         pass
 
