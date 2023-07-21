@@ -25,7 +25,8 @@ class TaqoReport(Report):
 
         report.define_version(loq.db_version)
         report.report_config(loq.config, "YB")
-        report.report_config(pg_loq.config, "PG")
+        if pg_loq:
+            report.report_config(pg_loq.config, "PG")
         report.report_model(loq.model_queries)
 
         for qid, query in enumerate(loq.queries):
