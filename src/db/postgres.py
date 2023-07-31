@@ -32,7 +32,7 @@ PLAN_CLEANUP_REGEX = r"\s\(actual time.*\)|\s\(never executed\)|\s\(cost.*\)|" \
                      r"Storage Table Read Requests:.*|Storage Table Read Execution Time:.*|Output:.*|" \
                      r"Storage Index Read Requests:.*|Storage Index Read Execution Time:.*|" \
                      r"Storage Flush Requests:.*|" \
-                     r"Sort Method:.*|" \
+                     r"Disk:.*|" \
                      r"Metric rocksdb_.*:.*|" \
                      r"Read RPC Count:.*|Read RPC Wait Time:.*|DocDB Scanned Rows:.*|" \
                      r".*Partial Aggregate:.*|YB\s|Remote\s|" \
