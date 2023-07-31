@@ -440,7 +440,7 @@ class RegressionReport(AbstractReportAction):
         self.report += f"Estimated cost" \
                        f"|{v1_query.execution_plan.get_estimated_cost()}" \
                        f"|{default_v1_equality}{v1_best.execution_plan.get_estimated_cost()}" \
-                       f"|{v2_query.execution_plan.get_estimated_cost()}" \
+                       f"|{default_v1_v2_equality}{v2_query.execution_plan.get_estimated_cost()}" \
                        f"|{default_v2_equality}{v2_best.execution_plan.get_estimated_cost()}"
         self._end_table_row()
         self._start_table_row()
