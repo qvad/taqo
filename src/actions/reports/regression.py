@@ -462,7 +462,7 @@ class RegressionReport(AbstractReportAction):
         self._end_source()
         self._end_collapsible()
 
-        self._start_collapsible(f"{self.v1_name} best plan")
+        self._start_collapsible(f"{default_v1_equality}{self.v1_name} best plan")
         self._start_source(["diff"])
         self.report += v1_best.execution_plan.full_str
         self._end_source()
