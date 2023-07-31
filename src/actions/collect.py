@@ -3,13 +3,16 @@ import subprocess
 import psycopg2
 from tqdm import tqdm
 
+from actions.collects.pg_unit import PgUnitGenerator
+from config import Config
 from models.factory import get_test_model
+from objects import EXPLAIN, ExplainFlags
 from utils import evaluate_sql, calculate_avg_execution_time, get_md5
 
 
-class Scenario:
-    def __init__(self, config):
-        self.config = config
+class CollectAction:
+    def __init__(self):
+        self.config = Config()
         self.logger = self.config.logger
         self.sut_database = self.config.database
 
@@ -65,7 +68,14 @@ class Scenario:
                                     evaluate_optimizations=False):
         try:
             model = get_test_model()
-            created_tables, model_queries = model.create_tables(connection)
+
+            created_tables, \
+                teardown_queries, \
+                create_queries, \
+                analyze_queries, \
+                import_queries = model.create_tables(connection)
+
+            model_queries = teardown_queries + create_queries + analyze_queries + import_queries
             queries = model.get_queries(created_tables)
         except Exception as e:
             self.logger.exception("Failed to evaluate DDL queries", e)
@@ -73,6 +83,10 @@ class Scenario:
 
         connection.autocommit = False
         self.evaluate_testing_queries(connection, queries, evaluate_optimizations)
+
+        PgUnitGenerator().generate_postgres_unit_tests(teardown_queries,
+                                                       create_queries,
+                                                       queries)
 
         return model_queries, queries
 
@@ -83,23 +97,26 @@ class Scenario:
                 try:
                     short_query = original_query.query.replace('\n', '')[:40]
                     self.logger.info(
-                        f"Evaluating query {short_query}... [{counter}/{len(queries)}]")
+                        f"Evaluating query with hash {original_query.query_hash} [{counter}/{len(queries)}]")
 
                     self.sut_database.set_query_timeout(cur, self.config.test_query_timeout)
-
                     try:
+                        self.sut_database.prepare_query_execution(cur)
+                        evaluate_sql(cur, original_query.get_explain(EXPLAIN, [ExplainFlags.COSTS_OFF]))
+                        original_query.cost_off_explain = self.config.database.get_execution_plan(
+                            '\n'.join(str(item[0]) for item in cur.fetchall()))
+
                         self.sut_database.prepare_query_execution(cur)
                         evaluate_sql(cur, original_query.get_explain())
                         original_query.execution_plan = self.config.database.get_execution_plan(
-                            '\n'.join(
-                                str(item[0]) for item in cur.fetchall()))
+                            '\n'.join(str(item[0]) for item in cur.fetchall()))
 
                         conn.rollback()
                     except psycopg2.errors.QueryCanceled:
                         try:
-                            # try to get at least heuristic plan
+                            # try to get at least basic plan
                             self.sut_database.prepare_query_execution(cur)
-                            evaluate_sql(cur, original_query.get_heuristic_explain())
+                            evaluate_sql(cur, original_query.get_explain(EXPLAIN))
                             original_query.execution_plan = self.config.database.get_execution_plan(
                                 '\n'.join(
                                     str(item[0]) for item in cur.fetchall()))
@@ -117,7 +134,8 @@ class Scenario:
                         original_query.execution_time_ms = \
                             original_query.execution_plan.get_estimated_cost()
                     else:
-                        query_str = original_query.get_explain_analyze() if self.config.server_side_execution else None
+                        query_str = original_query.get_explain(EXPLAIN, options=[ExplainFlags.ANALYZE]) \
+                            if self.config.server_side_execution else None
                         calculate_avg_execution_time(cur, original_query, self.sut_database,
                                                      query_str=query_str,
                                                      num_retries=int(self.config.num_retries),
@@ -142,9 +160,10 @@ class Scenario:
         if self.config.baseline_results:
             if baseline_result := \
                     self.config.baseline_results.find_query_by_hash(original_query.query_hash):
-                # get best optimization from baseline run
+                # get the best optimization from baseline run
                 best_optimization = baseline_result.get_best_optimization(self.config)
-                query_str = best_optimization.get_explain_analyze() if self.config.server_side_execution else None
+                query_str = best_optimization.get_explain(EXPLAIN, options=[ExplainFlags.ANALYZE]) \
+                    if self.config.server_side_execution else None
                 calculate_avg_execution_time(cur,
                                              best_optimization,
                                              self.sut_database,
@@ -186,14 +205,14 @@ class Scenario:
             self.try_to_get_default_explain_hints(cur, optimization, original_query)
 
             # check that execution plan is unique
-            evaluate_sql(cur, optimization.get_heuristic_explain())
-            execution_plan = database.get_execution_plan(
+            evaluate_sql(cur, optimization.get_explain(EXPLAIN, options=[ExplainFlags.COSTS_OFF]))
+            optimization.cost_off_explain = database.get_execution_plan(
                 '\n'.join(str(item[0]) for item in cur.fetchall())
             )
-            exec_plan_md5 = get_md5(execution_plan.get_clean_plan())
+            exec_plan_md5 = get_md5(optimization.cost_off_explain.get_clean_plan())
             not_unique_plan = exec_plan_md5 in execution_plans_checked
             execution_plans_checked.add(exec_plan_md5)
-            query_str = optimization.get_explain_analyze() if self.config.server_side_execution else None
+            query_str = optimization.get_explain(EXPLAIN, options=[ExplainFlags.ANALYZE]) if self.config.server_side_execution else None
 
             if not_unique_plan:
                 duplicates += 1
@@ -246,7 +265,7 @@ class Scenario:
     def try_to_get_default_explain_hints(self, cur, optimization, original_query):
         if not original_query.explain_hints:
             if self.config.enable_statistics or optimization.execution_plan is None:
-                evaluate_sql(cur, optimization.get_heuristic_explain())
+                evaluate_sql(cur, optimization.get_explain(EXPLAIN))
 
                 execution_plan = self.config.database.get_execution_plan('\n'.join(
                     str(item[0]) for item in cur.fetchall()))

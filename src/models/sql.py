@@ -19,29 +19,27 @@ from utils import get_alias_table_names, evaluate_sql, get_md5, get_model_path
 class SQLModel(QTFModel):
 
     def create_tables(self, conn, skip_analyze=False, db_prefix=None):
-        teardown_queries = []
-        create_queries = []
-        analyze_queries = []
-        import_queries = []
-        created_tables = []
+        _, teardown_queries = self.evaluate_ddl_queries(conn, DDLStep.DROP, DDLStep.DROP in self.config.ddls, db_prefix)
+        teardown_queries.insert(0, "-- DROP QUERIES")
 
-        if DDLStep.DROP in self.config.ddls:
-            _, teardown_queries = self.evaluate_ddl_queries(conn, DDLStep.DROP, db_prefix)
-            teardown_queries.insert(0, "-- DROP QUERIES")
+        created_tables, create_queries = self.evaluate_ddl_queries(conn,
+                                                                   DDLStep.CREATE,
+                                                                   DDLStep.CREATE in self.config.ddls,
+                                                                   db_prefix)
+        create_queries.insert(0, "-- CREATE QUERIES")
 
-        if DDLStep.CREATE in self.config.ddls:
-            created_tables, create_queries = self.evaluate_ddl_queries(conn, DDLStep.CREATE,
-                                                                       db_prefix)
-            create_queries.insert(0, "-- CREATE QUERIES")
+        _, import_queries = self.evaluate_ddl_queries(conn,
+                                                      DDLStep.IMPORT,
+                                                      DDLStep.IMPORT in self.config.ddls,
+                                                      db_prefix)
+        import_queries.insert(0, "-- IMPORT QUERIES")
 
-        if DDLStep.IMPORT in self.config.ddls:
-            _, import_queries = self.evaluate_ddl_queries(conn, DDLStep.IMPORT, db_prefix)
-            import_queries.insert(0, "-- IMPORT QUERIES")
 
-        if DDLStep.ANALYZE in self.config.ddls:
-            analyzed_tables, analyze_queries = self.evaluate_ddl_queries(conn, DDLStep.ANALYZE,
-                                                                         db_prefix)
-            create_queries.insert(0, "-- ANALYZE QUERIES")
+        analyzed_tables, analyze_queries = self.evaluate_ddl_queries(conn,
+                                                                     DDLStep.ANALYZE,
+                                                                     DDLStep.ANALYZE in self.config.ddls,
+                                                                     db_prefix)
+        analyze_queries.insert(0, "-- ANALYZE QUERIES")
 
         if not created_tables:
             # try to load current tables
@@ -50,11 +48,12 @@ class SQLModel(QTFModel):
 
         self.load_table_stats(conn.cursor(), created_tables)
 
-        return created_tables, teardown_queries + create_queries + analyze_queries + import_queries
+        return created_tables, teardown_queries, create_queries, analyze_queries, import_queries
 
     def evaluate_ddl_queries(self, conn,
                              step_prefix: DDLStep,
-                             db_prefix=None):
+                             do_execute: bool,
+                             db_prefix=None,):
         self.logger.info(f"Evaluating DDL {step_prefix.name} step")
 
         created_tables: List[Table] = []
@@ -67,7 +66,8 @@ class SQLModel(QTFModel):
         model_queries = []
         try:
             with conn.cursor() as cur:
-                evaluate_sql(cur, f"SET statement_timeout = '{self.config.ddl_query_timeout}s'")
+                if do_execute:
+                    evaluate_sql(cur, f"SET statement_timeout = '{self.config.ddl_query_timeout}s'")
 
                 path_to_file = f"{get_model_path(self.config.model)}/{file_name}.sql"
 
@@ -80,15 +80,17 @@ class SQLModel(QTFModel):
                             try:
                                 if cleaned := query.lstrip():
                                     model_queries.append(cleaned)
-                                    if step_prefix == DDLStep.IMPORT:
-                                        self.import_from_local(cur, cleaned)
-                                    else:
-                                        evaluate_sql(cur, cleaned)
+                                    if do_execute:
+                                        if step_prefix == DDLStep.IMPORT:
+                                            self.import_from_local(cur, cleaned)
+                                        else:
+                                            evaluate_sql(cur, cleaned)
                             except psycopg2.Error as e:
                                 self.logger.exception(e)
                                 raise e
                 if step_prefix == DDLStep.CREATE:
-                    created_tables = self.load_tables_from_public(cur)
+                    if do_execute:
+                        created_tables = self.load_tables_from_public(cur)
 
             return created_tables, model_queries
         except Exception as e:

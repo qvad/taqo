@@ -8,7 +8,7 @@ from matplotlib import rcParams
 
 from collect import CollectResult
 from objects import Query
-from reports.abstract import Report
+from actions.report import AbstractReportAction
 
 
 @dataclass
@@ -20,7 +20,7 @@ class ShortSummaryReport:
     diff_peak_memory: int = 0
 
 
-class RegressionReport(Report):
+class RegressionReport(AbstractReportAction):
     def __init__(self):
         super().__init__()
 

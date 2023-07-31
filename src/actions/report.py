@@ -8,7 +8,7 @@ from pathlib import Path
 from config import Config
 
 
-class Report:
+class AbstractReportAction:
     def __init__(self):
         self.config = Config()
         self.logger = self.config.logger

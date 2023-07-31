@@ -1,9 +1,21 @@
 import dataclasses
+from enum import Enum
 
 from typing import List, Dict, Type
 
 from config import Config
 from db.abstract import PlanNodeAccessor
+
+EXPLAIN = "EXPLAIN"
+
+
+class ExplainFlags(Enum):
+    ANALYZE = "ANALYZE"
+    DIST = "DIST"
+    VERBOSE = "VERBOSE"
+    TIMING = "TIMING"
+
+    COSTS_OFF = "COSTS OFF"
 
 
 @dataclasses.dataclass
@@ -67,6 +79,9 @@ class Query:
     optimizer_tips: QueryTips = dataclasses.field(default_factory=QueryTips)
     explain_hints: str = ""
 
+    # internal field to detect duplicates
+    cost_off_explain: 'ExecutionPlan' = None
+
     execution_plan: 'ExecutionPlan' = None
     execution_time_ms: float = 0
     result_cardinality: int = 0
@@ -81,14 +96,13 @@ class Query:
     def get_query(self):
         return self.query
 
-    def get_explain(self):
-        return f"{Config.explain_clause} {self.query}"
+    def get_explain(self, explain_clause: str = None, options: List[ExplainFlags] = None):
+        if not explain_clause:
+            explain_clause = Config().explain_clause
 
-    def get_heuristic_explain(self):
-        return f"EXPLAIN {self.query}"
+        options_clause = f" ({', '.join([opt.value for opt in options])})" if options else ""
 
-    def get_explain_analyze(self):
-        return f"EXPLAIN ANALYZE {self.query}"
+        return f"{explain_clause}{options_clause} {self.query}"
 
     def compare_plans(self, execution_plan: Type['ExecutionPlan']):
         pass

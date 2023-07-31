@@ -5,11 +5,11 @@ from sql_formatter.core import format_sql
 
 from collect import CollectResult
 from objects import Query
-from reports.abstract import Report
+from actions.report import AbstractReportAction
 from utils import allowed_diff
 
 
-class TaqoReport(Report):
+class TaqoReport(AbstractReportAction):
     def __init__(self):
         super().__init__()
 

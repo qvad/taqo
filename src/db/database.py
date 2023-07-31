@@ -4,6 +4,12 @@ class Database:
         self.logger = self.config.logger
         self.connection = None
 
+    def establish_connection(self, database: str):
+        pass
+
+    def get_list_queries(self):
+        pass
+
     def change_version_and_compile(self, revision_or_path: str = None):
         pass
 
