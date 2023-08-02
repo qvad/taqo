@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import linregress
 from typing import Type
 
 from matplotlib import pyplot as plt
@@ -11,6 +12,9 @@ from objects import Query
 from actions.report import AbstractReportAction
 from utils import allowed_diff
 
+from bokeh.plotting import figure, save
+from bokeh.models import ColumnDataSource, OpenURL, TapTool
+from bokeh.embed import components
 
 class ScoreReport(AbstractReportAction):
     def __init__(self):
@@ -75,6 +79,52 @@ class ScoreReport(AbstractReportAction):
                 plt.close()
 
         return file_names
+    
+    def create_default_query_plots_interactive(self):        
+        file_names = ['all_queries_defaults_yb.html',
+                      'all_queries_defaults_pg.html']
+
+        for i in range(2):
+            x_data = []
+            y_data = []
+            query_hash = []
+
+            for tag, queries in self.queries.items():
+                for yb_pg_queries in queries:
+                    query = yb_pg_queries[i]
+                    if query and query.execution_time_ms:
+                        x_data.append(query.execution_plan.get_estimated_cost())
+                        y_data.append(query.execution_time_ms)
+                        query_hash.append(query.query_hash)
+
+            if x_data and y_data:
+                plot = figure(x_axis_label = 'Estiamted Cost', 
+                              y_axis_label = 'Execution Time (ms)',
+                              width = 600, height = 600, tools='tap')
+                
+                source = ColumnDataSource(data=dict(
+                    x=x_data,
+                    y=y_data,
+                    queryhash=query_hash
+                ))
+
+                plot.circle('x', 'y', size=10, source=source)
+
+                x_np = np.array(x_data)
+                y_np = np.array(y_data)
+                res = linregress(x_np, y_np)
+                y_data_regress = res.slope * x_np + res.intercept
+                plot.line(x=x_np, y=y_data_regress)
+                
+                url = '#@queryhash'
+                taptool = plot.select(type=TapTool)
+                taptool.callback = OpenURL(url=url)
+                
+                save(plot, f"{file_names[i]}")
+                
+                # script, div = components(plot)
+
+        return file_names
 
     @staticmethod
     def generate_regression_and_standard_errors(x_data, y_data):
@@ -137,6 +187,7 @@ class ScoreReport(AbstractReportAction):
         self.report += f"a|image::{default_query_plots[0]}[Yugabyte,align=\"center\"]\n"
         self.report += f"a|image::{default_query_plots[1]}[Postgres,align=\"center\"]\n"
         self._end_table()
+        self.create_default_query_plots_interactive()
 
         self.report += "\n== QO score\n"
 
