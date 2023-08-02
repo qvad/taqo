@@ -12,9 +12,12 @@ from objects import Query
 from actions.report import AbstractReportAction
 from utils import allowed_diff
 
-from bokeh.plotting import figure, save
-from bokeh.models import ColumnDataSource, OpenURL, TapTool
+from bokeh.plotting import figure, save, show
+from bokeh.layouts import gridplot
+from bokeh.models import ColumnDataSource, OpenURL, TapTool, Circle
 from bokeh.embed import components
+from bokeh.transform import factor_cmap
+from bokeh.models import ColumnDataSource
 
 class ScoreReport(AbstractReportAction):
     def __init__(self):
@@ -81,50 +84,76 @@ class ScoreReport(AbstractReportAction):
         return file_names
     
     def create_default_query_plots_interactive(self):        
-        file_names = ['all_queries_defaults_yb.html',
-                      'all_queries_defaults_pg.html']
+        data = {
+            'query_hash' : [],
+            'query' : [],
+            'yb_cost' : [],
+            'yb_time' : [],
+            'pg_cost' : [],
+            'pg_time' : [],
+        }
 
-        for i in range(2):
-            x_data = []
-            y_data = []
-            query_hash = []
+        for tag, queries in self.queries.items():
+            for yb_pg_queries in queries:
+                yb_query = yb_pg_queries[0]
+                pg_query = yb_pg_queries[1]
+                if yb_query and yb_query.execution_time_ms and pg_query and pg_query.execution_time_ms:
+                    data["query_hash"].append(yb_query.query_hash)
+                    data["query"].append(yb_query.query)
+                    data["yb_cost"].append(yb_query.execution_plan.get_estimated_cost())
+                    data["yb_time"].append(yb_query.execution_time_ms)
+                    data["pg_cost"].append(pg_query.execution_plan.get_estimated_cost())
+                    data["pg_time"].append(pg_query.execution_time_ms)
 
-            for tag, queries in self.queries.items():
-                for yb_pg_queries in queries:
-                    query = yb_pg_queries[i]
-                    if query and query.execution_time_ms:
-                        x_data.append(query.execution_plan.get_estimated_cost())
-                        y_data.append(query.execution_time_ms)
-                        query_hash.append(query.query_hash)
+        selected_circle = Circle(fill_alpha=1, fill_color="firebrick")
+        nonselected_circle = Circle(fill_alpha=0.2, fill_color="blue", line_alpha=0.2)
+        TOOLS = 'tap, lasso_select, box_zoom, wheel_zoom, save, reset, hover'
+        TOOLTIPS = """
+            <div style="width:200px;">
+            @query
+            </div>
+        """
 
-            if x_data and y_data:
-                plot = figure(x_axis_label = 'Estiamted Cost', 
-                              y_axis_label = 'Execution Time (ms)',
-                              width = 600, height = 600, tools='tap')
-                
-                source = ColumnDataSource(data=dict(
-                    x=x_data,
-                    y=y_data,
-                    queryhash=query_hash
-                ))
+        source = ColumnDataSource(data)
+        yb_plot = figure(x_axis_label = 'Estiamted Cost', 
+                        y_axis_label = 'Execution Time (ms)',
+                        width = 600, height = 600, 
+                        tools = TOOLS, tooltips=TOOLTIPS)
+        yb_r = yb_plot.circle("yb_cost", "yb_time", size=10, source=source, 
+                              hover_color="firebrick")
+        yb_r.selection_glyph = selected_circle
+        yb_r.nonselection_glyph = nonselected_circle
+        yb_x_np = np.array(data['yb_cost'])
+        yb_y_np = np.array(data['yb_time'])
+        res = linregress(yb_x_np, yb_y_np)
+        yb_y_data_regress = res.slope * yb_x_np + res.intercept
+        yb_plot.line(x=yb_x_np, y=yb_y_data_regress)
+        url = '#@queryhash'
+        taptool = yb_plot.select(type=TapTool)
+        taptool.callback = OpenURL(url=url)
+        
+        pg_plot = figure(x_axis_label = 'Estiamted Cost', 
+                        y_axis_label = 'Execution Time (ms)',
+                        width = 600, height = 600, 
+                        tools = TOOLS, tooltips=TOOLTIPS)
+        pg_r = pg_plot.circle("pg_cost", "pg_time", size=10, source=source, 
+                              hover_color="firebrick")
+        pg_r.selection_glyph = selected_circle
+        pg_r.nonselection_glyph = nonselected_circle
+        pg_x_np = np.array(data['pg_cost'])
+        pg_y_np = np.array(data['pg_time'])
+        res = linregress(pg_x_np, pg_y_np)
+        pg_y_data_regress = res.slope * pg_x_np + res.intercept
+        pg_plot.line(x=pg_x_np, y=pg_y_data_regress)
+        url = '#@queryhash'
+        taptool = pg_plot.select(type=TapTool)
+        taptool.callback = OpenURL(url=url)
+        
+        GRIDPLOT = gridplot([[yb_plot, pg_plot]])
+        
+        script, div = components(GRIDPLOT)
 
-                plot.circle('x', 'y', size=10, source=source)
-
-                x_np = np.array(x_data)
-                y_np = np.array(y_data)
-                res = linregress(x_np, y_np)
-                y_data_regress = res.slope * x_np + res.intercept
-                plot.line(x=x_np, y=y_data_regress)
-                
-                url = '#@queryhash'
-                taptool = plot.select(type=TapTool)
-                taptool.callback = OpenURL(url=url)
-                
-                save(plot, f"{file_names[i]}")
-                
-                # script, div = components(plot)
-
-        return file_names
+        return script, div
 
     @staticmethod
     def generate_regression_and_standard_errors(x_data, y_data):
@@ -181,13 +210,17 @@ class ScoreReport(AbstractReportAction):
             self.queries[query.tag].append([query, pg])
 
     def build_report(self):
-        self._start_table("2")
-        self.report += "|Yugabyte|Postgres\n"
-        default_query_plots = self.create_default_query_plots()
-        self.report += f"a|image::{default_query_plots[0]}[Yugabyte,align=\"center\"]\n"
-        self.report += f"a|image::{default_query_plots[1]}[Postgres,align=\"center\"]\n"
-        self._end_table()
-        self.create_default_query_plots_interactive()
+        script, div = self.create_default_query_plots_interactive()
+        self.report += f"""
+++++
+<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.2.1.min.js"></script>
+<script type="text/javascript">
+    Bokeh.set_log_level("info");
+</script>
+{script}
+{div}
+++++
+"""
 
         self.report += "\n== QO score\n"
 
