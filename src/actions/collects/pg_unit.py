@@ -1,3 +1,4 @@
+import os
 from inspect import cleandoc
 
 from config import Config
@@ -32,12 +33,15 @@ class PgUnitGenerator:
 """
 
     def generate_postgres_unit_tests(self, teardown_queries, create_queries, queries):
+        if not os.path.isdir("report"):
+            os.mkdir("report")
+
         # generate sql file
-        with open(f"report/{self.config.output}.sql", "w") as result_file:
+        with open(f"report/{self.config.output}_pgunit.sql", "w") as result_file:
             self.generate_output_file(create_queries, queries, result_file, teardown_queries, with_output=False)
 
         # generate out file
-        with open(f"report/{self.config.output}.out", "w") as result_file:
+        with open(f"report/{self.config.output}_pgunit.out", "w") as result_file:
             self.generate_output_file(create_queries, queries, result_file, teardown_queries, with_output=True)
 
     def generate_output_file(self, create_queries, queries, result_file, teardown_queries, with_output=False):
