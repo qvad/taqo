@@ -107,7 +107,7 @@ class ScoreReport(AbstractReportAction):
 
         selected_circle = Circle(fill_alpha=1, fill_color="firebrick")
         nonselected_circle = Circle(fill_alpha=0.2, fill_color="blue", line_alpha=0.2)
-        TOOLS = 'tap, lasso_select, box_zoom, wheel_zoom, save, reset, hover'
+        TOOLS = 'tap, lasso_select, box_zoom, wheel_zoom, pan, save, reset, hover'
         TOOLTIPS = """
             <div style="width:200px;">
             @query
@@ -128,9 +128,9 @@ class ScoreReport(AbstractReportAction):
         res = linregress(yb_x_np, yb_y_np)
         yb_y_data_regress = res.slope * yb_x_np + res.intercept
         yb_plot.line(x=yb_x_np, y=yb_y_data_regress)
-        url = '#@queryhash'
-        taptool = yb_plot.select(type=TapTool)
-        taptool.callback = OpenURL(url=url)
+        yb_url = '#@query_hash'
+        yb_taptool = yb_plot.select(type=TapTool)
+        yb_taptool.callback = OpenURL(url=yb_url, same_tab=True)
         
         pg_plot = figure(x_axis_label = 'Estiamted Cost', 
                         y_axis_label = 'Execution Time (ms)',
@@ -145,9 +145,9 @@ class ScoreReport(AbstractReportAction):
         res = linregress(pg_x_np, pg_y_np)
         pg_y_data_regress = res.slope * pg_x_np + res.intercept
         pg_plot.line(x=pg_x_np, y=pg_y_data_regress)
-        url = '#@queryhash'
-        taptool = pg_plot.select(type=TapTool)
-        taptool.callback = OpenURL(url=url)
+        pg_url = '#@query_hash'
+        pg_taptool = pg_plot.select(type=TapTool)
+        pg_taptool.callback = OpenURL(url=pg_url, same_tab=True)
         
         GRIDPLOT = gridplot([[yb_plot, pg_plot]])
         
