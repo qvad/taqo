@@ -18,6 +18,7 @@ from bokeh.models import ColumnDataSource, OpenURL, TapTool, Circle
 from bokeh.embed import components
 from bokeh.transform import factor_cmap
 from bokeh.models import ColumnDataSource
+from bokeh.palettes import tol
 
 class ScoreReport(AbstractReportAction):
     def __init__(self):
@@ -86,6 +87,7 @@ class ScoreReport(AbstractReportAction):
     def create_default_query_plots_interactive(self):        
         data = {
             'query_hash' : [],
+            'query_tag' : [],
             'query' : [],
             'yb_cost' : [],
             'yb_time' : [],
@@ -99,6 +101,7 @@ class ScoreReport(AbstractReportAction):
                 pg_query = yb_pg_queries[1]
                 if yb_query and yb_query.execution_time_ms and pg_query and pg_query.execution_time_ms:
                     data["query_hash"].append(yb_query.query_hash)
+                    data["query_tag"].append(tag)
                     data["query"].append(yb_query.query)
                     data["yb_cost"].append(yb_query.execution_plan.get_estimated_cost())
                     data["yb_time"].append(yb_query.execution_time_ms)
@@ -107,7 +110,7 @@ class ScoreReport(AbstractReportAction):
 
         selected_circle = Circle(fill_alpha=1, fill_color="firebrick")
         nonselected_circle = Circle(fill_alpha=0.2, fill_color="blue", line_alpha=0.2)
-        TOOLS = 'tap, lasso_select, box_zoom, wheel_zoom, pan, save, reset, hover'
+        TOOLS = 'tap, box_zoom, wheel_zoom, pan, save, reset, hover'
         TOOLTIPS = """
             <div style="width:200px;">
             @query
@@ -115,13 +118,16 @@ class ScoreReport(AbstractReportAction):
         """
 
         source = ColumnDataSource(data)
+        tags = sorted(list(set(data['query_tag'])))
+        
         yb_plot = figure(x_axis_label = 'Estimated Cost', 
-                        y_axis_label = 'Execution Time (ms)',
-                        title = 'Yugabyte',
-                        width = 600, height = 600, 
-                        tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
-        yb_r = yb_plot.circle("yb_cost", "yb_time", size=10, source=source, 
-                              hover_color="firebrick")
+                         y_axis_label = 'Execution Time (ms)',
+                         title = 'Yugabyte',
+                         width = 600, height = 600, 
+                         tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
+        yb_r = yb_plot.scatter("yb_cost", "yb_time", size=10, source=source, 
+                              hover_color="firebrick", legend_group='query_tag',
+                              color=factor_cmap('query_tag', 'Category10_10', tags))
         yb_r.selection_glyph = selected_circle
         yb_r.nonselection_glyph = nonselected_circle
         yb_x_np = np.array(data['yb_cost'])
@@ -138,8 +144,9 @@ class ScoreReport(AbstractReportAction):
                         title = 'Postgres',
                         width = 600, height = 600, 
                         tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
-        pg_r = pg_plot.circle("pg_cost", "pg_time", size=10, source=source, 
-                              hover_color="firebrick")
+        pg_r = pg_plot.scatter("pg_cost", "pg_time", size=10, source=source, 
+                              hover_color="firebrick", legend_group='query_tag',
+                              color=factor_cmap('query_tag', 'Category10_10', tags))
         pg_r.selection_glyph = selected_circle
         pg_r.nonselection_glyph = nonselected_circle
         pg_x_np = np.array(data['pg_cost'])
