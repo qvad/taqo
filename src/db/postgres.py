@@ -52,11 +52,11 @@ plan_node_header_pattern = re.compile(''.join([
     ' +loops=(?P<loops>\d+))|(?:(?P<never>never executed)))\)',
 ]))
 
-node_name_decomposing_pattern = re.compile(''.join([
+node_name_decomposition_pattern = re.compile(''.join([
     '(?P<type>\S+(?:\s+\S+)* Scan)(?P<backward>\s+Backward)*(?: using (?P<index>\S+))*'
-    ' on (?P<table>\S+)(?: (?P<alias>\S+))*']))
+    ' on (?>(?P<schema>\S+)\.)*(?P<table>\S+)(?: (?P<alias>\S+))*']))
 
-hash_property_decomposing_pattern = re.compile(''.join([
+hash_property_decomposition_pattern = re.compile(''.join([
     'Buckets: (?P<buckets>\d+)(?: originally (?P<orig_buckets>\d+))*  ',
     'Batches: (?P<batches>\d+)(?: originally (?P<orig_batches>\d+))*  ',
     'Memory Usage: (?P<peak_mem>\d+)kB',
@@ -409,7 +409,7 @@ class PostgresExecutionPlan(ExecutionPlan):
 
     def make_node(self, node_name):
         index_name = table_name = table_alias = is_backward = None
-        if match := node_name_decomposing_pattern.search(node_name):
+        if match := node_name_decomposition_pattern.search(node_name):
             node_type = match.group('type')
             index_name = match.group('index')
             is_backward = match.group('backward') != None
@@ -463,7 +463,7 @@ class PostgresExecutionPlan(ExecutionPlan):
             for prop in node_props[1:]:
                 if prop.startswith(' '):
                     prop_str = prop.strip()
-                    if match := hash_property_decomposing_pattern.search(prop_str):
+                    if match := hash_property_decomposition_pattern.search(prop_str):
                         node.properties['Hash Buckets'] = match.group('buckets')
 
                         if orig_buckets := match.group('orig_buckets'):
