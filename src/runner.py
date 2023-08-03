@@ -69,9 +69,11 @@ if __name__ == "__main__":
                         help='Configuration file path')
 
     parser.add_argument('--type',
-                        help='Report type - taqo, regression, comparison or selectivity')
+                        help='Report type - taqo, score, regression, comparison, selectivity or cost')
 
-    # TAQO or Comparison
+    # report mode flags
+
+    # TAQO, Score, Comparison or Cost (--pg-results optional for TAQO, N/A for Cost)
     parser.add_argument('--results',
                         default=None,
                         help='TAQO/Comparison: Path to results with optimizations for YB')
@@ -111,6 +113,14 @@ if __name__ == "__main__":
     parser.add_argument('--stats-analyze-results',
                         default=None,
                         help='Results with table analyze and enabled statistics and EXPLAIN ANALYZE')
+
+    # Cost
+    parser.add_argument('--interactive',
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help='Popup an interactive chart then quit')
+
+    # collect mode flags
 
     parser.add_argument('--ddl-prefix',
                         default="",
@@ -206,6 +216,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--output',
                         help='Output JSON file name in report folder, [.json] will be added')
+
+    # collect/report mode common flags
 
     parser.add_argument('--clear',
                         action=argparse.BooleanOptionalAction,
@@ -361,6 +373,6 @@ if __name__ == "__main__":
                                               ta_analyze_queries, stats_queries, stats_analyze_queries)
         elif args.type == "cost":
             yb_queries = loader.get_queries_from_previous_result(args.results)
-            CostReport.generate_report(yb_queries)
+            CostReport.generate_report(yb_queries, args.interactive)
         else:
             raise AttributeError(f"Unknown test type defined {config.test}")

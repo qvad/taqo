@@ -1,5 +1,6 @@
 import dataclasses
 from enum import Enum
+import re
 
 from typing import List, Dict, Type
 
@@ -142,8 +143,8 @@ class PlanNode:
         self.plan_rows: float = 0.0
         self.plan_width: int = 0
 
-        self.startup_ms: float = 0
-        self.total_ms: float = 0
+        self.startup_ms: float = 0.0
+        self.total_ms: float = 0.0
         self.rows: float = 0.0
         self.nloops: float = 0.0
 
@@ -153,23 +154,34 @@ class PlanNode:
     def __str__(self):
         return f'{self.level}:{self.node_type}'
 
-    def get_full_str(self, estimate=True, actual=True, properties=False):
-        s = str(self)
-        if estimate:
-            s += f'  (cost={self.startup_cost}..{self.total_cost} rows={self.plan_rows}' \
-                ' width={self.plan_width})'
-        if actual:
-            if self.nloops == 0:
-                s += '  (never executed)'
-            else:
-                s += f'  (actual time={self.startup_ms}..{self.total_ms} rows={self.rows}' \
-                    ' nloops={self.nloops})'
-        if properties and len(self.properties) > 0:
-            s += str(self.properties)
-        return s
+    def get_full_str(self, estimate=True, actual=True, properties=False, level=False):
+        return ''.join([
+            f'{self.level}: ' if level else '',
+            self.name,
+            f'  {self.get_estimate_str()}' if estimate else '',
+            f'  {self.get_actual_str()}' if actual else '',
+            str(self.properties) if properties and len(self.properties) > 0 else '',
+        ])
+
+    def get_estimate_str(self):
+        return (f'(cost={self.startup_cost}..{self.total_cost} rows={self.plan_rows}'
+                f' width={self.plan_width})')
+
+    def get_actual_str(self):
+        return ((f'(actual time={self.startup_ms}..{self.total_ms} rows={self.rows}'
+                 f' loops={self.nloops})') if self.nloops else '  (never executed)')
 
     def has_valid_cost(self):
         return self.acc.has_valid_cost(self)
+
+    def get_property(self, key, with_label=False):
+        value = self.properties.get(key)
+        return value if not with_label else f'{key}: {value}' if value else ''
+
+    def get_actual_row_adjusted_cost(self):
+        return ((float(self.total_cost) - float(self.startup_cost))
+                * float(self.rows) / float(self.plan_rows)
+                + float(self.startup_cost))
 
 
 class ScanNode(PlanNode):
@@ -199,10 +211,6 @@ class ScanNode(PlanNode):
                     self.get_local_filter(with_label),
                     ]))
 
-    def get_property(self, key, with_label=False):
-        value = self.properties.get(key)
-        return value if not with_label else f'{key}: {value}' if value else ''
-
     def get_index_cond(self, with_label=False):
         return self.acc.get_index_cond(self, with_label)
 
@@ -228,15 +236,11 @@ class ScanNode(PlanNode):
                 and not self.get_local_filter()
                 and not self.get_rows_removed_by_recheck())
 
-    def get_actual_row_adjusted_cost(self):
-        return ((float(self.total_cost) - float(self.startup_cost))
-                * float(self.rows) / float(self.plan_rows)
-                + float(self.startup_cost))
-
-
 class PlanNodeVisitor:
+    pat = re.compile(r'([A-Z][a-z0-9]*)([A-Z])')
     def visit(self, node):
-        method = f'visit_{node.__class__.__name__}'
+        snake_cased_class_name = self.pat.sub(r'\1_\2', node.__class__.__name__).lower()
+        method = f'visit_{snake_cased_class_name}'
         visitor = getattr(self, method, self.generic_visit)
         return visitor(node)
 
@@ -246,22 +250,28 @@ class PlanNodeVisitor:
 
 
 class PlanPrinter(PlanNodeVisitor):
-    def __init__(self, estimate=True, actual=True):
+    def __init__(self, estimate=True, actual=True, properties=False, level=False):
         super().__init__()
         self.plan_tree_str: str = ""
         self.estimate = estimate
         self.actual = actual
+        self.properties = properties
+        self.level = level
 
     def visit(self, node):
-        for _ in range(node.level):
-            self.plan_tree_str += '  '
-        self.plan_tree_str += node.get_full_str(self.estimate, self.actual)
+        self.plan_tree_str += f"{'':>{node.level*2}s}->  " if node.level else ''
+        self.plan_tree_str += node.get_full_str(self.estimate, self.actual,
+                                                properties=False, level=self.level)
+        if self.properties:
+            self.plan_tree_str += ''.join([
+                f"\n{'':>{node.level*2}s}  {key}: {value}"
+                for key, value in node.properties.items()])
         self.plan_tree_str += '\n'
         self.generic_visit(node)
 
     @staticmethod
-    def build_plan_tree_str(node, estimate=True, actual=True):
-        printer = PlanPrinter(estimate, actual)
+    def build_plan_tree_str(node, estimate=True, actual=True, properties=False, level=False):
+        printer = PlanPrinter(estimate, actual, properties, level)
         printer.visit(node)
         return printer.plan_tree_str
 
