@@ -115,7 +115,7 @@ class ScoreReport(AbstractReportAction):
         """
 
         source = ColumnDataSource(data)
-        yb_plot = figure(x_axis_label = 'Estiamted Cost', 
+        yb_plot = figure(x_axis_label = 'Estimated Cost', 
                         y_axis_label = 'Execution Time (ms)',
                         title = 'Yugabyte',
                         width = 600, height = 600, 
@@ -133,7 +133,7 @@ class ScoreReport(AbstractReportAction):
         yb_taptool = yb_plot.select(type=TapTool)
         yb_taptool.callback = OpenURL(url=yb_url, same_tab=True)
         
-        pg_plot = figure(x_axis_label = 'Estiamted Cost', 
+        pg_plot = figure(x_axis_label = 'Estimated Cost', 
                         y_axis_label = 'Execution Time (ms)',
                         title = 'Postgres',
                         width = 600, height = 600, 
