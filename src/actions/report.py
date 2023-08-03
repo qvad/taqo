@@ -102,11 +102,14 @@ class AbstractReportAction:
             file.write(self.report)
 
         self.logger.info(f"Generating report file from {report_adoc} and compiling html")
-        subprocess.run(
+        asciidoc_return_code = subprocess.run(
             f'{self.config.asciidoctor_path} '
             f'-a stylesheet={os.path.abspath("css/adoc.css")} '
             f'{report_adoc}',
-            shell=True)
+            shell=True).returncode
 
-        report_html_path = Path(f'report/{self.start_date}/report_{report_name}_{self.config.output}.html')
-        self.logger.info(f"Done! Check report at {report_html_path.absolute()}")
+        if asciidoc_return_code != 0:
+            self.logger.exception("Failed to generate HTML file! Check asciidoctor path")
+        else:
+            report_html_path = Path(f'report/{self.start_date}/report_{report_name}_{self.config.output}.html')
+            self.logger.info(f"Done! Check report at {report_html_path.absolute()}")
