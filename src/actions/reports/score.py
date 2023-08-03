@@ -151,7 +151,8 @@ class ScoreReport(AbstractReportAction):
         pg_taptool = pg_plot.select(type=TapTool)
         pg_taptool.callback = OpenURL(url=pg_url, same_tab=True)
         
-        GRIDPLOT = gridplot([[yb_plot, pg_plot]], sizing_mode='scale_both')
+        GRIDPLOT = gridplot([[yb_plot, pg_plot]], sizing_mode='scale_both', 
+                            merge_tools=False)
         
         script, div = components(GRIDPLOT)
 
