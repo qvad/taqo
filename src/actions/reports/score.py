@@ -117,8 +117,9 @@ class ScoreReport(AbstractReportAction):
         source = ColumnDataSource(data)
         yb_plot = figure(x_axis_label = 'Estiamted Cost', 
                         y_axis_label = 'Execution Time (ms)',
+                        title = 'Yugabyte',
                         width = 600, height = 600, 
-                        tools = TOOLS, tooltips=TOOLTIPS)
+                        tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
         yb_r = yb_plot.circle("yb_cost", "yb_time", size=10, source=source, 
                               hover_color="firebrick")
         yb_r.selection_glyph = selected_circle
@@ -134,8 +135,9 @@ class ScoreReport(AbstractReportAction):
         
         pg_plot = figure(x_axis_label = 'Estiamted Cost', 
                         y_axis_label = 'Execution Time (ms)',
+                        title = 'Postgres',
                         width = 600, height = 600, 
-                        tools = TOOLS, tooltips=TOOLTIPS)
+                        tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
         pg_r = pg_plot.circle("pg_cost", "pg_time", size=10, source=source, 
                               hover_color="firebrick")
         pg_r.selection_glyph = selected_circle
@@ -149,7 +151,7 @@ class ScoreReport(AbstractReportAction):
         pg_taptool = pg_plot.select(type=TapTool)
         pg_taptool.callback = OpenURL(url=pg_url, same_tab=True)
         
-        GRIDPLOT = gridplot([[yb_plot, pg_plot]])
+        GRIDPLOT = gridplot([[yb_plot, pg_plot]], sizing_mode='scale_both')
         
         script, div = components(GRIDPLOT)
 
