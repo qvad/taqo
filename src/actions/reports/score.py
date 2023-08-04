@@ -17,7 +17,7 @@ from bokeh.layouts import gridplot
 from bokeh.models import ColumnDataSource, OpenURL, TapTool, Circle
 from bokeh.embed import components
 from bokeh.transform import factor_cmap
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, HoverTool, TapTool, BoxZoomTool, WheelZoomTool, PanTool, SaveTool, ResetTool
 from bokeh.palettes import tol
 
 class ScoreReport(AbstractReportAction):
@@ -94,6 +94,11 @@ class ScoreReport(AbstractReportAction):
             'pg_cost' : [],
             'pg_time' : [],
         }
+        
+        data_yb_bad_plans = {
+            'yb_cost' : [],
+            'yb_time' : []
+        }
 
         for tag, queries in self.queries.items():
             for yb_pg_queries in queries:
@@ -107,17 +112,24 @@ class ScoreReport(AbstractReportAction):
                     data["yb_time"].append(yb_query.execution_time_ms)
                     data["pg_cost"].append(pg_query.execution_plan.get_estimated_cost())
                     data["pg_time"].append(pg_query.execution_time_ms)
+                    yb_best = yb_query.get_best_optimization(self.config)
+                    if (not yb_query.compare_plans(yb_best.execution_plan)):
+                        data_yb_bad_plans["yb_cost"].append(yb_query.execution_plan.get_estimated_cost())
+                        data_yb_bad_plans["yb_time"].append(yb_query.execution_time_ms)
 
         selected_circle = Circle(fill_alpha=1, fill_color="firebrick")
         nonselected_circle = Circle(fill_alpha=0.2, fill_color="blue", line_alpha=0.2)
-        TOOLS = 'tap, box_zoom, wheel_zoom, pan, save, reset, hover'
         TOOLTIPS = """
             <div style="width:200px;">
             @query
             </div>
         """
+        hover_tool = HoverTool(tooltips=TOOLTIPS)
+        TOOLS = [TapTool(), BoxZoomTool(), WheelZoomTool(), PanTool(), SaveTool(), ResetTool(), hover_tool]
 
         source = ColumnDataSource(data)
+        source_yb_bad_plans = ColumnDataSource(data_yb_bad_plans)
+        
         tags = sorted(list(set(data['query_tag'])))
         
         yb_plot = figure(x_axis_label = 'Estimated Cost', 
@@ -126,8 +138,9 @@ class ScoreReport(AbstractReportAction):
                          width = 600, height = 600, 
                          tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
         yb_r = yb_plot.scatter("yb_cost", "yb_time", size=10, source=source, 
-                              hover_color="firebrick", legend_group='query_tag',
+                              hover_color="black", legend_group='query_tag',
                               color=factor_cmap('query_tag', 'Category10_10', tags))
+        
         yb_r.selection_glyph = selected_circle
         yb_r.nonselection_glyph = nonselected_circle
         yb_x_np = np.array(data['yb_cost'])
@@ -138,6 +151,9 @@ class ScoreReport(AbstractReportAction):
         yb_url = '#@query_hash'
         yb_taptool = yb_plot.select(type=TapTool)
         yb_taptool.callback = OpenURL(url=yb_url, same_tab=True)
+        yb_plot.scatter("yb_cost", "yb_time", size=14, line_width=4, 
+                        source=source_yb_bad_plans, line_color='firebrick',
+                        color=None, fill_alpha = 0.0)
         
         pg_plot = figure(x_axis_label = 'Estimated Cost', 
                         y_axis_label = 'Execution Time (ms)',
@@ -145,7 +161,7 @@ class ScoreReport(AbstractReportAction):
                         width = 600, height = 600, 
                         tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
         pg_r = pg_plot.scatter("pg_cost", "pg_time", size=10, source=source, 
-                              hover_color="firebrick", legend_group='query_tag',
+                              hover_color="black", legend_group='query_tag',
                               color=factor_cmap('query_tag', 'Category10_10', tags))
         pg_r.selection_glyph = selected_circle
         pg_r.nonselection_glyph = nonselected_circle
@@ -158,9 +174,12 @@ class ScoreReport(AbstractReportAction):
         pg_taptool = pg_plot.select(type=TapTool)
         pg_taptool.callback = OpenURL(url=pg_url, same_tab=True)
         
+        hover_tool.renderers = [yb_r, pg_r]
+        
         GRIDPLOT = gridplot([[yb_plot, pg_plot]], sizing_mode='scale_both', 
                             merge_tools=False)
         
+        show(GRIDPLOT)
         script, div = components(GRIDPLOT)
 
         return script, div
