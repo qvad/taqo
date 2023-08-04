@@ -61,28 +61,6 @@ class ScoreReport(AbstractReportAction):
         else:
             return "{:.2f}".format(
                 query.get_best_optimization(self.config).execution_time_ms / query.execution_time_ms)
-
-    def create_default_query_plots(self):
-        file_names = ['imgs/all_queries_defaults_yb.png',
-                      'imgs/all_queries_defaults_pg.png']
-
-        for i in range(2):
-            x_data = []
-            y_data = []
-
-            for tag, queries in self.queries.items():
-                for yb_pg_queries in queries:
-                    query = yb_pg_queries[i]
-                    if query and query.execution_time_ms:
-                        x_data.append(query.execution_plan.get_estimated_cost())
-                        y_data.append(query.execution_time_ms)
-
-            if x_data and y_data:
-                fig = self.generate_regression_and_standard_errors(x_data, y_data)
-                fig.savefig(f"report/{self.start_date}/{file_names[i]}", dpi=300)
-                plt.close()
-
-        return file_names
     
     def create_default_query_plots_interactive(self):        
         data = {
@@ -136,13 +114,12 @@ class ScoreReport(AbstractReportAction):
                          y_axis_label = 'Execution Time (ms)',
                          title = 'Yugabyte',
                          width = 600, height = 600, 
-                         tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
-        yb_r = yb_plot.scatter("yb_cost", "yb_time", size=10, source=source, 
+                         tools = TOOLS, active_drag = None)
+        yb_scatter = yb_plot.scatter("yb_cost", "yb_time", size=10, source=source, 
                               hover_color="black", legend_group='query_tag',
                               color=factor_cmap('query_tag', 'Category10_10', tags))
-        
-        yb_r.selection_glyph = selected_circle
-        yb_r.nonselection_glyph = nonselected_circle
+        yb_scatter.selection_glyph = selected_circle
+        yb_scatter.nonselection_glyph = nonselected_circle
         yb_x_np = np.array(data['yb_cost'])
         yb_y_np = np.array(data['yb_time'])
         res = linregress(yb_x_np, yb_y_np)
@@ -160,11 +137,11 @@ class ScoreReport(AbstractReportAction):
                         title = 'Postgres',
                         width = 600, height = 600, 
                         tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
-        pg_r = pg_plot.scatter("pg_cost", "pg_time", size=10, source=source, 
+        pg_scatter = pg_plot.scatter("pg_cost", "pg_time", size=10, source=source, 
                               hover_color="black", legend_group='query_tag',
                               color=factor_cmap('query_tag', 'Category10_10', tags))
-        pg_r.selection_glyph = selected_circle
-        pg_r.nonselection_glyph = nonselected_circle
+        pg_scatter.selection_glyph = selected_circle
+        pg_scatter.nonselection_glyph = nonselected_circle
         pg_x_np = np.array(data['pg_cost'])
         pg_y_np = np.array(data['pg_time'])
         res = linregress(pg_x_np, pg_y_np)
@@ -174,7 +151,7 @@ class ScoreReport(AbstractReportAction):
         pg_taptool = pg_plot.select(type=TapTool)
         pg_taptool.callback = OpenURL(url=pg_url, same_tab=True)
         
-        hover_tool.renderers = [yb_r, pg_r]
+        hover_tool.renderers = [yb_scatter, pg_scatter]
         
         GRIDPLOT = gridplot([[yb_plot, pg_plot]], sizing_mode='scale_both', 
                             merge_tools=False)
