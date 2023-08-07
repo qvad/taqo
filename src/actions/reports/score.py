@@ -171,7 +171,6 @@ class ScoreReport(AbstractReportAction):
         GRIDPLOT = gridplot([[yb_plot, pg_plot]], sizing_mode='scale_both', 
                             merge_tools=False)
         
-        show(GRIDPLOT)
         script, div = components(GRIDPLOT)
 
         return script, div
