@@ -12,13 +12,12 @@ from objects import Query
 from actions.report import AbstractReportAction
 from utils import allowed_diff
 
-from bokeh.plotting import figure, save, show
+from bokeh.plotting import figure
 from bokeh.layouts import gridplot
 from bokeh.models import ColumnDataSource, OpenURL, TapTool, Circle, CDSView, GroupFilter
 from bokeh.embed import components
 from bokeh.transform import factor_cmap
 from bokeh.models import ColumnDataSource, HoverTool, TapTool, BoxZoomTool, WheelZoomTool, PanTool, SaveTool, ResetTool
-from bokeh.palettes import tol
 
 class ScoreReport(AbstractReportAction):
     def __init__(self):
@@ -75,7 +74,14 @@ class ScoreReport(AbstractReportAction):
         
         data_yb_bad_plans = {
             'yb_cost' : [],
-            'yb_time' : []
+            'yb_time' : [],
+            'query_tag' : [],
+        }
+        
+        data_pg_bad_plans = {
+            'pg_cost' : [],
+            'pg_time' : [],
+            'query_tag' : [],
         }
 
         tags = []
@@ -97,9 +103,17 @@ class ScoreReport(AbstractReportAction):
                     if (not yb_query.compare_plans(yb_best.execution_plan)):
                         data_yb_bad_plans["yb_cost"].append(yb_query.execution_plan.get_estimated_cost())
                         data_yb_bad_plans["yb_time"].append(yb_query.execution_time_ms)
+                        data_yb_bad_plans["query_tag"].append(tag)
+                    pg_best = pg_query.get_best_optimization(self.config)
+                    if (not pg_query.compare_plans(pg_best.execution_plan)):
+                        data_pg_bad_plans["pg_cost"].append(pg_query.execution_plan.get_estimated_cost())
+                        data_pg_bad_plans["pg_time"].append(pg_query.execution_time_ms)
+                        data_pg_bad_plans["query_tag"].append(tag)
 
-        selected_circle = Circle(fill_alpha=1, fill_color="firebrick")
-        nonselected_circle = Circle(fill_alpha=0.2, fill_color="blue", line_alpha=0.2)
+        source = ColumnDataSource(data)
+        source_yb_bad_plans = ColumnDataSource(data_yb_bad_plans)
+        source_pg_bad_plans = ColumnDataSource(data_pg_bad_plans)
+
         TOOLTIPS = """
             <div style="width:200px;">
             @query
@@ -108,12 +122,10 @@ class ScoreReport(AbstractReportAction):
         hover_tool = HoverTool(tooltips=TOOLTIPS)
         hover_tool.renderers = []
         TOOLS = [TapTool(), BoxZoomTool(), WheelZoomTool(), PanTool(), SaveTool(), ResetTool(), hover_tool]
-
-        source = ColumnDataSource(data)
-        source_yb_bad_plans = ColumnDataSource(data_yb_bad_plans)
         
         tags = sorted(list(set(data['query_tag'])))
         
+        # YB Plot
         yb_plot = figure(x_axis_label = 'Estimated Cost', 
                          y_axis_label = 'Execution Time (ms)',
                          title = 'Yugabyte',
@@ -122,26 +134,33 @@ class ScoreReport(AbstractReportAction):
         
         for tag in tags:
             view = CDSView(filter=GroupFilter(column_name='query_tag', group=tag))
+            # Highliht queries with bad plans
+            yb_plot.scatter("yb_cost", "yb_time", size=14, line_width=4, 
+                        source=source_yb_bad_plans, legend_label=tag, line_color='firebrick',
+                        color=None, fill_alpha = 0.0, view=view)
+            # Scatter plot for all queries
             yb_scatter = yb_plot.scatter("yb_cost", "yb_time", size=10, source=source, 
                                 hover_color="black", legend_label=tag, view=view,
-                                color=factor_cmap('query_tag', 'Category20_20', tags))
-            yb_scatter.selection_glyph = selected_circle
-            yb_scatter.nonselection_glyph = nonselected_circle
+                                color=factor_cmap('query_tag', 'Category20_20', tags),
+                                selection_color='black', nonselection_alpha=1.0)
             hover_tool.renderers.append(yb_scatter)
 
+        # Interactive Legend
         yb_plot.legend.click_policy='hide'
+        
+        # Linear Regression Line
         yb_x_np = np.array(data['yb_cost'])
         yb_y_np = np.array(data['yb_time'])
         res = linregress(yb_x_np, yb_y_np)
         yb_y_data_regress = res.slope * yb_x_np + res.intercept
         yb_plot.line(x=yb_x_np, y=yb_y_data_regress)
+        
+        # Tap event to jump to query
         yb_url = '#@query_hash'
         yb_taptool = yb_plot.select(type=TapTool)
         yb_taptool.callback = OpenURL(url=yb_url, same_tab=True)
-        yb_plot.scatter("yb_cost", "yb_time", size=14, line_width=4, 
-                        source=source_yb_bad_plans, line_color='firebrick',
-                        color=None, fill_alpha = 0.0)
         
+        # PG Plot
         pg_plot = figure(x_axis_label = 'Estimated Cost', 
                         y_axis_label = 'Execution Time (ms)',
                         title = 'Postgres',
@@ -150,29 +169,35 @@ class ScoreReport(AbstractReportAction):
         
         for tag in tags:
             view = CDSView(filter=GroupFilter(column_name='query_tag', group=tag))
+            # Highliht queries with bad plans
+            pg_plot.scatter("pg_cost", "pg_time", size=14, line_width=4, 
+                        source=source_pg_bad_plans, legend_label=tag, line_color='firebrick',
+                        color=None, fill_alpha = 0.0, view=view)
+            # Scatter plot for all queries
             pg_scatter = pg_plot.scatter("pg_cost", "pg_time", size=10, source=source, 
                                 hover_color="black", legend_label=tag, view=view,
-                                color=factor_cmap('query_tag', 'Category20_20', tags))
-            pg_scatter.selection_glyph = selected_circle
-            pg_scatter.nonselection_glyph = nonselected_circle
+                                color=factor_cmap('query_tag', 'Category20_20', tags),
+                                selection_color='black', nonselection_alpha=1.0)
             hover_tool.renderers.append(pg_scatter)
 
+        # Interactive Legend
         pg_plot.legend.click_policy='hide'
         
+        # Linear Regression Line
         pg_x_np = np.array(data['pg_cost'])
         pg_y_np = np.array(data['pg_time'])
         res = linregress(pg_x_np, pg_y_np)
         pg_y_data_regress = res.slope * pg_x_np + res.intercept
         pg_plot.line(x=pg_x_np, y=pg_y_data_regress)
+        
+        # Tap event to jump to query
         pg_url = '#@query_hash'
         pg_taptool = pg_plot.select(type=TapTool)
         pg_taptool.callback = OpenURL(url=pg_url, same_tab=True)
 
         GRIDPLOT = gridplot([[yb_plot, pg_plot]], sizing_mode='scale_both', 
                             merge_tools=False)
-        
         script, div = components(GRIDPLOT)
-
         return script, div
 
     @staticmethod
