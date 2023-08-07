@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import linregress
 from typing import Type
 
 from matplotlib import pyplot as plt
@@ -11,6 +12,13 @@ from objects import Query
 from actions.report import AbstractReportAction
 from utils import allowed_diff
 
+from bokeh.plotting import figure, save, show
+from bokeh.layouts import gridplot
+from bokeh.models import ColumnDataSource, OpenURL, TapTool, Circle, CDSView, GroupFilter
+from bokeh.embed import components
+from bokeh.transform import factor_cmap
+from bokeh.models import ColumnDataSource, HoverTool, TapTool, BoxZoomTool, WheelZoomTool, PanTool, SaveTool, ResetTool
+from bokeh.palettes import tol
 
 class ScoreReport(AbstractReportAction):
     def __init__(self):
@@ -53,28 +61,119 @@ class ScoreReport(AbstractReportAction):
         else:
             return "{:.2f}".format(
                 query.get_best_optimization(self.config).execution_time_ms / query.execution_time_ms)
+    
+    def create_default_query_plots_interactive(self):        
+        data = {
+            'query_hash' : [],
+            'query_tag' : [],
+            'query' : [],
+            'yb_cost' : [],
+            'yb_time' : [],
+            'pg_cost' : [],
+            'pg_time' : [],
+        }
+        
+        data_yb_bad_plans = {
+            'yb_cost' : [],
+            'yb_time' : []
+        }
 
-    def create_default_query_plots(self):
-        file_names = ['imgs/all_queries_defaults_yb.png',
-                      'imgs/all_queries_defaults_pg.png']
+        tags = []
 
-        for i in range(2):
-            x_data = []
-            y_data = []
+        for tag, queries in self.queries.items():
+            for yb_pg_queries in queries:
+                yb_query = yb_pg_queries[0]
+                pg_query = yb_pg_queries[1]
+                if yb_query and yb_query.execution_time_ms and pg_query and pg_query.execution_time_ms:
+                    data["query_hash"].append(yb_query.query_hash)
+                    data["query_tag"].append(tag)
+                    tags.append(tag)
+                    data["query"].append(yb_query.query)
+                    data["yb_cost"].append(yb_query.execution_plan.get_estimated_cost())
+                    data["yb_time"].append(yb_query.execution_time_ms)
+                    data["pg_cost"].append(pg_query.execution_plan.get_estimated_cost())
+                    data["pg_time"].append(pg_query.execution_time_ms)
+                    yb_best = yb_query.get_best_optimization(self.config)
+                    if (not yb_query.compare_plans(yb_best.execution_plan)):
+                        data_yb_bad_plans["yb_cost"].append(yb_query.execution_plan.get_estimated_cost())
+                        data_yb_bad_plans["yb_time"].append(yb_query.execution_time_ms)
 
-            for tag, queries in self.queries.items():
-                for yb_pg_queries in queries:
-                    query = yb_pg_queries[i]
-                    if query and query.execution_time_ms:
-                        x_data.append(query.execution_plan.get_estimated_cost())
-                        y_data.append(query.execution_time_ms)
+        selected_circle = Circle(fill_alpha=1, fill_color="firebrick")
+        nonselected_circle = Circle(fill_alpha=0.2, fill_color="blue", line_alpha=0.2)
+        TOOLTIPS = """
+            <div style="width:200px;">
+            @query
+            </div>
+        """
+        hover_tool = HoverTool(tooltips=TOOLTIPS)
+        hover_tool.renderers = []
+        TOOLS = [TapTool(), BoxZoomTool(), WheelZoomTool(), PanTool(), SaveTool(), ResetTool(), hover_tool]
 
-            if x_data and y_data:
-                fig = self.generate_regression_and_standard_errors(x_data, y_data)
-                fig.savefig(f"report/{self.start_date}/{file_names[i]}", dpi=300)
-                plt.close()
+        source = ColumnDataSource(data)
+        source_yb_bad_plans = ColumnDataSource(data_yb_bad_plans)
+        
+        tags = sorted(list(set(data['query_tag'])))
+        
+        yb_plot = figure(x_axis_label = 'Estimated Cost', 
+                         y_axis_label = 'Execution Time (ms)',
+                         title = 'Yugabyte',
+                         width = 600, height = 600, 
+                         tools = TOOLS, active_drag = None)
+        
+        for tag in tags:
+            view = CDSView(filter=GroupFilter(column_name='query_tag', group=tag))
+            yb_scatter = yb_plot.scatter("yb_cost", "yb_time", size=10, source=source, 
+                                hover_color="black", legend_label=tag, view=view,
+                                color=factor_cmap('query_tag', 'Category20_20', tags))
+            yb_scatter.selection_glyph = selected_circle
+            yb_scatter.nonselection_glyph = nonselected_circle
+            hover_tool.renderers.append(yb_scatter)
 
-        return file_names
+        yb_plot.legend.click_policy='hide'
+        yb_x_np = np.array(data['yb_cost'])
+        yb_y_np = np.array(data['yb_time'])
+        res = linregress(yb_x_np, yb_y_np)
+        yb_y_data_regress = res.slope * yb_x_np + res.intercept
+        yb_plot.line(x=yb_x_np, y=yb_y_data_regress)
+        yb_url = '#@query_hash'
+        yb_taptool = yb_plot.select(type=TapTool)
+        yb_taptool.callback = OpenURL(url=yb_url, same_tab=True)
+        yb_plot.scatter("yb_cost", "yb_time", size=14, line_width=4, 
+                        source=source_yb_bad_plans, line_color='firebrick',
+                        color=None, fill_alpha = 0.0)
+        
+        pg_plot = figure(x_axis_label = 'Estimated Cost', 
+                        y_axis_label = 'Execution Time (ms)',
+                        title = 'Postgres',
+                        width = 600, height = 600, 
+                        tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
+        
+        for tag in tags:
+            view = CDSView(filter=GroupFilter(column_name='query_tag', group=tag))
+            pg_scatter = pg_plot.scatter("pg_cost", "pg_time", size=10, source=source, 
+                                hover_color="black", legend_label=tag, view=view,
+                                color=factor_cmap('query_tag', 'Category20_20', tags))
+            pg_scatter.selection_glyph = selected_circle
+            pg_scatter.nonselection_glyph = nonselected_circle
+            hover_tool.renderers.append(pg_scatter)
+
+        pg_plot.legend.click_policy='hide'
+        
+        pg_x_np = np.array(data['pg_cost'])
+        pg_y_np = np.array(data['pg_time'])
+        res = linregress(pg_x_np, pg_y_np)
+        pg_y_data_regress = res.slope * pg_x_np + res.intercept
+        pg_plot.line(x=pg_x_np, y=pg_y_data_regress)
+        pg_url = '#@query_hash'
+        pg_taptool = pg_plot.select(type=TapTool)
+        pg_taptool.callback = OpenURL(url=pg_url, same_tab=True)
+
+        GRIDPLOT = gridplot([[yb_plot, pg_plot]], sizing_mode='scale_both', 
+                            merge_tools=False)
+        
+        script, div = components(GRIDPLOT)
+
+        return script, div
 
     @staticmethod
     def generate_regression_and_standard_errors(x_data, y_data):
@@ -131,12 +230,17 @@ class ScoreReport(AbstractReportAction):
             self.queries[query.tag].append([query, pg])
 
     def build_report(self):
-        self._start_table("2")
-        self.report += "|Yugabyte|Postgres\n"
-        default_query_plots = self.create_default_query_plots()
-        self.report += f"a|image::{default_query_plots[0]}[Yugabyte,align=\"center\"]\n"
-        self.report += f"a|image::{default_query_plots[1]}[Postgres,align=\"center\"]\n"
-        self._end_table()
+        script, div = self.create_default_query_plots_interactive()
+        self.report += f"""
+++++
+<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.2.1.min.js"></script>
+<script type="text/javascript">
+    Bokeh.set_log_level("info");
+</script>
+{script}
+{div}
+++++
+"""
 
         self.report += "\n== QO score\n"
 
