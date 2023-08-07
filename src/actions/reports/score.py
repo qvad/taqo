@@ -14,7 +14,7 @@ from utils import allowed_diff
 
 from bokeh.plotting import figure, save, show
 from bokeh.layouts import gridplot
-from bokeh.models import ColumnDataSource, OpenURL, TapTool, Circle
+from bokeh.models import ColumnDataSource, OpenURL, TapTool, Circle, CDSView, GroupFilter
 from bokeh.embed import components
 from bokeh.transform import factor_cmap
 from bokeh.models import ColumnDataSource, HoverTool, TapTool, BoxZoomTool, WheelZoomTool, PanTool, SaveTool, ResetTool
@@ -78,6 +78,8 @@ class ScoreReport(AbstractReportAction):
             'yb_time' : []
         }
 
+        tags = []
+
         for tag, queries in self.queries.items():
             for yb_pg_queries in queries:
                 yb_query = yb_pg_queries[0]
@@ -85,6 +87,7 @@ class ScoreReport(AbstractReportAction):
                 if yb_query and yb_query.execution_time_ms and pg_query and pg_query.execution_time_ms:
                     data["query_hash"].append(yb_query.query_hash)
                     data["query_tag"].append(tag)
+                    tags.append(tag)
                     data["query"].append(yb_query.query)
                     data["yb_cost"].append(yb_query.execution_plan.get_estimated_cost())
                     data["yb_time"].append(yb_query.execution_time_ms)
@@ -103,6 +106,7 @@ class ScoreReport(AbstractReportAction):
             </div>
         """
         hover_tool = HoverTool(tooltips=TOOLTIPS)
+        hover_tool.renderers = []
         TOOLS = [TapTool(), BoxZoomTool(), WheelZoomTool(), PanTool(), SaveTool(), ResetTool(), hover_tool]
 
         source = ColumnDataSource(data)
@@ -115,11 +119,17 @@ class ScoreReport(AbstractReportAction):
                          title = 'Yugabyte',
                          width = 600, height = 600, 
                          tools = TOOLS, active_drag = None)
-        yb_scatter = yb_plot.scatter("yb_cost", "yb_time", size=10, source=source, 
-                              hover_color="black", legend_group='query_tag',
-                              color=factor_cmap('query_tag', 'Category20_20', tags))
-        yb_scatter.selection_glyph = selected_circle
-        yb_scatter.nonselection_glyph = nonselected_circle
+        
+        for tag in tags:
+            view = CDSView(filter=GroupFilter(column_name='query_tag', group=tag))
+            yb_scatter = yb_plot.scatter("yb_cost", "yb_time", size=10, source=source, 
+                                hover_color="black", legend_label=tag, view=view,
+                                color=factor_cmap('query_tag', 'Category20_20', tags))
+            yb_scatter.selection_glyph = selected_circle
+            yb_scatter.nonselection_glyph = nonselected_circle
+            hover_tool.renderers.append(yb_scatter)
+
+        yb_plot.legend.click_policy='hide'
         yb_x_np = np.array(data['yb_cost'])
         yb_y_np = np.array(data['yb_time'])
         res = linregress(yb_x_np, yb_y_np)
@@ -137,11 +147,18 @@ class ScoreReport(AbstractReportAction):
                         title = 'Postgres',
                         width = 600, height = 600, 
                         tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
-        pg_scatter = pg_plot.scatter("pg_cost", "pg_time", size=10, source=source, 
-                              hover_color="black", legend_group='query_tag',
-                              color=factor_cmap('query_tag', 'Category20_20', tags))
-        pg_scatter.selection_glyph = selected_circle
-        pg_scatter.nonselection_glyph = nonselected_circle
+        
+        for tag in tags:
+            view = CDSView(filter=GroupFilter(column_name='query_tag', group=tag))
+            pg_scatter = pg_plot.scatter("pg_cost", "pg_time", size=10, source=source, 
+                                hover_color="black", legend_label=tag, view=view,
+                                color=factor_cmap('query_tag', 'Category20_20', tags))
+            pg_scatter.selection_glyph = selected_circle
+            pg_scatter.nonselection_glyph = nonselected_circle
+            hover_tool.renderers.append(pg_scatter)
+
+        pg_plot.legend.click_policy='hide'
+        
         pg_x_np = np.array(data['pg_cost'])
         pg_y_np = np.array(data['pg_time'])
         res = linregress(pg_x_np, pg_y_np)
@@ -150,9 +167,7 @@ class ScoreReport(AbstractReportAction):
         pg_url = '#@query_hash'
         pg_taptool = pg_plot.select(type=TapTool)
         pg_taptool.callback = OpenURL(url=pg_url, same_tab=True)
-        
-        hover_tool.renderers = [yb_scatter, pg_scatter]
-        
+
         GRIDPLOT = gridplot([[yb_plot, pg_plot]], sizing_mode='scale_both', 
                             merge_tools=False)
         
