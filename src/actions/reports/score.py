@@ -117,7 +117,7 @@ class ScoreReport(AbstractReportAction):
                          tools = TOOLS, active_drag = None)
         yb_scatter = yb_plot.scatter("yb_cost", "yb_time", size=10, source=source, 
                               hover_color="black", legend_group='query_tag',
-                              color=factor_cmap('query_tag', 'Category10_10', tags))
+                              color=factor_cmap('query_tag', 'Category20_20', tags))
         yb_scatter.selection_glyph = selected_circle
         yb_scatter.nonselection_glyph = nonselected_circle
         yb_x_np = np.array(data['yb_cost'])
@@ -139,7 +139,7 @@ class ScoreReport(AbstractReportAction):
                         tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
         pg_scatter = pg_plot.scatter("pg_cost", "pg_time", size=10, source=source, 
                               hover_color="black", legend_group='query_tag',
-                              color=factor_cmap('query_tag', 'Category10_10', tags))
+                              color=factor_cmap('query_tag', 'Category20_20', tags))
         pg_scatter.selection_glyph = selected_circle
         pg_scatter.nonselection_glyph = nonselected_circle
         pg_x_np = np.array(data['pg_cost'])
