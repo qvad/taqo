@@ -54,7 +54,7 @@ plan_node_header_pattern = re.compile(''.join([
 
 node_name_decomposition_pattern = re.compile(''.join([
     '(?P<type>\S+(?:\s+\S+)* Scan)(?P<backward>\s+Backward)*(?: using (?P<index>\S+))*'
-    ' on (?>(?P<schema>\S+)\.)*(?P<table>\S+)(?: (?P<alias>\S+))*']))
+    ' on (?:(?P<schema>\S+)\.)*(?P<table>\S+)(?: (?P<alias>\S+))*']))
 
 hash_property_decomposition_pattern = re.compile(''.join([
     'Buckets: (?P<buckets>\d+)(?: originally (?P<orig_buckets>\d+))*  ',
