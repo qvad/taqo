@@ -47,7 +47,7 @@ class PgUnitGenerator:
     def generate_output_file(self, create_queries, queries, result_file, teardown_queries, with_output=False):
         result_file.write(f"CREATE DATABASE {self.config.connection.database} with colocation = true;\n")
         result_file.write(f"\c {self.config.connection.database}\n\n")
-        result_file.write(f"SET statement_timeout = '{self.config.ddl_query_timeout}s'\n\n")
+        result_file.write(f"SET statement_timeout = '{self.config.ddl_query_timeout}s';\n\n")
 
         for model_query in create_queries:
             if model_query.startswith("--"):
