@@ -69,6 +69,7 @@ def calculate_avg_execution_time(cur,
     # run at least one iteration
     num_retries = max(num_retries, 2)
     num_warmup = config.num_warmup
+    execution_plan_collected = False
 
     for iteration in range(num_retries + num_warmup):
         # noinspection PyUnresolvedReferences
@@ -86,6 +87,10 @@ def calculate_avg_execution_time(cur,
                     query.result_cardinality = cardinality
                     query.result_hash = get_md5(result)
             elif iteration >= num_warmup:
+                if not execution_plan_collected:
+                    collect_execution_plan(cur, connection, query, sut_database)
+                    execution_plan_collected = True
+
                 if with_analyze:
                     _, result = get_result(cur, is_dml)
 
@@ -113,6 +118,26 @@ def calculate_avg_execution_time(cur,
     query.execution_time_ms = sum_execution_times / actual_evaluations
 
     return True
+
+
+def collect_execution_plan(cur,
+                           connection,
+                           query: Query,
+                           sut_database: Database):
+    try:
+        sut_database.prepare_query_execution(cur)
+        evaluate_sql(cur, query.get_explain())
+        query.execution_plan = sut_database.get_execution_plan(
+            '\n'.join(str(item[0]) for item in cur.fetchall())
+        )
+
+        connection.rollback()
+    except psycopg2.errors.QueryCanceled as e:
+        # failed by timeout - it's ok just skip optimization
+        Config().logger.debug(f"Getting execution plan failed with {e}")
+
+        query.execution_time_ms = 0
+        query.execution_plan = sut_database.get_execution_plan("")
 
 
 def query_with_analyze(query_str_lower):

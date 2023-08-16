@@ -95,44 +95,29 @@ class CollectAction:
         for original_query in queries:
             with conn.cursor() as cur:
                 try:
-                    short_query = original_query.query.replace('\n', '')[:40]
                     self.logger.info(
                         f"Evaluating query with hash {original_query.query_hash} [{counter}/{len(queries)}]")
-
                     self.sut_database.set_query_timeout(cur, self.config.test_query_timeout)
-                    try:
-                        self.sut_database.prepare_query_execution(cur)
-                        evaluate_sql(cur, original_query.get_explain(EXPLAIN, [ExplainFlags.COSTS_OFF]))
-                        original_query.cost_off_explain = self.config.database.get_execution_plan(
-                            '\n'.join(str(item[0]) for item in cur.fetchall()))
 
-                        self.sut_database.prepare_query_execution(cur)
-                        evaluate_sql(cur, original_query.get_explain())
-                        original_query.execution_plan = self.config.database.get_execution_plan(
-                            '\n'.join(str(item[0]) for item in cur.fetchall()))
+                    # get default execution plan
+                    self.sut_database.prepare_query_execution(cur)
+                    evaluate_sql(cur, original_query.get_explain(EXPLAIN))
+                    default_execution_plan = self.config.database.get_execution_plan(
+                        '\n'.join(str(item[0]) for item in cur.fetchall()))
+                    conn.rollback()
 
-                        conn.rollback()
-                    except psycopg2.errors.QueryCanceled:
-                        try:
-                            # try to get at least basic plan
-                            self.sut_database.prepare_query_execution(cur)
-                            evaluate_sql(cur, original_query.get_explain(EXPLAIN))
-                            original_query.execution_plan = self.config.database.get_execution_plan(
-                                '\n'.join(
-                                    str(item[0]) for item in cur.fetchall()))
-
-                            conn.rollback()
-                        except psycopg2.errors.QueryCanceled:
-                            self.logger.error("Unable to get execution plan even w/o analyze")
-                            original_query.execution_plan = self.config.database.get_execution_plan(
-                                '')
-                            conn.rollback()
+                    # get costs off execution plan
+                    self.sut_database.prepare_query_execution(cur)
+                    evaluate_sql(cur, original_query.get_explain(EXPLAIN, [ExplainFlags.COSTS_OFF]))
+                    original_query.cost_off_explain = self.config.database.get_execution_plan(
+                        '\n'.join(str(item[0]) for item in cur.fetchall()))
+                    conn.rollback()
 
                     self.define_min_execution_time(conn, cur, original_query)
 
                     if self.config.plans_only:
-                        original_query.execution_time_ms = \
-                            original_query.execution_plan.get_estimated_cost()
+                        original_query.execution_plan = default_execution_plan
+                        original_query.execution_time_ms = default_execution_plan.get_estimated_cost()
                     else:
                         query_str = original_query.get_explain(EXPLAIN, options=[ExplainFlags.ANALYZE]) \
                             if self.config.server_side_execution else None
@@ -212,31 +197,28 @@ class CollectAction:
             exec_plan_md5 = get_md5(optimization.cost_off_explain.get_clean_plan())
             not_unique_plan = exec_plan_md5 in execution_plans_checked
             execution_plans_checked.add(exec_plan_md5)
-            query_str = optimization.get_explain(EXPLAIN, options=[ExplainFlags.ANALYZE]) if self.config.server_side_execution else None
+            query_str = optimization.get_explain(EXPLAIN, options=[ExplainFlags.ANALYZE]) \
+                if self.config.server_side_execution else None
 
             if not_unique_plan:
                 duplicates += 1
             else:
                 try:
                     self.sut_database.prepare_query_execution(cur)
-                    evaluate_sql(cur, optimization.get_explain())
-                    optimization.execution_plan = database.get_execution_plan(
+                    evaluate_sql(cur, optimization.get_explain(EXPLAIN))
+                    default_execution_plan = database.get_execution_plan(
                         '\n'.join(str(item[0]) for item in cur.fetchall())
                     )
 
                     connection.rollback()
                 except psycopg2.errors.QueryCanceled as e:
-                    # failed by timeout - it's ok just skip optimization
-                    self.logger.debug(f"Getting execution plan failed with {e}")
-
-                    timed_out += 1
-                    optimization.execution_time_ms = 0
-                    optimization.execution_plan = database.get_execution_plan("")
+                    # failed by timeout in getting EXPLAIN - issue
+                    self.logger.exception(f"Getting default execution plan failed with {e}")
                     continue
 
                 if self.config.plans_only:
-                    original_query.execution_time_ms = \
-                        original_query.execution_plan.get_estimated_cost()
+                    original_query.execution_plan = default_execution_plan
+                    original_query.execution_time_ms = default_execution_plan.get_estimated_cost()
                 elif not calculate_avg_execution_time(
                         cur,
                         optimization,
