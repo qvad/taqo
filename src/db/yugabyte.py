@@ -49,6 +49,9 @@ class Yugabyte(Postgres):
         self.logger.info(f"Evaluating compaction on tables {[table.name for table in tables]}")
 
         for table in tables:
+            subprocess.call(f'ls -la',
+                            shell=True,
+                            cwd=self.config.yugabyte_bin_path)
             result = subprocess.call(f'./yb-admin -master_addresses {self.config.connection.host}:7100 '
                                      f'compact_table ysql.{self.config.connection.database} {table.name}',
                                      shell=True,
