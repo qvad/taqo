@@ -52,7 +52,7 @@ class Yugabyte(Postgres):
             subprocess.call(f'ls -la',
                             shell=True,
                             cwd=self.config.yugabyte_bin_path)
-            result = subprocess.call(f'./yb-admin -master_addresses {self.config.connection.host}:7100 '
+            result = subprocess.call(f'yb-admin --master_addresses {self.config.connection.host}:7100 '
                                      f'compact_table ysql.{self.config.connection.database} {table.name}',
                                      shell=True,
                                      cwd=self.config.yugabyte_bin_path)
