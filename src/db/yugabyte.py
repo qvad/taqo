@@ -47,14 +47,9 @@ def yb_db_factory(config):
 class Yugabyte(Postgres):
     def run_compaction(self, tables: list[str]):
         self.logger.info(f"Evaluating compaction on tables {[table.name for table in tables]}")
-        self.logger.info(subprocess.call("pwd", cwd=self.config.yugabyte_bin_path))
-        self.logger.info(subprocess.call("ls", cwd=self.config.yugabyte_bin_path))
 
         for table in tables:
-            self.logger.info(" ".join(['yb-admin',
-                              '-master_addresses', f"{self.config.connection.host}:7100",
-                              'compact_table', f"ysql.{self.config.connection.database}", table.name]))
-            result = subprocess.call(['yb-admin',
+            result = subprocess.call(['./yb-admin',
                                       '-master_addresses', f"{self.config.connection.host}:7100",
                                       'compact_table', f"ysql.{self.config.connection.database}", table.name],
                                      cwd=self.config.yugabyte_bin_path)

@@ -67,7 +67,7 @@ if __name__ == "__main__":
     parser.add_argument('--config',
                         default="config/default.conf",
                         help='Configuration file path')
-    parser.add_argument('--yugabyte-bin-path',
+    parser.add_argument('-p', '--yugabyte-bin-path',
                         default="",
                         help='Path to yugabyte distrib binary files')
 
