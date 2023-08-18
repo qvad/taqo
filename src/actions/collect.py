@@ -77,6 +77,8 @@ class CollectAction:
 
             model_queries = teardown_queries + create_queries + analyze_queries + import_queries
             queries = model.get_queries(created_tables)
+
+            self.sut_database.run_compaction(tables=created_tables)
         except Exception as e:
             self.logger.exception("Failed to evaluate DDL queries", e)
             exit(1)

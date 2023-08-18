@@ -45,6 +45,17 @@ def yb_db_factory(config):
 
 
 class Yugabyte(Postgres):
+    def run_compaction(self, tables: list[str]):
+        self.logger.info(f"Evaluating compaction on tables {[table.name for table in tables]}")
+        for table in tables:
+            result = subprocess.call(['bin/yugabyte/yb-admin',
+                                      '-master_addresses', f"{self.config.connection.host}:7100",
+                                      'compact_table', f"ysql.{self.config.connection.database}", table.name])
+
+            if result != 0:
+                self.logger.error(f"Failed to compact table {table}")
+                exit(1)
+
     def establish_connection_from_output(self, out: str):
         self.logger.info("Reinitializing connection based on cluster creation output")
         parsing = re.findall(JDBC_STRING_PARSE, out)[0]

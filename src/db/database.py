@@ -4,6 +4,9 @@ class Database:
         self.logger = self.config.logger
         self.connection = None
 
+    def run_compaction(self, tables: list[str]):
+        pass
+
     def establish_connection(self, database: str):
         pass
 
