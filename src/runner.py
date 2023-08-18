@@ -67,6 +67,9 @@ if __name__ == "__main__":
     parser.add_argument('--config',
                         default="config/default.conf",
                         help='Configuration file path')
+    parser.add_argument('--yugabyte-bin-path',
+                        default="",
+                        help='Path to yugabyte distrib binary files')
 
     parser.add_argument('--type',
                         help='Report type - taqo, score, regression, comparison, selectivity or cost')
@@ -270,6 +273,7 @@ if __name__ == "__main__":
         clean_db=args.clean_db,
         allow_destroy_db=args.allow_destroy_db,
         clean_build=args.clean_build,
+        yugabyte_bin_path=args.yugabyte_bin_path,
 
         connection=ConnectionConfig(host=args.host,
                                     port=args.port,

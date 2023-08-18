@@ -102,6 +102,7 @@ class Config(metaclass=Singleton):
     test_query_timeout: int = None
     all_pairs_threshold: int = None
 
+    yugabyte_bin_path: str = None
     asciidoctor_path: str = None
     clear: bool = False
 
