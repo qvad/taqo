@@ -227,8 +227,7 @@ class CollectAction:
                     timed_out += 1
 
             # get new minimum execution time
-            if optimization.execution_time_ms != 0 and \
-                    optimization.execution_time_ms < min_execution_time:
+            if 0 < optimization.execution_time_ms < min_execution_time:
                 min_execution_time = optimization.execution_time_ms
 
             progress_bar.set_postfix(
