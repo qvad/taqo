@@ -209,8 +209,6 @@ class CollectAction:
                     default_execution_plan = database.get_execution_plan(
                         '\n'.join(str(item[0]) for item in cur.fetchall())
                     )
-
-                    connection.rollback()
                 except psycopg2.errors.QueryCanceled as e:
                     # failed by timeout in getting EXPLAIN - issue
                     self.logger.exception(f"Getting default execution plan failed with {e}")
