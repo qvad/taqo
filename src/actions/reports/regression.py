@@ -76,9 +76,9 @@ class RegressionReport(AbstractReportAction):
         plt.xlabel('Execution time [ms]')
         plt.ylabel('Predicted cost')
 
-        plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms != 0],
+        plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms > 0],
                  [q.execution_plan.get_estimated_cost() for q in optimizations if
-                  q.execution_time_ms != 0], 'k.',
+                  q.execution_time_ms > 0], 'k.',
                  [query.execution_time_ms],
                  [query.execution_plan.get_estimated_cost()], 'r^',
                  [best_optimization.execution_time_ms],
@@ -188,7 +188,7 @@ class RegressionReport(AbstractReportAction):
                                   (yb_v1_best.execution_time_ms
                                    if yb_v1_best.execution_time_ms > 0 else 1)
                 qo_yb_v2_bests *= yb_v2_query.execution_time_ms / yb_v2_best.execution_time_ms \
-                    if yb_v2_best.execution_time_ms != 0 else 9999999
+                    if yb_v2_best.execution_time_ms > 0 else 9999999
                 yb_v1_bests += 1 if yb_v1_query.compare_plans(yb_v1_best.execution_plan) else 0
                 yb_v2_bests += 1 if yb_v2_query.compare_plans(yb_v2_best.execution_plan) else 0
 
@@ -233,7 +233,7 @@ class RegressionReport(AbstractReportAction):
                 yb_v1_best = yb_v1_query.get_best_optimization(self.config)
                 yb_v2_best = yb_v2_query.get_best_optimization(self.config) if v2_has_optimizations else yb_v1_best
 
-                success = yb_v2_query.execution_time_ms != 0
+                success = yb_v2_query.execution_time_ms > 0
 
                 default_v1_equality = "[green]" \
                     if yb_v1_query.compare_plans(yb_v1_best.execution_plan) else "[red]"
@@ -246,22 +246,22 @@ class RegressionReport(AbstractReportAction):
                     best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_query.execution_plan) else ""
 
                 ratio_x3 = yb_v2_query.execution_time_ms / yb_v1_query.execution_time_ms \
-                    if yb_v1_query.execution_time_ms != 0 else 99999999
+                    if yb_v1_query.execution_time_ms > 0 else 99999999
                 ratio_x3_str = "{:.2f}".format(yb_v2_query.execution_time_ms / yb_v1_query.execution_time_ms
-                                               if yb_v2_query.execution_time_ms != 0 else 99999999)
+                                               if yb_v2_query.execution_time_ms > 0 else 99999999)
                 ratio_color = "[green]" if ratio_x3 <= 1.0 else "[red]"
 
                 if v2_has_optimizations:
                     ratio_best = yb_v2_best.execution_time_ms / yb_v1_best.execution_time_ms \
-                        if yb_v1_best.execution_time_ms != 0 and success else 99999999
+                        if yb_v1_best.execution_time_ms > 0 and success else 99999999
                     ratio_best_x3_str = "{:.2f}".format(yb_v2_best.execution_time_ms / yb_v1_best.execution_time_ms
-                                                        if yb_v1_best.execution_time_ms != 0 and success else 99999999)
+                                                        if yb_v1_best.execution_time_ms > 0 and success else 99999999)
                     ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
                 else:
                     ratio_best = yb_v2_query.execution_time_ms / yb_v1_best.execution_time_ms \
-                        if yb_v1_best.execution_time_ms != 0 and success else 99999999
+                        if yb_v1_best.execution_time_ms > 0 and success else 99999999
                     ratio_best_x3_str = "{:.2f}".format(yb_v2_query.execution_time_ms / yb_v1_best.execution_time_ms
-                                                        if yb_v1_best.execution_time_ms != 0 and success else 99999999)
+                                                        if yb_v1_best.execution_time_ms > 0 and success else 99999999)
                     ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
 
                 bitmap_flag = "[blue]" \
@@ -547,13 +547,13 @@ class RegressionReport(AbstractReportAction):
                 second_query: Query = query[1]
 
                 ratio = second_query.execution_time_ms / first_query.execution_time_ms \
-                    if first_query.execution_time_ms != 0 else 99999999
+                    if first_query.execution_time_ms > 0 else 99999999
                 ratio_color = eq_bad_format if ratio > 1.0 else eq_format
                 delta = second_query.execution_time_ms - first_query.execution_time_ms
 
                 v1_best_time = first_query.get_best_optimization(self.config).execution_time_ms
                 ratio_v2_vs_v1_best = second_query.execution_time_ms / v1_best_time \
-                    if v1_best_time != 0 else 99999999
+                    if v1_best_time > 0 else 99999999
                 ratio_v2_vs_v1_best_color = eq_bad_format \
                     if ratio_v2_vs_v1_best > 1.0 else eq_format
                 v2_vs_v1_best_delta = second_query.execution_time_ms - v1_best_time

@@ -52,8 +52,8 @@ class TaqoReport(AbstractReportAction):
         plt.xlabel('Execution time')
         plt.ylabel('Optimizer cost')
 
-        plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms != 0],
-                 [q.execution_plan.get_estimated_cost() for q in optimizations if q.execution_time_ms != 0], 'k.',
+        plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms > 0],
+                 [q.execution_plan.get_estimated_cost() for q in optimizations if q.execution_time_ms > 0], 'k.',
                  [query.execution_time_ms],
                  [query.execution_plan.get_estimated_cost()], 'r^',
                  [best_optimization.execution_time_ms],

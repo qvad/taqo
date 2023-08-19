@@ -234,9 +234,9 @@ class ScoreReport(AbstractReportAction):
             plt.xscale(scale)
             plt.yscale(scale)
 
-        plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms != 0],
+        plt.plot([q.execution_time_ms for q in optimizations if q.execution_time_ms > 0],
                  [q.execution_plan.get_estimated_cost() for q in optimizations if
-                  q.execution_time_ms != 0], 'k.',
+                  q.execution_time_ms > 0], 'k.',
                  [query.execution_time_ms],
                  [query.execution_plan.get_estimated_cost()], 'r^',
                  [best_optimization.execution_time_ms],
@@ -286,13 +286,13 @@ class ScoreReport(AbstractReportAction):
                 yb_best = yb_query.get_best_optimization(self.config)
                 pg_best = pg_query.get_best_optimization(self.config)
 
-                pg_success = pg_query.execution_time_ms != 0
+                pg_success = pg_query.execution_time_ms > 0
 
                 qe_bests_geo *= yb_best.execution_time_ms / pg_best.execution_time_ms if pg_success else 1
                 qo_yb_bests_geo *= (yb_query.execution_time_ms if yb_query.execution_time_ms > 0 else 1.0) / \
                                    (yb_best.execution_time_ms if yb_best.execution_time_ms > 0 else 1)
                 qo_pg_bests_geo *= pg_query.execution_time_ms / pg_best.execution_time_ms \
-                    if pg_best.execution_time_ms != 0 else 9999999
+                    if pg_best.execution_time_ms > 0 else 9999999
                 yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
                 pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best.execution_plan) else 0
                 timed_out += 1 if yb_query.execution_time_ms == -1 else 0
@@ -329,7 +329,7 @@ class ScoreReport(AbstractReportAction):
                 yb_best = yb_query.get_best_optimization(self.config)
                 pg_best = pg_query.get_best_optimization(self.config)
 
-                pg_success = pg_query.execution_time_ms != 0
+                pg_success = pg_query.execution_time_ms > 0
 
                 default_yb_equality = "[green]" if yb_query.compare_plans(yb_best.execution_plan) else "[red]"
                 default_pg_equality = "[green]" \
@@ -338,15 +338,15 @@ class ScoreReport(AbstractReportAction):
                 best_yb_pg_equality = "(eq) " if yb_best.compare_plans(pg_best.execution_plan) else ""
 
                 ratio_x3 = yb_query.execution_time_ms / (3 * pg_query.execution_time_ms) \
-                    if yb_best.execution_time_ms != 0 and pg_success else 99999999
+                    if yb_best.execution_time_ms > 0 and pg_success else 99999999
                 ratio_x3_str = "{:.2f}".format(yb_query.execution_time_ms / pg_query.execution_time_ms
-                                               if yb_best.execution_time_ms != 0 and pg_success else 99999999)
+                                               if yb_best.execution_time_ms > 0 and pg_success else 99999999)
                 ratio_color = "[green]" if ratio_x3 <= 1.0 else "[red]"
 
                 ratio_best = yb_best.execution_time_ms / (3 * pg_best.execution_time_ms) \
-                    if yb_best.execution_time_ms != 0 and pg_success else 99999999
+                    if yb_best.execution_time_ms > 0 and pg_success else 99999999
                 ratio_best_x3_str = "{:.2f}".format(yb_best.execution_time_ms / pg_best.execution_time_ms
-                                                    if yb_best.execution_time_ms != 0 and pg_success else 99999999)
+                                                    if yb_best.execution_time_ms > 0 and pg_success else 99999999)
                 ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
 
                 bitmap_flag = "[blue]" \
@@ -465,16 +465,16 @@ class ScoreReport(AbstractReportAction):
                 best_yb_pg_equality = yb_best.compare_plans(pg_best.execution_plan)
 
                 ratio_x3 = yb_query.execution_time_ms / (3 * pg_query.execution_time_ms) \
-                    if pg_query.execution_time_ms != 0 else 99999999
+                    if pg_query.execution_time_ms > 0 else 99999999
                 ratio_x3_str = "{:.2f}".format(yb_query.execution_time_ms / pg_query.execution_time_ms
-                                               if pg_query.execution_time_ms != 0 else 99999999)
+                                               if pg_query.execution_time_ms > 0 else 99999999)
                 ratio_color = ratio_x3 > 1.0
 
                 ratio_best = yb_best.execution_time_ms / (3 * pg_best.execution_time_ms) \
-                    if yb_best.execution_time_ms != 0 and pg_best.execution_time_ms != 0 else 99999999
+                    if yb_best.execution_time_ms > 0 and pg_best.execution_time_ms > 0 else 99999999
                 ratio_best_x3_str = "{:.2f}".format(
                     yb_best.execution_time_ms / pg_best.execution_time_ms
-                    if yb_best.execution_time_ms != 0 and pg_best.execution_time_ms != 0 else 99999999)
+                    if yb_best.execution_time_ms > 0 and pg_best.execution_time_ms > 0 else 99999999)
                 ratio_best_color = ratio_best > 1.0
 
                 bitmap_flag = pg_query.execution_plan and "bitmap" in pg_query.execution_plan.full_str.lower()
@@ -611,7 +611,7 @@ class ScoreReport(AbstractReportAction):
         default_yb_pg_equality = ""
 
         best_yb_pg_equality = ""
-        if pg_query and pg_query.execution_time_ms != 0:
+        if pg_query and pg_query.execution_time_ms > 0:
             self._start_table("5")
             self.report += "|Metric|YB|YB Best|PG|PG Best\n"
 
@@ -686,7 +686,7 @@ class ScoreReport(AbstractReportAction):
         self._start_table()
         self._start_table_row()
 
-        if pg_query and pg_query.execution_time_ms != 0:
+        if pg_query and pg_query.execution_time_ms > 0:
             bitmap_used = "(bm) " if "bitmap" in pg_query.execution_plan.full_str.lower() else ""
             self._start_collapsible(f"{bitmap_used}PG plan")
             self._start_source(["diff"])
