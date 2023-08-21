@@ -52,11 +52,11 @@ class Yugabyte(Postgres):
             subprocess.call(f'ls -la',
                             shell=True,
                             cwd=self.config.yugabyte_bin_path)
-            result = subprocess.check_output(f'yb-admin --master_addresses {self.config.connection.host}:7100 '
-                                             f'compact_table ysql.{self.config.connection.database} {table.name}',
-                                             stderr=subprocess.PIPE,
-                                             shell=True,
-                                             cwd=self.config.yugabyte_bin_path)
+            result = subprocess.call(f'yb-admin --master_addresses {self.config.connection.host}:7100 '
+                                     f'compact_table ysql.{self.config.connection.database} {table.name}',
+                                     stderr=subprocess.PIPE,
+                                     shell=True,
+                                     cwd=self.config.yugabyte_bin_path)
 
     def establish_connection_from_output(self, out: str):
         self.logger.info("Reinitializing connection based on cluster creation output")
