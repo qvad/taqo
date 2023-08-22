@@ -10,7 +10,7 @@ import psycopg2
 
 from config import Config
 from db.database import Database
-from objects import Query, FieldInTableHelper
+from objects import Query, FieldInTableHelper, QueryStats
 
 PARAMETER_VARIABLE = r"[^'](\%\((.*?)\))"
 WITH_ORDINALITY = r"[Ww][Ii][Tt][Hh]\s*[Oo][Rr][Dd][Ii][Nn][Aa][Ll][Ii][Tt][yY]\s*[Aa][Ss]\s*.*(.*)"
@@ -70,10 +70,15 @@ def calculate_avg_execution_time(cur,
     num_retries = max(num_retries, 2)
     num_warmup = config.num_warmup
     execution_plan_collected = False
+    stats_reset = False
 
     for iteration in range(num_retries + num_warmup):
         # noinspection PyUnresolvedReferences
         try:
+            if iteration >= num_warmup and not stats_reset:
+                evaluate_sql(cur, "SELECT pg_stat_statements_reset();")
+                stats_reset = True
+
             sut_database.prepare_query_execution(cur)
             start_time = current_milli_time()
             query.parameters = evaluate_sql(cur, query_str)
@@ -117,7 +122,29 @@ def calculate_avg_execution_time(cur,
 
     query.execution_time_ms = sum_execution_times / actual_evaluations
 
+    try_to_collect_query_stats(cur, query, query_str)
+
     return True
+
+
+def try_to_collect_query_stats(cur, query, query_str):
+    try:
+        evaluate_sql(cur, "select query, calls, total_time, min_time, max_time, mean_time, rows, yb_latency_histogram "
+                          f"from pg_stat_statements where query like '%{query_str}%';")
+        result = cur.fetchall()
+
+        query.query_stats = QueryStats(
+            calls=result[0][1],
+            total_time=result[0][2],
+            min_time=result[0][3],
+            max_time=result[0][4],
+            mean_time=result[0][5],
+            rows=result[0][6],
+            yb_latency_histogram=result[0][7],
+        )
+    except Exception:
+        # do nothing
+        pass
 
 
 def collect_execution_plan(cur,

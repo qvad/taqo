@@ -152,8 +152,8 @@ if __name__ == "__main__":
     parser.add_argument('--revision',
                         help='Git revision or path to release build')
     parser.add_argument('--ddls',
-                        default="database,create,analyze,import,drop",
-                        help='Model creation queries, comma separated: database,create,analyze,import,drop')
+                        default="database,create,analyze,import,compact,drop",
+                        help='Model creation queries, comma separated: database,create,analyze,import,compact,drop')
 
     parser.add_argument('--clean-db',
                         action=argparse.BooleanOptionalAction,

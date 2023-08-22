@@ -71,6 +71,28 @@ class QueryTips:
 
 
 @dataclasses.dataclass
+class QueryStats:
+    calls: int
+    total_time: float
+    min_time: float
+    max_time: float
+    mean_time: float
+    rows: int
+    yb_latency_histogram: str
+
+    def __str__(self):
+        return (
+            f"Calls: {self.calls}\n"
+            f"Total time: {self.total_time}\n"
+            f"Min time: {self.min_time}\n"
+            f"Max time: {self.max_time}\n"
+            f"Mean time: {self.mean_time}\n"
+            f"Rows: {self.rows}\n"
+            f"Latency JSON: {self.yb_latency_histogram}"
+        )
+
+
+@dataclasses.dataclass
 class Query:
     tag: str = ""
     query: str = ""
@@ -87,6 +109,7 @@ class Query:
     execution_time_ms: float = 0
     result_cardinality: int = 0
     result_hash: str = None
+    query_stats: QueryStats = None
 
     parameters: List = None
 
@@ -236,8 +259,10 @@ class ScanNode(PlanNode):
                 and not self.get_local_filter()
                 and not self.get_rows_removed_by_recheck())
 
+
 class PlanNodeVisitor:
     pat = re.compile(r'([A-Z][a-z0-9]*)([A-Z])')
+
     def visit(self, node):
         snake_cased_class_name = self.pat.sub(r'\1_\2', node.__class__.__name__).lower()
         method = f'visit_{snake_cased_class_name}'
@@ -259,12 +284,12 @@ class PlanPrinter(PlanNodeVisitor):
         self.level = level
 
     def visit(self, node):
-        self.plan_tree_str += f"{'':>{node.level*2}s}->  " if node.level else ''
+        self.plan_tree_str += f"{'':>{node.level * 2}s}->  " if node.level else ''
         self.plan_tree_str += node.get_full_str(self.estimate, self.actual,
                                                 properties=False, level=self.level)
         if self.properties:
             self.plan_tree_str += ''.join([
-                f"\n{'':>{node.level*2}s}  {key}: {value}"
+                f"\n{'':>{node.level * 2}s}  {key}: {value}"
                 for key, value in node.properties.items()])
         self.plan_tree_str += '\n'
         self.generic_visit(node)

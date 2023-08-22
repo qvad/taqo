@@ -37,7 +37,8 @@ class DDLStep(Enum):
     CREATE = 1
     ANALYZE = 2
     IMPORT = 3
-    DROP = 4
+    COMPACT = 4
+    DROP = 5
 
 
 @dataclasses.dataclass
