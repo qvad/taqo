@@ -32,6 +32,7 @@ class CollectResult:
             None,
         )
 
+
 class EnhancedJSONEncoder(json.JSONEncoder):
     def default(self, o):
         if dataclasses.is_dataclass(o):

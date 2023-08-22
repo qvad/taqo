@@ -106,6 +106,9 @@ class CollectAction:
                         '\n'.join(str(item[0]) for item in cur.fetchall()))
                     conn.rollback()
 
+                    # store default execution plan if query execution will fail
+                    original_query.execution_plan = default_execution_plan
+
                     # get costs off execution plan
                     self.sut_database.prepare_query_execution(cur)
                     evaluate_sql(cur, original_query.get_explain(EXPLAIN, [ExplainFlags.COSTS_OFF]))
@@ -116,7 +119,6 @@ class CollectAction:
                     self.define_min_execution_time(conn, cur, original_query)
 
                     if self.config.plans_only:
-                        original_query.execution_plan = default_execution_plan
                         original_query.execution_time_ms = default_execution_plan.get_estimated_cost()
                     else:
                         query_str = original_query.get_explain(EXPLAIN, options=[ExplainFlags.ANALYZE]) \
