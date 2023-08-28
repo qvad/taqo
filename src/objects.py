@@ -2,6 +2,7 @@ import dataclasses
 from enum import Enum
 import re
 
+from collections.abc import Iterable, Mapping
 from typing import List, Dict, Type
 
 from config import Config
@@ -131,12 +132,12 @@ class Optimization(Query):
 
 class PlanNode:
     def __init__(self, accessor: PlanNodeAccessor, node_type):
-        self.acc = accessor
+        self.acc: PlanNodeAccessor = accessor
         self.node_type: str = node_type
         self.level: int = 0
         self.name: str = None
-        self.properties = {}
-        self.child_nodes: List[PlanNode] = []
+        self.properties: Mapping[str: str] = dict()
+        self.child_nodes: Iterable[PlanNode] = list()
 
         self.startup_cost: float = 0.0
         self.total_cost: float = 0.0
@@ -152,7 +153,7 @@ class PlanNode:
         pass  # todo
 
     def __str__(self):
-        return f'{self.level}:{self.node_type}'
+        return self.name
 
     def get_full_str(self, estimate=True, actual=True, properties=False, level=False):
         return ''.join([
@@ -174,9 +175,13 @@ class PlanNode:
     def has_valid_cost(self):
         return self.acc.has_valid_cost(self)
 
+    # return False on success
+    def fixup_invalid_cost(self):
+        return self.acc.fixup_invalid_cost(self)
+
     def get_property(self, key, with_label=False):
-        value = self.properties.get(key)
-        return value if not with_label else f'{key}: {value}' if value else ''
+        value = self.properties.get(key, '')
+        return (f'{key}: {value}' if with_label else value) if value else ''
 
     def get_actual_row_adjusted_cost(self):
         return ((float(self.total_cost) - float(self.startup_cost))
@@ -198,9 +203,11 @@ class ScanNode(PlanNode):
         self.is_any_index_scan = self.is_index_scan or self.is_index_only_scan
 
     def __str__(self):
-        s = f'{self.level}:{self.node_type}: '
-        s += f'table={self.table_name} alias={self.table_alias} index={self.index_name}'
-        return s
+        return '  '.join(filter(lambda s: s,
+                                [self.name,
+                                 self.get_search_condition_str(with_label=True),
+                                 ('Partial Aggregate'
+                                  if self.is_scan_with_partial_aggregate() else '')]))
 
     def get_search_condition_str(self, with_label=False):
         return ('  ' if with_label else ' AND ').join(
@@ -236,8 +243,25 @@ class ScanNode(PlanNode):
                 and not self.get_local_filter()
                 and not self.get_rows_removed_by_recheck())
 
+    def is_scan_with_partial_aggregate(self):
+        return self.acc.is_scan_with_partial_aggregate(self)
+
+
+class JoinNode(PlanNode):
+    pass
+
+
+class AggregateNode(PlanNode):
+    pass
+
+
+class SortNode(PlanNode):
+    pass
+
+
 class PlanNodeVisitor:
     pat = re.compile(r'([A-Z][a-z0-9]*)([A-Z])')
+
     def visit(self, node):
         snake_cased_class_name = self.pat.sub(r'\1_\2', node.__class__.__name__).lower()
         method = f'visit_{snake_cased_class_name}'
@@ -258,7 +282,7 @@ class PlanPrinter(PlanNodeVisitor):
         self.properties = properties
         self.level = level
 
-    def visit(self, node):
+    def generic_visit(self, node):
         self.plan_tree_str += f"{'':>{node.level*2}s}->  " if node.level else ''
         self.plan_tree_str += node.get_full_str(self.estimate, self.actual,
                                                 properties=False, level=self.level)
@@ -267,7 +291,7 @@ class PlanPrinter(PlanNodeVisitor):
                 f"\n{'':>{node.level*2}s}  {key}: {value}"
                 for key, value in node.properties.items()])
         self.plan_tree_str += '\n'
-        self.generic_visit(node)
+        super().generic_visit(node)
 
     @staticmethod
     def build_plan_tree_str(node, estimate=True, actual=True, properties=False, level=False):

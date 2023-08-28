@@ -175,7 +175,7 @@ class SQLModel(QTFModel):
                 created_tables.append(table)
 
             table.fields.append(Field(name=cname, position=cpos,
-                                      is_index=(inames != None),
+                                      is_index=bool(inames),
                                       indexes=inames,
                                       defined_width=clen))
 

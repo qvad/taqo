@@ -10,7 +10,8 @@ from allpairspy import AllPairs
 
 from collect import CollectResult, ResultsLoader
 from config import Config, ConnectionConfig, DDLStep
-from objects import Query, ExecutionPlan, ListOfOptimizations, Table, Optimization, PlanNode, ScanNode, ExplainFlags
+from objects import Query, ExecutionPlan, ListOfOptimizations, Table, Optimization, ExplainFlags
+from objects import AggregateNode, JoinNode, SortNode, PlanNode, ScanNode
 from db.abstract import PlanNodeAccessor
 from db.database import Database
 from utils import evaluate_sql, allowed_diff, parse_clear_and_parametrized_sql
@@ -44,22 +45,22 @@ PLAN_PEAK_MEMORY = r"\nPeak memory:\s(\d+)"
 PLAN_TREE_CLEANUP = r"\n\s*->\s*|\n\s*"
 
 plan_node_header_pattern = re.compile(''.join([
-    '(?P<name>\S+(?:\s+\S+)*)',
-    '\s+',
-    '\(cost=(?P<sc>\d+\.\d*)\.\.(?P<tc>\d+\.\d*)\s+rows=(?P<prows>\d+)\s+width=(?P<width>\d+)\)',
-    '\s+',
-    '\((?:(?:actual time=(?P<st>\d+\.\d*)\.\.(?P<tt>\d+\.\d*) +rows=(?P<rows>\d+)',
-    ' +loops=(?P<loops>\d+))|(?:(?P<never>never executed)))\)',
+    r'(?P<name>\S+(?:\s+\S+)*)',
+    r'\s+',
+    r'\(cost=(?P<sc>\d+\.\d*)\.\.(?P<tc>\d+\.\d*)\s+rows=(?P<prows>\d+)\s+width=(?P<width>\d+)\)',
+    r'\s+',
+    r'\((?:(?:actual time=(?P<st>\d+\.\d*)\.\.(?P<tt>\d+\.\d*) +rows=(?P<rows>\d+)',
+    r' +loops=(?P<loops>\d+))|(?:(?P<never>never executed)))\)',
 ]))
 
 node_name_decomposition_pattern = re.compile(''.join([
-    '(?P<type>\S+(?:\s+\S+)* Scan)(?P<backward>\s+Backward)*(?: using (?P<index>\S+))*'
-    ' on (?:(?P<schema>\S+)\.)*(?P<table>\S+)(?: (?P<alias>\S+))*']))
+    r'(?P<type>\S+(?:\s+\S+)* Scan)(?P<backward>\s+Backward)*(?: using (?P<index>\S+))*'
+    r' on (?:(?P<schema>\S+)\.)*(?P<table>\S+)(?: (?P<alias>\S+))*']))
 
 hash_property_decomposition_pattern = re.compile(''.join([
-    'Buckets: (?P<buckets>\d+)(?: originally (?P<orig_buckets>\d+))*  ',
-    'Batches: (?P<batches>\d+)(?: originally (?P<orig_batches>\d+))*  ',
-    'Memory Usage: (?P<peak_mem>\d+)kB',
+    r'Buckets: (?P<buckets>\d+)(?: originally (?P<orig_buckets>\d+))*  ',
+    r'Batches: (?P<batches>\d+)(?: originally (?P<orig_batches>\d+))*  ',
+    r'Memory Usage: (?P<peak_mem>\d+)kB',
 ]))
 
 PG_DISABLE_COST = 10000000000.00
@@ -358,8 +359,22 @@ class PostgresOptimization(PostgresQuery, Optimization):
 
 class PostgresPlanNodeAccessor(PlanNodeAccessor):
     @staticmethod
-    def has_valid_cost(self):
-        return float(self.total_cost) < PG_DISABLE_COST
+    def has_valid_cost(node):
+        return float(node.total_cost) < PG_DISABLE_COST
+
+    @staticmethod
+    def fixup_invalid_cost(node):
+        from sys import float_info
+        from math import log
+        scost = float(node.startup_cost)
+        tcost = float(node.total_cost)
+        if ((scost > 0 and log(scost, 10) >= float_info.mant_dig - 1)
+                or (tcost > 0 and log(tcost, 10) >= float_info.mant_dig - 1)):
+            return True
+
+        node.startup_cost = round(scost % PG_DISABLE_COST, 3)
+        node.total_cost = round(tcost % PG_DISABLE_COST, 3)
+        return False
 
     @staticmethod
     def is_seq_scan(node):
@@ -399,8 +414,13 @@ class PostgresPlanNodeAccessor(PlanNodeAccessor):
 
     @staticmethod
     def get_rows_removed_by_recheck(node, with_label=False):
-        return (node.get_property('Rows Removed by Index Recheck', with_label)
-                or node.get_property('Rows Removed by Recheck', with_label))
+        return int(node.get_property('Rows Removed by Index Recheck', with_label)
+                   or node.get_property('Rows Removed by Recheck', with_label)
+                   or 0)
+
+    @staticmethod
+    def is_scan_with_partial_aggregate(node):
+        return bool(node.get_property('Partial Aggregate'))
 
 
 @dataclasses.dataclass
@@ -412,14 +432,26 @@ class PostgresExecutionPlan(ExecutionPlan):
         if match := node_name_decomposition_pattern.search(node_name):
             node_type = match.group('type')
             index_name = match.group('index')
-            is_backward = match.group('backward') != None
+            is_backward = match.group('backward') is not None
             table_name = match.group('table')
             table_alias = match.group('alias')
         else:
             node_type = node_name
-        return (ScanNode(self.__node_accessor, node_type, table_name, table_alias,
-                         index_name, is_backward)
-                if table_name else PlanNode(self.__node_accessor, node_type))
+
+        if table_name:
+            return ScanNode(self.__node_accessor, node_type, table_name, table_alias,
+                            index_name, is_backward)
+
+        if 'Join' in node_type or 'Nested Loop' in node_type:
+            return JoinNode(self.__node_accessor, node_type)
+
+        if 'Aggregate' in node_type or 'Group' in node_type:
+            return AggregateNode(self.__node_accessor, node_type)
+
+        if 'Sort' in node_type:
+            return SortNode(self.__node_accessor, node_type)
+
+        return PlanNode(self.__node_accessor, node_type)
 
     def parse_plan(self):
         node = None
@@ -435,7 +467,8 @@ class PostgresExecutionPlan(ExecutionPlan):
             # it at each '->'.
             prev_level = int((indent + 4) / 6)
 
-            node_props = node_str[:node_end].splitlines()
+            node_props = (node_str[:node_end].splitlines() if node_str.endswith('\n')
+                          else node_str.splitlines())
 
             if not node_props:
                 break

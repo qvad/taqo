@@ -7,6 +7,11 @@ class PlanNodeAccessor(ABC):
     def has_valid_cost(node):
         pass
 
+    @staticmethod
+    @abstractmethod
+    def fixup_invalid_cost(node):
+        pass
+
     # ScanNode methods
 
     @staticmethod
@@ -53,4 +58,9 @@ class PlanNodeAccessor(ABC):
     @staticmethod
     @abstractmethod
     def get_rows_removed_by_recheck(node, with_label=False):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def is_scan_with_partial_aggregate(node):
         pass
