@@ -7,6 +7,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from itertools import chain
 from operator import attrgetter
+from textwrap import wrap
 
 from matplotlib import pyplot as plt
 from matplotlib import rcParams
@@ -18,12 +19,34 @@ from actions.report import AbstractReportAction
 
 
 REPORT_DESCRIPTION = (
+    '== X-Time-Cost Chartset\n'
+    '\n<<Scan Node x-time-cost chartset>>\n'
     '\n* Each chartset consists of three charts: (x, y) = (cost, exec time), (x-metric, exec time)'
     ' and (x-metric, cost) where `x-metric` is the metric of interest that affects the execution'
     ' time such as node input-output row count ratio, node output data size, etc.'
     '\n\n* The costs are adjusted by the actual row count using the following formula'
     ' unless noted otherwise.'
     '\n\n    (total_cost - startup_cost) * actual_rows / estimated_rows + startup_cost'
+    '\n\n'
+    '== Boxplot Chart\n'
+    '\n<<Scan Node distribution charts>>\n'
+    '\n```\n'
+    '     Q1-1.5IQR   Q1   median  Q3   Q3+1.5IQR\n'
+    '     (or min)     |-----:-----|    (or max)\n'
+    '  o      |--------|     :     |--------|    o  o\n'
+    '                  |-----:-----|\n'
+    'flier             <----------->            fliers\n'
+    '                       IQR\n'
+    '  median: orange solid line\n'
+    '  mean: green dashed line\n'
+    '```\n'
+    '\n* Each box represents the inter-quartile range: [Q1 .. Q3] (+/- 25% from the median).\n'
+    '\n* The red line in the box is the mean.\n'
+    '\n* The whiskers extending from the box represent 1.5 x the inter-quantile range.\n'
+    '\n* The bubbles beyond the whiskers represent fliers (outliers).\n'
+    '\n* References:\n'
+    '\n  ** https://en.wikipedia.org/wiki/Box_plot\n'
+    '\n  ** http://vita.had.co.nz/papers/boxplots.pdf\n'
     '\n'
 )
 
@@ -46,12 +69,15 @@ class ChartOptions:
     log_scale_cost: bool = False
     log_scale_time: bool = False
 
+    bp_show_fliers: bool = True  # boxplot only
+
     def __str__(self):
         return ','.join(filter(lambda a: getattr(self, a), self.__dict__.keys()))
 
 
 @dataclass
 class ChartSpec:
+    plotter: Callable[['ChartSpec'], bool]
     title: str
     description: str
     xlabel: str
@@ -67,6 +93,8 @@ class ChartSpec:
     queries: set[str] = field(default_factory=set)
     series_data: Mapping[str: Iterable[DataPoint]] = field(default_factory=dict)
     series_format: Mapping[str: str] = field(default_factory=dict)
+    outliers: Mapping[str: Iterable[DataPoint]] = field(default_factory=dict)
+    outlier_axis: str = 'cost'
 
     def test_node(self, query_str, node):
         return self.query_filter(query_str) and self.node_filter(node)
@@ -403,10 +431,12 @@ class CostReport(AbstractReportAction):
             report.logger.warn(f"Plans with invalid costs: {report.num_invalid_cost_plans}"
                                f", fixed: {report.num_invalid_cost_plans_fixed}")
 
-        report.collect_nodes_and_create_plots(chart_specs)
-
-        if not interactive:
-            report.build_report(chart_specs)
+        if interactive:
+            report.collect_nodes_and_create_plots(chart_specs)
+        else:
+            dist_chart_specs = report.get_dist_chart_specs()
+            report.collect_nodes_and_create_plots(chart_specs + dist_chart_specs)
+            report.build_report(chart_specs, dist_chart_specs)
             report.publish_report("cost")
 
     def get_report_name(self):
@@ -509,6 +539,37 @@ class CostReport(AbstractReportAction):
         self._end_source()
         self._end_collapsible()
 
+    def report_outliers(self, outliers, axis_label, data_labels):
+        if not outliers:
+            return
+        num_dp = sum([len(cond) for key, cond in outliers.items()])
+        self._start_collapsible(
+            f"#Extreme {axis_label} outliers excluded from the plots ({num_dp})#", sep="=====")
+        self.report += "'''\n"
+        table_header = '|'.join(data_labels)
+        table_header += '\n'
+        for series_label, data_points in sorted(outliers.items()):
+            self._start_collapsible(f"`{series_label}` ({len(data_points)})")
+            self._start_table('<1m,2*^1m,2*5a')
+            self._start_table_row()
+            self.report += table_header
+            self._end_table_row()
+            for x, cost, time_ms, node in data_points:
+                self.report += f">|{x:.3f}\n>|{time_ms:.3f}\n>|{cost:.3f}\n|\n"
+                self._start_source(["sql"], linenums=False)
+                self.report += str(node)
+                self._end_source()
+                self.report += "|\n"
+                self._start_source(["sql"], linenums=False)
+                self.report += self.get_node_query(node).query
+                self._end_source()
+
+            self._end_table()
+            self._end_collapsible()
+
+        self.report += "'''\n"
+        self._end_collapsible(sep="=====")
+
     def report_plot_data(self, plot_data, data_labels):
         num_dp = sum([len(cond) for key, cond in plot_data.items()])
         self._start_collapsible(f"Plot data ({num_dp})", sep="=====")
@@ -518,13 +579,13 @@ class CostReport(AbstractReportAction):
             table_header += '\n'
             for series_label, data_points in sorted(plot_data.items()):
                 self._start_collapsible(f"`{series_label}` ({len(data_points)})")
-                self._start_table('3*1m,7a')
+                self._start_table('<1m,2*^1m,8a')
                 self._start_table_row()
                 self.report += table_header
                 self._end_table_row()
                 for x, cost, time_ms, node in sorted(data_points,
                                                      key=attrgetter('x', 'time_ms', 'cost')):
-                    self.report += f"|{x:.3f}\n|{time_ms:.3f}\n|{cost:.3f}\n|\n"
+                    self.report += f">|{x:.3f}\n>|{time_ms:.3f}\n>|{cost:.3f}\n|\n"
                     self._start_source(["sql"], linenums=False)
                     self.report += str(node)
                     self._end_source()
@@ -535,22 +596,67 @@ class CostReport(AbstractReportAction):
         self.report += "'''\n"
         self._end_collapsible(sep="=====")
 
-    def build_report(self, chart_specs):
-        self.report += "\n== Description\n"
+    def report_stats(self, spec: ChartSpec):
+        self._start_table('3,8*^1m')
+        self.report += f'|{html.escape(spec.ylabel1)}'
+        self.report += '|p0 (min)'
+        self.report += '|p25 (Q1)'
+        self.report += '|p50{nbsp}(median)'
+        self.report += '|mean'
+        self.report += '|p75 (Q3)'
+        self.report += '|p100 (max)'
+        self.report += '|IQR (Q3-Q1)'
+        self.report += '|SD\n\n'
+
+        for series_label, data_points in sorted(spec.series_data.items()):
+            transposed_data = np.split(np.array(data_points).transpose(), len(DataPoint._fields))
+            xdata = transposed_data[0][0]
+            ptile = np.percentile(xdata, [0, 25, 50, 75, 100])
+            self.report += f'|{series_label}\n'
+            self.report += f'>|{ptile[0]:.3f}\n'
+            self.report += f'>|{ptile[1]:.3f}\n'
+            self.report += f'>|{ptile[2]:.3f}\n'
+            self.report += f'>|{np.mean(xdata):.3f}\n'
+            self.report += f'>|{ptile[3]:.3f}\n'
+            self.report += f'>|{ptile[4]:.3f}\n'
+            self.report += f'>|{ptile[3]-ptile[1]:.3f}\n'
+            self.report += f'>|{np.std(xdata):.3f}\n'
+
+        self._end_table()
+
+    def report_chart(self, spec: ChartSpec):
+        self._start_table()
+        self.add_image(spec.file_name, '{title},align=\"center\"')
+        self._end_table()
+        if spec.plotter == self.draw_boxplot:
+            self.report_stats(spec)
+
+        self.report_chart_filters(spec)
+        self.report_queries(spec.queries)
+        self.report_outliers(spec.outliers, spec.outlier_axis,
+                             [f'{html.escape(spec.xlabel)}',
+                              'time_ms', 'cost', 'node', 'queries'])
+        self.report_plot_data(spec.series_data, [f'{html.escape(spec.xlabel)}',
+                                                 'time_ms', 'cost', 'node'])
+
+    def build_report(self, chart_specs, dist_chart_specs):
         self.report += REPORT_DESCRIPTION
         self.report += "\n== Scan Nodes\n"
+        id = 0
 
-        for i, spec in enumerate(chart_specs):
-            self.report += f"=== {i}. {html.escape(spec.title)}\n"
-            self.report += f"{spec.description}\n"
-            self._start_table()
-            self.add_image(spec.file_name, '{title},align=\"center\"')
-            self._end_table()
+        def report_one_chart(self, id, spec):
+            self.report += f"=== {id}. {html.escape(spec.title)}\n{spec.description}\n"
+            self.report_chart(spec)
 
-            self.report_chart_filters(spec)
-            self.report_queries(spec.queries)
-            self.report_plot_data(spec.series_data, [f'{html.escape(spec.xlabel)}',
-                                                     'time_ms', 'cost', 'node'])
+        self.report += "\n=== Scan Node x-time-cost chartset\n"
+        for spec in chart_specs:
+            report_one_chart(self, id, spec)
+            id += 1
+
+        self.report += "\n=== Scan Node distribution charts\n"
+        for spec in dist_chart_specs:
+            report_one_chart(self, id, spec)
+            id += 1
 
     __spcrs = " !\"#$%&'()*+,./:;<=>?[\\]^`{|}~"
     __xtab = str.maketrans(" !\"#$%&'()*+,./:;<=>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^`{|}~",
@@ -590,6 +696,20 @@ class CostReport(AbstractReportAction):
         for series_label, data_points in sorted(spec.series_data.items()):
             data_points.sort(key=attrgetter('x', 'time_ms', 'cost'))
             transposed_data = np.split(np.array(data_points).transpose(), len(DataPoint._fields))
+            costs = transposed_data[1][0]
+            if (iqr := np.subtract(*np.percentile(costs, [75, 25]))) > 0:
+                indices = np.nonzero(costs > (np.percentile(costs, [75]) + 3 * iqr))[0]
+                outliers = list()
+                for ix in reversed(indices):
+                    outliers.append(data_points[ix])
+                    del data_points[ix]
+
+                if outliers:
+                    outliers.sort(key=attrgetter('cost', 'x', 'time_ms'), reverse=True)
+                    spec.outliers[series_label] = outliers
+                    transposed_data = np.split(np.array(data_points).transpose(),
+                                               len(DataPoint._fields))
+
             for i in range(len(chart_ix)):
                 x, y = chart_ix[i]
                 ax = axs[i]
@@ -620,6 +740,61 @@ class CostReport(AbstractReportAction):
                 axs[-1].legend(fontsize='xx-small',
                                ncols=int((len(spec.series_data.keys())+39)/40.0))
 
+            spec.file_name = self.make_file_name([title, xlabel])
+            plt.savefig(self.get_image_path(spec.file_name),
+                        dpi=50 if spec.series_data else 300)
+
+        plt.close()
+
+    def draw_boxplot(self, spec):
+        title = spec.title
+        xlabel = spec.xlabel
+        ylabel = spec.ylabel1
+
+        rcParams['font.family'] = 'serif'
+        rcParams['font.size'] = 10
+
+        fig, ax = plt.subplots(1, figsize=(12, 3), layout='constrained')
+
+        ax.set_title(title, fontsize='large')
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        if not spec.series_data:
+            ax.text(0.5, 0.5, "NO DATA", size=50, family='sans serif', rotation=30.,
+                    ha="center", va="center", alpha=0.4)
+
+        data = list()
+        labels = list()
+        for series_label, data_points in sorted(spec.series_data.items()):
+            transposed_data = np.split(np.array(data_points).transpose(), len(DataPoint._fields))
+            xdata = transposed_data[0][0]
+            if (iqr := np.subtract(*np.percentile(xdata, [75, 25]))) > 0:
+                indices = np.nonzero(xdata > (np.percentile(xdata, [75]) + 3 * iqr))[0]
+                outliers = list()
+                for ix in reversed(indices):
+                    outliers.append(data_points[ix])
+                    del data_points[ix]
+
+                if outliers:
+                    spec.outlier_axis = "x-axis value"
+                    outliers.sort(key=attrgetter('x', 'time_ms', 'cost'), reverse=True)
+                    spec.outliers[series_label] = outliers
+                    xdata = np.delete(xdata, indices, axis=0)
+
+            data.append(xdata)
+            labels.append(series_label)
+
+        ax.boxplot(data, labels=labels, vert=False, meanline=True, showmeans=True,
+                   sym=None if spec.options.bp_show_fliers else '')
+
+        ax.xaxis.grid(True)
+
+        if spec.options.log_scale_x:
+            ax.set_xscale('log')
+
+        if self.interactive:
+            self.show_charts_and_handle_events(spec, fig, [ax])
+        else:
             spec.file_name = self.make_file_name([title, xlabel])
             plt.savefig(self.get_image_path(spec.file_name),
                         dpi=50 if spec.series_data else 300)
@@ -692,7 +867,7 @@ class CostReport(AbstractReportAction):
                 fmt += line_style[(i+5) % len(line_style)]
                 spec.series_format[series_label] = fmt
 
-            self.draw_x_cost_time_plot(spec)
+            spec.plotter(spec)
 
     def choose_chart_spec(self, chart_specs):
         choices = '\n'.join([f'{n}: {s.title}' for n, s in enumerate(chart_specs)])
@@ -750,7 +925,9 @@ class CostReport(AbstractReportAction):
                 ann.set_text(f'{query.query_hash}\n{query.query}')
             else:
                 ann.set_text('\n'.join([
-                    series, str(node), node.get_estimate_str(), node.get_actual_str()]))
+                    series,
+                    *wrap(str(node)),
+                    node.get_estimate_str(), node.get_actual_str()]))
 
             ann.xy = event.artist.get_xydata()[event.ind][0]
             ann.xyann = ((event.axx - 0.5)*(-200) - 120, (event.axy - 0.5)*(-200) + 40)
@@ -800,6 +977,14 @@ class CostReport(AbstractReportAction):
     def get_node_width(self, node):
         return (0 if self.is_no_project_query(self.get_node_query(node).query)
                 else int(self.node_detail_map[id(node)].node_width))
+
+    def get_per_row_cost(self, node):
+        return ((float(node.total_cost) - float(node.startup_cost))
+                / (float(node.plan_rows) if float(node.plan_rows) else 1))
+
+    def get_per_row_time(self, node):
+        return ((float(node.total_ms) - float(node.startup_ms))
+                / (float(node.rows) if float(node.rows) else 1))
 
     def get_actual_node_selectivity(self, node):
         table_rows = float(self.get_node_table_rows(node))
@@ -867,9 +1052,106 @@ class CostReport(AbstractReportAction):
                 and (not parameterized
                      or parameterized == (index_cond.find('$', eq_any_start, eq_any_end) > 0)))
 
+    def get_dist_chart_specs(self):
+        return [
+            ChartSpec(
+                self.draw_boxplot,
+                'Per row cost/time ratio of the scan nodes (width=0, rows>=1)',
+                ('  ((total_cost - startup_cost) / estimated_rows)'
+                 ' / ((total_time - startup_time) / actual_rows)\n'
+                 '\n* Nodes with local filter, recheck-removed-rows or partial aggregate'
+                 ' are _excluded_\n'),
+                'Per row cost/time ratio [1/ms]', 'Node type', '',
+                lambda query: True,
+                lambda node: (float(node.nloops) == 1
+                              and float(node.rows) >= 1
+                              and self.get_node_width(node) == 0
+                              and not node.get_local_filter()
+                              and not node.get_rows_removed_by_recheck()
+                              and not node.is_scan_with_partial_aggregate()),
+                x_getter=lambda node: self.get_per_row_cost(node) / self.get_per_row_time(node),
+            ),
+            ChartSpec(
+                self.draw_boxplot,
+                'Per row time of the scan nodes (width=0, rows>=1)',
+                ('* Nodes with local filter, recheck-removed-rows or partial aggregate'
+                 ' are _excluded_\n'),
+                'Per row execution time[ms]', 'Node type', '',
+                lambda query: True,
+                lambda node: (float(node.nloops) == 1
+                              and float(node.rows) >= 1
+                              and self.get_node_width(node) == 0
+                              and not node.get_local_filter()
+                              and not node.get_rows_removed_by_recheck()
+                              and not node.is_scan_with_partial_aggregate()),
+                x_getter=lambda node: self.get_per_row_time(node),
+            ),
+            ChartSpec(
+                self.draw_boxplot,
+                'Per row cost of the scan nodes (width=0, rows>=1)',
+                ('* Nodes with local filter, recheck-removed-rows or partial aggregate'
+                 ' are _excluded_\n'),
+                'Per row cost', 'Node type', '',
+                lambda query: True,
+                lambda node: (float(node.nloops) == 1
+                              and float(node.rows) >= 1
+                              and self.get_node_width(node) == 0
+                              and not node.get_local_filter()
+                              and not node.get_rows_removed_by_recheck()
+                              and not node.is_scan_with_partial_aggregate()),
+                x_getter=lambda node: self.get_per_row_cost(node),
+            ),
+            ChartSpec(
+                self.draw_boxplot,
+                'Startup cost/time ratio of the scan nodes (width=0)',
+                ('  startup_cost / startup_time\n'
+                 '* Nodes with local filter, recheck-removed-rows or partial aggregate'
+                 ' are _excluded_\n'),
+                'Startup cost/time ratio [1/ms]', 'Node type', '',
+                lambda query: True,
+                lambda node: (float(node.nloops) == 1
+                              and self.get_node_width(node) == 0
+                              and not node.get_local_filter()
+                              and not node.get_rows_removed_by_recheck()
+                              and not node.is_scan_with_partial_aggregate()),
+                x_getter=lambda node: (float(node.startup_cost)
+                                       / (float(node.startup_ms)
+                                          if float(node.startup_ms) else 0.001)),
+            ),
+            ChartSpec(
+                self.draw_boxplot,
+                'Startup time of the scan nodes (width=0)',
+                ('* Nodes with local filter, recheck-removed-rows or partial aggregate'
+                 ' are _excluded_\n'),
+                'Startup time [ms]', 'Node type', '',
+                lambda query: True,
+                lambda node: (float(node.nloops) == 1
+                              and self.get_node_width(node) == 0
+                              and not node.get_local_filter()
+                              and not node.get_rows_removed_by_recheck()
+                              and not node.is_scan_with_partial_aggregate()),
+                x_getter=lambda node: float(node.startup_ms),
+            ),
+            ChartSpec(
+                self.draw_boxplot,
+                'Startup cost of the scan nodes (width=0)',
+                ('* Nodes with local filter, recheck-removed-rows or partial aggregate'
+                 ' are _excluded_\n'),
+                'Startup cost', 'Node type', '',
+                lambda query: True,
+                lambda node: (float(node.nloops) == 1
+                              and self.get_node_width(node) == 0
+                              and not node.get_local_filter()
+                              and not node.get_rows_removed_by_recheck()
+                              and not node.is_scan_with_partial_aggregate()),
+                x_getter=lambda node: float(node.startup_cost),
+            ),
+        ]
+
     def get_chart_specs(self):
         return [
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 ('Simple index access conditions and corresponding seq scans by node type'
                  ' (t100000 and t100000w)'),
                 ('Index (Only) Scans with simple index access condition on single key item'
@@ -893,6 +1175,7 @@ class CostReport(AbstractReportAction):
                                      f'{node.table_name}:width={self.get_node_width(node)}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 ('Simple index scans and seq scans, series by index'
                  ' (t100000)'),
                 ('Index (Only) Scans with simple index access condition on single key item'
@@ -917,6 +1200,7 @@ class CostReport(AbstractReportAction):
                                      f'width={self.get_node_width(node)}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 ('Simple index scans and seq scans, series by index'
                  ' (t100000w)'),
                 ('Index (Only) Scans with simple index access condition on single key item'
@@ -941,6 +1225,7 @@ class CostReport(AbstractReportAction):
                                      f'width={self.get_node_width(node)}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 ('Simple index scans and seq scans, series by index'
                  ' (t10000)'),
                 ('Index (Only) Scans with simple index access condition on single key item'
@@ -965,6 +1250,7 @@ class CostReport(AbstractReportAction):
                                      f'width={self.get_node_width(node)}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 ('Simple index scans and seq scans, series by index'
                  ' (t1000)'),
                 ('Index (Only) Scans with simple index access condition on single key item'
@@ -989,6 +1275,7 @@ class CostReport(AbstractReportAction):
                                      f'width={self.get_node_width(node)}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 ('Simple index scans and seq scans, series by index'
                  ' (t100)'),
                 ('Index (Only) Scans with simple index access condition on single key item'
@@ -1013,6 +1300,7 @@ class CostReport(AbstractReportAction):
                                      f'width={self.get_node_width(node)}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 'Index scan nodes with literal IN-list',
                 ("Index (Only) Scans with literal IN-list in the index access condition."),
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
@@ -1025,6 +1313,7 @@ class CostReport(AbstractReportAction):
                                      f'{node.index_name}:width={self.get_node_width(node)}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 'Index scan nodes with literal IN-list (output <= 200 rows)',
                 ("Index (Only) Scans with literal IN-list in the index access condition."
                  "\n\n  * The series are grouped by node_width and the number of IN-list items"),
@@ -1041,6 +1330,7 @@ class CostReport(AbstractReportAction):
                                      f' IN={self.count_literal_inlist_items(node.get_index_cond())}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 'Parameterized IN-list index scans (BNL)',
                 ("Index (Only) Scans with BNL-generaed parameterized IN-list, plus the Seq Scans"
                  " from the same queries."),
@@ -1055,6 +1345,7 @@ class CostReport(AbstractReportAction):
                                      f'{self.get_node_width(node)} loops={node.nloops}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 'Composite key index scans',
                 ("* The clustered plots near the lower left corner need adjustments the series"
                  " criteria and/or node filtering."
@@ -1070,22 +1361,7 @@ class CostReport(AbstractReportAction):
                 series_label_suffix=lambda node: f'{node.index_name} loops={node.nloops}',
             ),
             ChartSpec(
-                'Composite key index scans (exclude too high costs >= 100000000)',
-                ("* The clustered plots near the lower left corner need adjustments the series"
-                 " criteria and/or node filtering."
-                 "\n\n  * Try adding index key prefix NDV before the first equality to"
-                 " the series criteria.\n\ne.g.: for index key `(c3, c4, c5)`,"
-                 " condition: `c4 >= x and c5 = y` then the prefix NDV would be:"
-                 " `select count(*) from (select distinct c3, c4 from t where c4 >= x) v;`"),
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: 't1000000m' in query or 't100000c10' in query,
-                lambda node: (self.has_simple_index_cond(node, index_cond_only=True)
-                              and node.get_rows_removed_by_recheck() == 0
-                              and float(node.total_cost) < 100000000),
-                x_getter=lambda node: float(node.rows),
-                series_label_suffix=lambda node: f'{node.index_name} loops={node.nloops}',
-            ),
-            ChartSpec(
+                self.draw_x_cost_time_plot,
                 'Composite key index scans (output <= 100 rows)',
                 ("* The clustered plots near the lower left corner need adjustments the series"
                  " criteria and/or node filtering."
@@ -1102,6 +1378,7 @@ class CostReport(AbstractReportAction):
                 series_label_suffix=lambda node: f'{node.index_name} loops={node.nloops}',
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 'Scans with simple remote index and/or table filter',
                 "* Index (Only) Scans may or may not have index access condition as well.",
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
@@ -1114,6 +1391,7 @@ class CostReport(AbstractReportAction):
                                      f':width={self.get_node_width(node)} loops={node.nloops}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 'Scans with simple filter(s)',
                 'For PG comparisons',
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
@@ -1126,6 +1404,7 @@ class CostReport(AbstractReportAction):
                                      f':width={self.get_node_width(node)} loops={node.nloops}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 'Scans with complex (but no IN-lists) remote index and/or table filter',
                 "* Index (Only) Scans may or may not have index access condition as well.",
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
@@ -1138,6 +1417,7 @@ class CostReport(AbstractReportAction):
                                      f':width={self.get_node_width(node)} loops={node.nloops}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 'Scans with complex (but no IN-lists) index and/or table filter',
                 'For PG comparisons',
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
@@ -1150,6 +1430,7 @@ class CostReport(AbstractReportAction):
                                      f':width={self.get_node_width(node)} loops={node.nloops}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 'Full scan + agg push down by table rows (linear scale)',
                 ('Scan nodes from `select count(*) from ...` single table queries without'
                  ' any search conditions'
@@ -1163,6 +1444,7 @@ class CostReport(AbstractReportAction):
                 options=ChartOptions(adjust_cost_by_actual_rows=False),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 'Full scan + agg push down by table rows (log scale)',
                 ('Scan nodes from `select count(*) from ...` single table queries without'
                  ' any search conditions'
@@ -1179,6 +1461,7 @@ class CostReport(AbstractReportAction):
                                      log_scale_time=True),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 '(EXP) Scans with local filter, may have index access condition and/or remote filter',
                 '* need to add the queries and figure out series grouping and query/node selection',
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
@@ -1190,6 +1473,7 @@ class CostReport(AbstractReportAction):
                                      f':width={self.get_node_width(node)} loops={node.nloops}'),
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 '(EXP) No filter full scans by output row x width',
                 '* need to adjust series grouping and query/node selection',
                 'Output rows x width', 'Estimated cost', 'Execution time [ms]',
@@ -1201,6 +1485,7 @@ class CostReport(AbstractReportAction):
                 series_label_suffix=lambda node: f'{node.index_name or node.table_name}',
             ),
             ChartSpec(
+                self.draw_x_cost_time_plot,
                 '(EXP) All the scan nodes',
                 ('For examining all the collected nodes'),
                 'Output row count', 'Estimated cost', 'Execution time [ms]',

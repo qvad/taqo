@@ -118,7 +118,7 @@ if __name__ == "__main__":
     parser.add_argument('--interactive',
                         action=argparse.BooleanOptionalAction,
                         default=False,
-                        help='Popup an interactive chart then quit')
+                        help='Popup an interactive chart then quit (no boxplot chart support)')
 
     # collect mode flags
 

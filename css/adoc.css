@@ -1,6 +1,14 @@
 /* Based on Cosmo from Bootswatch (https://bootswatch.com/cosmo/) */
 @import url("//fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,700");
 
+/* table cell alignment attribute definitions from Asciidoctor default css */
+th.halign-left,td.halign-left{text-align:left}
+th.halign-right,td.halign-right{text-align:right}
+th.halign-center,td.halign-center{text-align:center}
+th.valign-top,td.valign-top{vertical-align:top}
+th.valign-bottom,td.valign-bottom{vertical-align:bottom}
+th.valign-middle,td.valign-middle{vertical-align:middle}
+
 /* document body (contains all content) */
 body {
     font-family: "Source Sans Pro", Calibri, Candara, Arial, sans-serif;
