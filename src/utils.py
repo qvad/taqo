@@ -41,7 +41,7 @@ def get_result(cur, is_dml):
 
     str_result = ""
     cardinality = 0
-    for row in result:
+    for row in tqdm(result):
         cardinality += 1
         for column_value in row:
             str_result += f"{str(column_value)}"
@@ -208,9 +208,14 @@ def get_fields(object, tables_in_query):
                     if len(value) == 2:
                         table = value[0]["String"]["sval"]
                         if 'A_Star' in value[1]:
-                            table = [table_object for table_object in tables if table_object.name == table][0]
-                            for field_in_table in table.fields:
-                                fields.add(FieldInTableHelper(table, field_in_table.name))
+                            table = [table_object for table_object in tables if table_object.name == table]
+
+                            # todo implement alias to alias
+                            if table:
+                                table = table[0]
+
+                                for field_in_table in table.fields:
+                                    fields.add(FieldInTableHelper(table, field_in_table.name))
                         elif 'String' in value[1]:
                             field = value[1]["String"]["sval"]
                             fields.add(FieldInTableHelper(table, field))
