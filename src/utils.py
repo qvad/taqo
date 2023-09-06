@@ -41,7 +41,7 @@ def get_result(cur, is_dml):
 
     str_result = ""
     cardinality = 0
-    for row in tqdm(result):
+    for row in result:
         cardinality += 1
         for column_value in row:
             str_result += f"{str(column_value)}"
