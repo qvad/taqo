@@ -297,7 +297,8 @@ class PostgresQuery(Query):
                f"Tables - \"{self.tables}\"\n" \
                f"Optimization hints - \"{self.explain_hints}\"\n" \
                f"Execution plan - \"{self.execution_plan}\"\n" \
-               f"Execution time - \"{self.execution_time_ms}\""
+               f"Execution (COST OFF) plan - \"{self.cost_off_explain}\"\n" \
+               f"Execution time (ms) - \"{self.execution_time_ms}\""
 
     def heatmap(self):
         config = Config()
