@@ -5,10 +5,12 @@ import subprocess
 from time import sleep
 from typing import List
 
+from psycopg2._psycopg import cursor
+
 from collect import CollectResult, ResultsLoader
 from config import ConnectionConfig
 from db.postgres import Postgres, PostgresExecutionPlan, PLAN_TREE_CLEANUP, PostgresQuery
-from objects import ExecutionPlan
+from objects import ExecutionPlan, QueryStats, Query
 from utils import evaluate_sql
 
 DEFAULT_USERNAME = 'yugabyte'
@@ -45,6 +47,24 @@ def yb_db_factory(config):
 
 
 class Yugabyte(Postgres):
+    def run_compaction(self, tables: list[str]):
+        self.logger.info(f"Evaluating flush on tables {[table.name for table in tables]}")
+        for table in tables:
+            subprocess.call(f'./yb-admin -master_addresses {self.config.yugabyte_master_addresses}:7100 '
+                            f'flush_table ysql.{self.config.connection.database} {table.name}',
+                            shell=True,
+                            cwd=self.config.yugabyte_bin_path)
+
+        self.logger.info("Waiting for 2 minutes to operations to complete")
+        sleep(120)
+
+        self.logger.info(f"Evaluating compaction on tables {[table.name for table in tables]}")
+        for table in tables:
+            subprocess.call(f'./yb-admin -master_addresses {self.config.yugabyte_master_addresses}:7100 '
+                            f'compact_table ysql.{self.config.connection.database} {table.name}',
+                            shell=True,
+                            cwd=self.config.yugabyte_bin_path)
+
     def establish_connection_from_output(self, out: str):
         self.logger.info("Reinitializing connection based on cluster creation output")
         parsing = re.findall(JDBC_STRING_PARSE, out)[0]
@@ -82,6 +102,30 @@ class Yugabyte(Postgres):
 
     def get_execution_plan(self, execution_plan: str):
         return YugabyteExecutionPlan(execution_plan)
+
+    def reset_query_statics(self, cur: cursor):
+        evaluate_sql(cur, "SELECT pg_stat_statements_reset()")
+
+    def collect_query_statistics(self, cur: cursor, query: Query, query_str: str):
+        try:
+            tuned_query = query_str.replace("'", "''")
+            evaluate_sql(cur, "select query, calls, total_time, min_time, max_time, mean_time, rows, yb_latency_histogram "
+                              f"from pg_stat_statements where query like '%{tuned_query}%';")
+            result = cur.fetchall()
+
+            query.query_stats = QueryStats(
+                calls=result[0][1],
+                total_time=result[0][2],
+                min_time=result[0][3],
+                max_time=result[0][4],
+                mean_time=result[0][5],
+                rows=result[0][6],
+                latency=result[0][7],
+            )
+        except Exception:
+            # TODO do nothing
+            pass
+
 
 
 class YugabyteQuery(PostgresQuery):
@@ -203,7 +247,7 @@ class YugabyteLocalCluster(Yugabyte):
         self.logger.info("Calling upgrade_ysql and trying to upgrade metadata")
 
         out = subprocess.check_output(
-            ['bin/yb-admin', 'upgrade_ysql', '-master_addresses', f"{self.config.host}:7100"],
+            ['bin/yb-admin', 'upgrade_ysql', '-master_addresses', f"{self.config.yugabyte_master_addresses}:7100"],
             stderr=subprocess.PIPE,
             cwd=self.path, )
 

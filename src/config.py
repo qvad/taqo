@@ -37,7 +37,8 @@ class DDLStep(Enum):
     CREATE = 1
     ANALYZE = 2
     IMPORT = 3
-    DROP = 4
+    COMPACT = 4
+    DROP = 5
 
 
 @dataclasses.dataclass
@@ -102,6 +103,8 @@ class Config(metaclass=Singleton):
     test_query_timeout: int = None
     all_pairs_threshold: int = None
 
+    yugabyte_bin_path: str = None
+    yugabyte_master_addresses: str = None
     asciidoctor_path: str = None
     clear: bool = False
 

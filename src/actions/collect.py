@@ -4,7 +4,7 @@ import psycopg2
 from tqdm import tqdm
 
 from actions.collects.pg_unit import PgUnitGenerator
-from config import Config
+from config import Config, DDLStep
 from models.factory import get_test_model
 from objects import EXPLAIN, ExplainFlags
 from utils import evaluate_sql, calculate_avg_execution_time, get_md5
@@ -77,6 +77,9 @@ class CollectAction:
 
             model_queries = teardown_queries + create_queries + analyze_queries + import_queries
             queries = model.get_queries(created_tables)
+
+            if DDLStep.COMPACT in self.config.ddls:
+                self.sut_database.run_compaction(tables=created_tables)
         except Exception as e:
             self.logger.exception("Failed to evaluate DDL queries", e)
             exit(1)

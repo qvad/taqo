@@ -686,6 +686,13 @@ class ScoreReport(AbstractReportAction):
         self._start_table()
         self._start_table_row()
 
+        if yb_query.query_stats:
+            self._start_collapsible("YB statistics")
+            self._start_source()
+            self.report += str(yb_query.query_stats)
+            self._end_source()
+            self._end_collapsible()
+
         if pg_query and pg_query.execution_time_ms > 0:
             bitmap_used = "(bm) " if "bitmap" in pg_query.execution_plan.full_str.lower() else ""
             self._start_collapsible(f"{bitmap_used}PG plan")

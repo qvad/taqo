@@ -72,6 +72,28 @@ class QueryTips:
 
 
 @dataclasses.dataclass
+class QueryStats:
+    calls: int
+    total_time: float
+    min_time: float
+    max_time: float
+    mean_time: float
+    rows: int
+    latency: str
+
+    def __str__(self):
+        return (
+            f"Calls: {self.calls}\n"
+            f"Total time: {self.total_time}\n"
+            f"Min time: {self.min_time}\n"
+            f"Max time: {self.max_time}\n"
+            f"Mean time: {self.mean_time}\n"
+            f"Rows: {self.rows}\n"
+            f"Latency JSON: {self.latency}"
+        )
+
+
+@dataclasses.dataclass
 class Query:
     tag: str = ""
     query: str = ""
@@ -88,6 +110,7 @@ class Query:
     execution_time_ms: float = 0
     result_cardinality: int = 0
     result_hash: str = None
+    query_stats: QueryStats = None
 
     parameters: List = None
 
@@ -288,7 +311,7 @@ class PlanPrinter(PlanNodeVisitor):
                                                 properties=False, level=self.level)
         if self.properties:
             self.plan_tree_str += ''.join([
-                f"\n{'':>{node.level*2}s}  {key}: {value}"
+                f"\n{'':>{node.level * 2}s}  {key}: {value}"
                 for key, value in node.properties.items()])
         self.plan_tree_str += '\n'
         super().generic_visit(node)

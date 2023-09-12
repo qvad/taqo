@@ -7,6 +7,7 @@ import pglast
 from copy import copy
 
 import psycopg2
+from psycopg2._psycopg import cursor
 
 from config import Config
 from db.database import Database
@@ -70,33 +71,42 @@ def calculate_avg_execution_time(cur,
     num_retries = max(num_retries, 2)
     num_warmup = config.num_warmup
     execution_plan_collected = False
+    stats_reset = False
 
     for iteration in range(num_retries + num_warmup):
         # noinspection PyUnresolvedReferences
         try:
+            if iteration >= num_warmup and not stats_reset:
+                sut_database.reset_query_statics(cur)
+                stats_reset = True
+
             sut_database.prepare_query_execution(cur)
             start_time = current_milli_time()
-            query.parameters = evaluate_sql(cur, query_str)
 
             if iteration == 0:
+                # evaluate test query without analyze and collect result hash
+                # using first iteration as a result collecting step
+                # even if EXPLAIN ANALYZE is explain query
+                query.parameters = evaluate_sql(cur, query.get_query())
+
                 cardinality, result = get_result(cur, is_dml)
-                if with_analyze:
-                    query.result_cardinality = extract_actual_cardinality(result)
-                    query.result_hash = "NONE"
-                else:
-                    query.result_cardinality = cardinality
-                    query.result_hash = get_md5(result)
-            elif iteration >= num_warmup:
-                if not execution_plan_collected:
-                    collect_execution_plan(cur, connection, query, sut_database)
-                    execution_plan_collected = True
 
-                if with_analyze:
-                    _, result = get_result(cur, is_dml)
+                query.result_cardinality = cardinality
+                query.result_hash = get_md5(result)
+            else:
+                query.parameters = evaluate_sql(cur, query_str)
 
-                    sum_execution_times += extract_execution_time_from_analyze(result)
-                else:
-                    sum_execution_times += current_milli_time() - start_time
+                if iteration >= num_warmup:
+                    if not execution_plan_collected:
+                        collect_execution_plan(cur, connection, query, sut_database)
+                        execution_plan_collected = True
+
+                    if with_analyze:
+                        _, result = get_result(cur, is_dml)
+
+                        sum_execution_times += extract_execution_time_from_analyze(result)
+                    else:
+                        sum_execution_times += current_milli_time() - start_time
         except psycopg2.errors.QueryCanceled:
             # failed by timeout - it's ok just skip optimization
             query.execution_time_ms = -1
@@ -116,6 +126,8 @@ def calculate_avg_execution_time(cur,
                 actual_evaluations += 1
 
     query.execution_time_ms = sum_execution_times / actual_evaluations
+
+    sut_database.collect_query_statistics(cur, query, query_str)
 
     return True
 
@@ -278,7 +290,7 @@ def get_alias_table_names(sql_str, tables_in_sut):
     return table_objects_in_query
 
 
-def evaluate_sql(cur, sql):
+def evaluate_sql(cur: cursor, sql: str):
     config = Config()
 
     parameters, sql, sql_wo_parameters = parse_clear_and_parametrized_sql(sql)

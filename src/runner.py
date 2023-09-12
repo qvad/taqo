@@ -16,22 +16,16 @@ from actions.collect import CollectAction
 from utils import get_bool_from_object, get_model_path
 
 
-def parse_ddls(ddl_ops):
+def parse_ddls(ddl_ops: str):
     result = set()
 
     if ddl_ops == "none":
         return result
 
-    if "database" in ddl_ops:
-        result.add(DDLStep.DATABASE)
-    if "create" in ddl_ops:
-        result.add(DDLStep.CREATE)
-    if "import" in ddl_ops:
-        result.add(DDLStep.IMPORT)
-    if "drop" in ddl_ops:
-        result.add(DDLStep.DROP)
-    if "analyze" in ddl_ops:
-        result.add(DDLStep.ANALYZE)
+    ddl_ops = ddl_ops.lower()
+    for e in DDLStep:
+        if str(e.name).lower() in ddl_ops:
+            result.add(e)
 
     return result
 
@@ -67,6 +61,12 @@ if __name__ == "__main__":
     parser.add_argument('--config',
                         default="config/default.conf",
                         help='Configuration file path')
+    parser.add_argument('-p', '--yugabyte-bin-path',
+                        default="",
+                        help='Path to Yugabyte distrib binary files')
+    parser.add_argument('-m', '--yugabyte-master-addresses',
+                        default="",
+                        help='List of Yugabyte master nodes to use yb-admin command')
 
     parser.add_argument('--type',
                         help='Report type - taqo, score, regression, comparison, selectivity or cost')
@@ -149,8 +149,8 @@ if __name__ == "__main__":
     parser.add_argument('--revision',
                         help='Git revision or path to release build')
     parser.add_argument('--ddls',
-                        default="database,create,analyze,import,drop",
-                        help='Model creation queries, comma separated: database,create,analyze,import,drop')
+                        default="database,create,analyze,import,compact,drop",
+                        help='Model creation queries, comma separated: database,create,analyze,import,compact,drop')
 
     parser.add_argument('--clean-db',
                         action=argparse.BooleanOptionalAction,
@@ -201,7 +201,7 @@ if __name__ == "__main__":
                         help='Explain clause that will be placed before query. Default "EXPLAIN"')
     parser.add_argument('--server-side-execution',
                         action=argparse.BooleanOptionalAction,
-                        default=False,
+                        default=True,
                         help='Evaluate queries on server side, for PG using "EXPLAIN ANALYZE"')
     parser.add_argument('--session-props',
                         default="",
@@ -270,6 +270,8 @@ if __name__ == "__main__":
         clean_db=args.clean_db,
         allow_destroy_db=args.allow_destroy_db,
         clean_build=args.clean_build,
+        yugabyte_bin_path=args.yugabyte_bin_path,
+        yugabyte_master_addresses=args.yugabyte_master_addresses if args.yugabyte_master_addresses else args.host,
 
         connection=ConnectionConfig(host=args.host,
                                     port=args.port,

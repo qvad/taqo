@@ -1,8 +1,14 @@
+from psycopg2._psycopg import cursor
+
+
 class Database:
     def __init__(self, config):
         self.config = config
         self.logger = self.config.logger
         self.connection = None
+
+    def run_compaction(self, tables: list[str]):
+        pass
 
     def establish_connection(self, database: str):
         pass
@@ -41,4 +47,10 @@ class Database:
         pass
 
     def get_results_loader(self):
+        pass
+
+    def reset_query_statics(self, cur: cursor):
+        pass
+
+    def collect_query_statistics(self, cur: cursor, query, query_str: str):
         pass
