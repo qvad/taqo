@@ -67,6 +67,7 @@ class Yugabyte(Postgres):
                     f'compact_table ysql.{self.config.connection.database} {table.name}',
                     shell=True,
                     cwd=self.config.yugabyte_bin_path)
+                self.logger.info(result)
 
                 if "unable to compact" in str(result):
                     retries += 1

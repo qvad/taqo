@@ -35,10 +35,12 @@ def parse_model_config(model):
 
     if exists(path_to_file):
         parsed_model_config = ConfigFactory.parse_file(path_to_file)
-        global_option = get_bool_from_object(configuration.get("all-index-check", True))
+        global_option_index = get_bool_from_object(configuration.get("all-index-check", True))
+        global_option_timeout = configuration.get("test-query-timeout", 1200)
 
-        configuration['all-index-check'] = global_option and parsed_model_config.get("all-index-check", True)
+        configuration['all-index-check'] = global_option_index and parsed_model_config.get("all-index-check", True)
         configuration['load-catalog-tables'] = parsed_model_config.get("load-catalog-tables", False)
+        configuration['test-query-timeout'] = parsed_model_config.get("test-query-timeout", global_option_timeout)
 
 
 if __name__ == "__main__":
