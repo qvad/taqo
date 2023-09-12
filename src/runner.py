@@ -189,7 +189,6 @@ if __name__ == "__main__":
                         default=DEFAULT_PASSWORD,
                         help='Password for user for connection')
     parser.add_argument('--database',
-                        default="taqo",
                         help='Target database in postgres compatible database')
 
     parser.add_argument('--enable-statistics',
@@ -257,6 +256,7 @@ if __name__ == "__main__":
 
     configuration = configuration | options_config
     loader = PostgresResultsLoader()
+    database = args.database if args.database else f"taqo_{model.replace('-', '_')}"
 
     config = Config(
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
@@ -277,7 +277,7 @@ if __name__ == "__main__":
                                     port=args.port,
                                     username=args.username,
                                     password=args.password,
-                                    database=args.database),
+                                    database=database),
 
         model=model,
         all_index_check=configuration.get("all-index-check", True),

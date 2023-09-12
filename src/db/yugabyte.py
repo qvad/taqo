@@ -60,10 +60,21 @@ class Yugabyte(Postgres):
 
         self.logger.info(f"Evaluating compaction on tables {[table.name for table in tables]}")
         for table in tables:
-            subprocess.call(f'./yb-admin -master_addresses {self.config.yugabyte_master_addresses}:7100 '
-                            f'compact_table ysql.{self.config.connection.database} {table.name}',
-                            shell=True,
-                            cwd=self.config.yugabyte_bin_path)
+            retries = 1
+            while retries < 5:
+                result = subprocess.check_output(
+                    f'./yb-admin -master_addresses {self.config.yugabyte_master_addresses}:7100 '
+                    f'compact_table ysql.{self.config.connection.database} {table.name}',
+                    shell=True,
+                    cwd=self.config.yugabyte_bin_path)
+
+                if "unable to compact" in str(result):
+                    retries += 1
+
+                    self.logger.info(f"Waiting for 2 minutes to operations to complete for {table.name}")
+                    sleep(120)
+                else:
+                    break
 
     def establish_connection_from_output(self, out: str):
         self.logger.info("Reinitializing connection based on cluster creation output")
@@ -109,8 +120,9 @@ class Yugabyte(Postgres):
     def collect_query_statistics(self, cur: cursor, query: Query, query_str: str):
         try:
             tuned_query = query_str.replace("'", "''")
-            evaluate_sql(cur, "select query, calls, total_time, min_time, max_time, mean_time, rows, yb_latency_histogram "
-                              f"from pg_stat_statements where query like '%{tuned_query}%';")
+            evaluate_sql(cur,
+                         "select query, calls, total_time, min_time, max_time, mean_time, rows, yb_latency_histogram "
+                         f"from pg_stat_statements where query like '%{tuned_query}%';")
             result = cur.fetchall()
 
             query.query_stats = QueryStats(
@@ -125,7 +137,6 @@ class Yugabyte(Postgres):
         except Exception:
             # TODO do nothing
             pass
-
 
 
 class YugabyteQuery(PostgresQuery):
