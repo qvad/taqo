@@ -451,7 +451,11 @@ class CostReport(AbstractReportAction):
 
     def process_plan(self, ctx, parent_query, index):
         query = parent_query.optimizations[index] if index else parent_query
-        plan = query.execution_plan
+        if not (plan := query.execution_plan):
+            self.logger.warn(f"=== Query ({index or 'default'}): [{query.query}]"
+                             " does not have any valid plan\n")
+            return
+
         if not (ptree := plan.parse_plan()):
             self.logger.warn(f"=== Failed to parse plan ===\n{plan.full_str}\n")
         else:
