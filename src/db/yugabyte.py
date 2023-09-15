@@ -74,8 +74,8 @@ class Yugabyte(Postgres):
                 except Exception as e:
                     retries += 1
 
-                    self.logger.info(f"Waiting for 2 minutes to operations to complete for {table.name}")
-                    sleep(120)
+                    self.logger.info(f"Waiting for 10 minutes to operations to complete for {table.name}")
+                    sleep(600)
 
     def establish_connection_from_output(self, out: str):
         self.logger.info("Reinitializing connection based on cluster creation output")
