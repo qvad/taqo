@@ -37,10 +37,12 @@ def parse_model_config(model):
         parsed_model_config = ConfigFactory.parse_file(path_to_file)
         global_option_index = get_bool_from_object(configuration.get("all-index-check", True))
         global_option_timeout = configuration.get("test-query-timeout", 1200)
+        global_compaction_timeout = configuration.get("compaction-timeout", 120)
 
         configuration['all-index-check'] = global_option_index and parsed_model_config.get("all-index-check", True)
         configuration['load-catalog-tables'] = parsed_model_config.get("load-catalog-tables", False)
         configuration['test-query-timeout'] = parsed_model_config.get("test-query-timeout", global_option_timeout)
+        configuration['compaction-timeout'] = parsed_model_config.get("compaction-timeout", global_compaction_timeout)
 
 
 if __name__ == "__main__":
@@ -304,6 +306,7 @@ if __name__ == "__main__":
         skip_timeout_delta=int(configuration.get("skip-timeout-delta", 1)),
         ddl_query_timeout=int(configuration.get("ddl-query-timeout", 3600)),
         test_query_timeout=int(configuration.get("test-query-timeout", 1200)),
+        compaction_timeout=int(configuration.get("compaction-timeout", 120)),
         look_near_best_plan=get_bool_from_object(configuration.get("look-near-best-plan", True)),
         all_pairs_threshold=int(configuration.get("all-pairs-threshold", 3)),
 

@@ -56,7 +56,7 @@ class Yugabyte(Postgres):
                             cwd=self.config.yugabyte_bin_path)
 
         self.logger.info("Waiting for 2 minutes to operations to complete")
-        sleep(120)
+        sleep(self.config.compaction_timeout)
 
         self.logger.info(f"Evaluating compaction on tables {[table.name for table in tables]}")
         for table in tables:
@@ -75,7 +75,7 @@ class Yugabyte(Postgres):
                     retries += 1
 
                     self.logger.info(f"Waiting for 10 minutes to operations to complete for {table.name}")
-                    sleep(600)
+                    sleep(self.config.compaction_timeout)
 
     def establish_connection_from_output(self, out: str):
         self.logger.info("Reinitializing connection based on cluster creation output")

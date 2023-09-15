@@ -101,6 +101,7 @@ class Config(metaclass=Singleton):
     skip_timeout_delta: int = None
     ddl_query_timeout: int = None
     test_query_timeout: int = None
+    compaction_timeout: int = None
     all_pairs_threshold: int = None
 
     yugabyte_bin_path: str = None
