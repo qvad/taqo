@@ -94,7 +94,7 @@ class ChartSpec:
     series_data: Mapping[str: Iterable[DataPoint]] = field(default_factory=dict)
     series_format: Mapping[str: str] = field(default_factory=dict)
     outliers: Mapping[str: Iterable[DataPoint]] = field(default_factory=dict)
-    outlier_axis: str = 'cost'
+    outlier_axis: str = 'cost/time ratio'
 
     def test_node(self, query_str, node):
         return self.query_filter(query_str) and self.node_filter(node)
@@ -700,9 +700,10 @@ class CostReport(AbstractReportAction):
         for series_label, data_points in sorted(spec.series_data.items()):
             data_points.sort(key=attrgetter('x', 'time_ms', 'cost'))
             transposed_data = np.split(np.array(data_points).transpose(), len(DataPoint._fields))
-            costs = transposed_data[1][0]
-            if (iqr := np.subtract(*np.percentile(costs, [75, 25]))) > 0:
-                indices = np.nonzero(costs > (np.percentile(costs, [75]) + 3 * iqr))[0]
+            cost_per_time = transposed_data[1][0] / transposed_data[2][0]
+            if (iqr := np.subtract(*np.percentile(cost_per_time, [75, 25]))) > 0:
+                indices = np.nonzero(cost_per_time >
+                                     (np.percentile(cost_per_time, [75]) + 4 * iqr))[0]
                 outliers = list()
                 for ix in reversed(indices):
                     outliers.append(data_points[ix])

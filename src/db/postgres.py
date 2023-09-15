@@ -478,8 +478,10 @@ class PostgresExecutionPlan(ExecutionPlan):
                 node_name = match.group('name')
                 node = self.make_node(node_name)
 
+                is_scan_node = isinstance(node, ScanNode)
                 node.level = node_level
-                node.name = node_name
+                # strip off the schema name added by EXPLAIN VERBOSE
+                node.name = node_name.replace(' public.', ' ').replace(' pg_catalog.', ' ')
                 node.startup_cost = match.group('sc')
                 node.total_cost = match.group('tc')
                 node.plan_rows = match.group('prows')
@@ -511,7 +513,14 @@ class PostgresExecutionPlan(ExecutionPlan):
                         node.properties['Peak Memory Usage'] = match.group('peak_mem')
                     else:
                         if (keylen := prop_str.find(':')) > 0:
-                            node.properties[prop_str[:keylen]] = prop_str[keylen + 1:].strip()
+                            pkey = prop_str[:keylen]
+                            pval = prop_str[keylen + 1:].strip()
+                            # strip off the alias added by EXPLAIN VERBOSE
+                            if (is_scan_node
+                                    and (pkey == 'Index Cond' or pkey.find('Filter') > 0)):
+                                pval = pval.replace(f'{node.table_alias or node.table_name}.', '')
+
+                            node.properties[pkey] = pval
 
             if not current_path:
                 current_path.append(node)
