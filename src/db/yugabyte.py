@@ -62,20 +62,20 @@ class Yugabyte(Postgres):
         for table in tables:
             retries = 1
             while retries < 5:
-                result = subprocess.check_output(
-                    f'./yb-admin -master_addresses {self.config.yugabyte_master_addresses}:7100 '
-                    f'compact_table ysql.{self.config.connection.database} {table.name}',
-                    shell=True,
-                    cwd=self.config.yugabyte_bin_path)
-                self.logger.info(result)
+                try:
+                    result = subprocess.check_output(
+                        f'./yb-admin -master_addresses {self.config.yugabyte_master_addresses}:7100 '
+                        f'compact_table ysql.{self.config.connection.database} {table.name}',
+                        shell=True,
+                        cwd=self.config.yugabyte_bin_path)
+                    self.logger.info(result)
 
-                if "unable to compact" in str(result):
+                    break
+                except Exception as e:
                     retries += 1
 
                     self.logger.info(f"Waiting for 2 minutes to operations to complete for {table.name}")
                     sleep(120)
-                else:
-                    break
 
     def establish_connection_from_output(self, out: str):
         self.logger.info("Reinitializing connection based on cluster creation output")
