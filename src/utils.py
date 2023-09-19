@@ -64,7 +64,7 @@ def calculate_avg_execution_time(cur,
     with_analyze = query_with_analyze(query_str_lower)
     is_dml = query_is_dml(query_str_lower)
 
-    sum_execution_times = 0
+    execution_times = []
     actual_evaluations = 0
 
     # run at least one iteration
@@ -94,19 +94,20 @@ def calculate_avg_execution_time(cur,
                 query.result_cardinality = cardinality
                 query.result_hash = get_md5(result)
             else:
-                query.parameters = evaluate_sql(cur, query_str)
-
-                if iteration >= num_warmup:
+                if iteration < num_warmup:
+                    query.parameters = evaluate_sql(cur, query_str)
+                else:
                     if not execution_plan_collected:
                         collect_execution_plan(cur, connection, query, sut_database)
                         execution_plan_collected = True
 
                     if with_analyze:
+                        evaluate_sql(cur, query_str)
                         _, result = get_result(cur, is_dml)
 
-                        sum_execution_times += extract_execution_time_from_analyze(result)
+                        execution_times.append(extract_execution_time_from_analyze(result))
                     else:
-                        sum_execution_times += current_milli_time() - start_time
+                        execution_times.append(current_milli_time() - start_time)
         except psycopg2.errors.QueryCanceled:
             # failed by timeout - it's ok just skip optimization
             query.execution_time_ms = -1
@@ -125,7 +126,8 @@ def calculate_avg_execution_time(cur,
             if iteration >= num_warmup:
                 actual_evaluations += 1
 
-    query.execution_time_ms = sum_execution_times / actual_evaluations
+    # TODO convert execution_time_ms into a property
+    query.execution_time_ms = sum(execution_times) / actual_evaluations
 
     sut_database.collect_query_statistics(cur, query, query_str)
 
@@ -295,11 +297,10 @@ def evaluate_sql(cur: cursor, sql: str):
 
     parameters, sql, sql_wo_parameters = parse_clear_and_parametrized_sql(sql)
 
-    config.logger.debug(sql)
-
     if config.parametrized and parameters:
         try:
             cur.execute(sql, parameters)
+            config.logger.debug(f"SQL >> {sql}[{parameters}]")
         except psycopg2.errors.QueryCanceled as e:
             cur.connection.rollback()
             raise e
@@ -316,6 +317,7 @@ def evaluate_sql(cur: cursor, sql: str):
     else:
         try:
             cur.execute(sql_wo_parameters)
+            config.logger.debug(f"SQL >> {sql_wo_parameters}")
         except psycopg2.errors.QueryCanceled as e:
             cur.connection.rollback()
             raise e
