@@ -327,10 +327,10 @@ class PostgresQuery(Query):
     def get_best_optimization(self, config):
         best_optimization = self
         if best_optimization.optimizations:
-            if best_optimization.execution_time_ms < 0:
-                best_optimization = best_optimization.optimizations[0]
             for optimization in self.optimizations:
-                if 0 < optimization.execution_time_ms < best_optimization.execution_time_ms:
+                best_execution_time = best_optimization.execution_time_ms \
+                    if best_optimization.execution_time_ms != -1 else 99999999
+                if 0 < optimization.execution_time_ms < best_execution_time:
                     best_optimization = optimization
 
             if allowed_diff(config, best_optimization.execution_time_ms, self.execution_time_ms):
