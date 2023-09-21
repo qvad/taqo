@@ -50,7 +50,7 @@ class Yugabyte(Postgres):
     def run_compaction(self, tables: list[str]):
         self.logger.info(f"Evaluating flush on tables {[table.name for table in tables]}")
         for table in tables:
-            subprocess.call(f'./yb-admin -master_addresses {self.config.yugabyte_master_addresses}:7100 '
+            subprocess.call(f'./yb-admin -master_addresses {self.config.yugabyte_master_addresses} '
                             f'flush_table ysql.{self.config.connection.database} {table.name}',
                             shell=True,
                             cwd=self.config.yugabyte_bin_path)
@@ -64,7 +64,7 @@ class Yugabyte(Postgres):
             while retries < 5:
                 try:
                     result = subprocess.check_output(
-                        f'./yb-admin -master_addresses {self.config.yugabyte_master_addresses}:7100 '
+                        f'./yb-admin -master_addresses {self.config.yugabyte_master_addresses} '
                         f'compact_table ysql.{self.config.connection.database} {table.name}',
                         shell=True,
                         cwd=self.config.yugabyte_bin_path)
