@@ -204,7 +204,7 @@ if __name__ == "__main__":
                         help='Explain clause that will be placed before query. Default "EXPLAIN"')
     parser.add_argument('--server-side-execution',
                         action=argparse.BooleanOptionalAction,
-                        default=True,
+                        default=False,
                         help='Evaluate queries on server side, for PG using "EXPLAIN ANALYZE"')
     parser.add_argument('--session-props',
                         default="",
