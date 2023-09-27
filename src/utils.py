@@ -81,7 +81,6 @@ def calculate_avg_execution_time(cur,
                 stats_reset = True
 
             sut_database.prepare_query_execution(cur)
-            start_time = current_milli_time()
 
             if iteration == 0:
                 # evaluate test query without analyze and collect result hash
@@ -100,6 +99,8 @@ def calculate_avg_execution_time(cur,
                     if not execution_plan_collected:
                         collect_execution_plan(cur, connection, query, sut_database)
                         execution_plan_collected = True
+
+                    start_time = current_milli_time()
 
                     evaluate_sql(cur, query_str)
                     _, result = get_result(cur, is_dml)
@@ -127,7 +128,7 @@ def calculate_avg_execution_time(cur,
                 actual_evaluations += 1
 
     # TODO convert execution_time_ms into a property
-    query.execution_time_ms = sum(execution_times) / actual_evaluations
+    query.execution_time_ms = sum(execution_times) / len(execution_times)
 
     sut_database.collect_query_statistics(cur, query, query_str)
 
