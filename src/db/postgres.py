@@ -54,7 +54,8 @@ plan_node_header_pattern = re.compile(''.join([
 ]))
 
 node_name_decomposition_pattern = re.compile(''.join([
-    r'(?P<type>\S+(?:\s+\S+)* Scan)(?P<backward>\s+Backward)*(?: using (?P<index>\S+))*'
+    r'(?P<parallel>Parallel )*(?P<distinct>Distinct )*(?P<type>\S+(?:\s+\S+)* Scan)(?P<backward>\s+Backward)*'
+    r'(?: using (?P<index>\S+))*'
     r' on (?:(?P<schema>\S+)\.)*(?P<table>\S+)(?: (?P<alias>\S+))*']))
 
 hash_property_decomposition_pattern = re.compile(''.join([
@@ -429,19 +430,24 @@ class PostgresExecutionPlan(ExecutionPlan):
     __node_accessor = PostgresPlanNodeAccessor()
 
     def make_node(self, node_name):
-        index_name = table_name = table_alias = is_backward = None
+        index_name = table_name = table_alias = is_backward = is_parallel = None
         if match := node_name_decomposition_pattern.search(node_name):
             node_type = match.group('type')
             index_name = match.group('index')
+            is_parallel = match.group('parallel') is not None
+            is_distinct = match.group('distinct') is not None
             is_backward = match.group('backward') is not None
             table_name = match.group('table')
             table_alias = match.group('alias')
+            if node_type.startswith('Bitmap Index Scan'):
+                index_name = table_name
+                table_name = self.get_table_name_from_index_name(index_name)
         else:
             node_type = node_name
 
         if table_name:
             return ScanNode(self.__node_accessor, node_type, table_name, table_alias,
-                            index_name, is_backward)
+                            index_name, is_backward, is_distinct, is_parallel)
 
         if 'Join' in node_type or 'Nested Loop' in node_type:
             return JoinNode(self.__node_accessor, node_type)
@@ -598,6 +604,12 @@ class PostgresExecutionPlan(ExecutionPlan):
         no_tree_plan = re.sub(PLAN_TREE_CLEANUP, '\n',
                               execution_plan.full_str if execution_plan else self.full_str).strip()
         return re.sub(PLAN_CLEANUP_REGEX, '', no_tree_plan).strip()
+
+    @staticmethod
+    def get_table_name_from_index_name(index_name):
+        # we could figure it out from the metadata, however, just assume
+        # "<table_name>_..." naming convention for now.
+        return index_name[:index_name.find('_')]
 
 
 @dataclasses.dataclass

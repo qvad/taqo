@@ -4,32 +4,22 @@ import numpy as np
 import re
 from collections import namedtuple
 from collections.abc import Callable, Iterable, Mapping
+from copy import deepcopy
 from dataclasses import dataclass, field
-from itertools import chain
 from operator import attrgetter
-from textwrap import wrap
 
 from matplotlib import pyplot as plt
 from matplotlib import rcParams
 
 from collect import CollectResult
-from objects import PlanNodeVisitor, PlanPrinter, Query
-from objects import AggregateNode, JoinNode, SortNode, PlanNode, ScanNode
+from objects import PlanPrinter
+from objects import PlanNode
 from actions.report import AbstractReportAction
+from actions.reports.cost_metrics import CostMetrics
 
 
-REPORT_DESCRIPTION = (
-    '== X-Time-Cost Chartset\n'
-    '\n<<Scan Node x-time-cost chartset>>\n'
-    '\n* Each chartset consists of three charts: (x, y) = (cost, exec time), (x-metric, exec time)'
-    ' and (x-metric, cost) where `x-metric` is the metric of interest that affects the execution'
-    ' time such as node input-output row count ratio, node output data size, etc.'
-    '\n\n* The costs are adjusted by the actual row count using the following formula'
-    ' unless noted otherwise.'
-    '\n\n    (total_cost - startup_cost) * actual_rows / estimated_rows + startup_cost'
-    '\n\n'
-    '== Boxplot Chart\n'
-    '\n<<Scan Node distribution charts>>\n'
+BOXPLOT_DESCRIPTION = (
+    '=== Boxplot Chart\n'
     '\n```\n'
     '     Q1-1.5IQR   Q1   median  Q3   Q3+1.5IQR\n'
     '     (or min)     |-----:-----|    (or max)\n'
@@ -41,7 +31,6 @@ REPORT_DESCRIPTION = (
     '  mean: green dashed line\n'
     '```\n'
     '\n* Each box represents the inter-quartile range: [Q1 .. Q3] (+/- 25% from the median).\n'
-    '\n* The red line in the box is the mean.\n'
     '\n* The whiskers extending from the box represent 1.5 x the inter-quantile range.\n'
     '\n* The bubbles beyond the whiskers represent fliers (outliers).\n'
     '\n* References:\n'
@@ -50,11 +39,15 @@ REPORT_DESCRIPTION = (
     '\n'
 )
 
-
-expr_classifier_pattern = re.compile(
-    r'[ (]*((\w+\.)*(?P<column>c\d+)[ )]* *(?P<op>=|>=|<=|<>|<|>)'
-    r' *(?P<rhs>(?P<number>\d+)|(?:ANY \(\'{(?P<lit_array>[0-9,]+)}\'::integer\[\]\))'
-    r'|(?:ANY \((?P<bnl_array>ARRAY\[[$0-9a-z_,. ]+\])\))))'
+X_TIME_COST_CHART_DESCRIPTION = (
+    '=== Time-Cost Relationship Charts\n'
+    '\n* Each chartset consists of three charts: (x, y) = (cost, exec time), (x-metric, exec time)'
+    ' and (x-metric, cost) where `x-metric` is the metric of interest that affects the execution'
+    ' time such as node input-output row count ratio, node output data size, etc.'
+    '\n\n* The costs are adjusted by the actual row count using the following formula'
+    ' unless noted otherwise.\n'
+    '\n    (total_cost - startup_cost) * actual_rows / estimated_rows + startup_cost\n'
+    '\n'
 )
 
 
@@ -86,8 +79,11 @@ class ChartSpec:
     query_filter: Callable[[str], bool]
     node_filter: Callable[[PlanNode], bool]
     x_getter: Callable
-    series_label_suffix: Callable = lambda node: ''
+    series_suffix: Callable = lambda node: ''
     options: ChartOptions = field(default_factory=ChartOptions)
+
+    xtra_query_filter_list: Iterable[Callable[[str], bool]] = field(default_factory=list)
+    xtra_node_filter_list: Iterable[Callable[[PlanNode], bool]] = field(default_factory=list)
 
     file_name: str = ''
     queries: set[str] = field(default_factory=set)
@@ -96,309 +92,52 @@ class ChartSpec:
     outliers: Mapping[str: Iterable[DataPoint]] = field(default_factory=dict)
     outlier_axis: str = 'cost/time ratio'
 
-    def test_node(self, query_str, node):
-        return self.query_filter(query_str) and self.node_filter(node)
+    def is_boxplot(self):
+        return self.plotter is CostReport.draw_boxplot
 
-
-class NodeFeatures:
-    def __init__(self, node: PlanNode):
-        self.is_seq_scan = False
-        self.is_any_index_scan = False
-        self.is_join = False
-        self.is_aggregate = False
-        self.is_sort = False
-        self.has_index_access_cond = False
-        self.has_scan_filter = False
-        self.has_tfbr_filter = False
-        self.has_local_filter = False
-        self.has_rows_removed_by_recheck = False
-
-        if isinstance(node, ScanNode):
-            self.is_seq_scan = node.is_seq_scan
-            self.is_any_index_scan = node.is_any_index_scan
-            self.has_index_access_cond = bool(node.get_index_cond())
-            self.has_scan_filter = bool(node.get_remote_filter())
-            self.has_tfbr_filter = bool(node.get_remote_tfbr_filter())
-            self.has_local_filter = bool(node.get_local_filter())
-            self.has_rows_removed_by_recheck = bool(node.get_rows_removed_by_recheck())
-        elif isinstance(node, JoinNode):
-            self.is_join = True
-        elif isinstance(node, AggregateNode):
-            self.is_aggregate = True
-        elif isinstance(node, SortNode):
-            self.is_sort = True
-
-    def __str__(self):
-        return ','.join(filter(lambda a: getattr(self, a), self.__dict__.keys()))
-
-
-@dataclass
-class PlanFeatures:
-    is_single_table: bool = False
-    has_join: bool = False
-    has_aggregate: bool = False
-    has_sort: bool = False
-    has_key_access_index: bool = False
-    has_scan_filter_index: bool = False
-    has_tfbr_filter_index: bool = False
-    has_no_filter_index: bool = False
-    has_table_filter_seqscan: bool = False
-    has_local_filter: bool = False
-
-    # these need to be computed at the end
-    has_single_scan_node: bool = False
-    has_no_condition_scan: bool = False
-
-    def __str__(self):
-        return ','.join(filter(lambda a: getattr(self, a), self.__dict__.keys()))
-
-    def update(self, nf: NodeFeatures):
-        self.has_join |= nf.is_join
-        self.has_aggregate |= nf.is_aggregate
-        self.has_sort |= nf.is_sort
-        self.has_table_filter_seqscan |= (nf.is_seq_scan and nf.has_scan_filter)
-        self.has_local_filter |= nf.has_local_filter
-        if nf.is_any_index_scan:
-            self.has_key_access_index |= nf.has_index_access_cond
-            self.has_scan_filter_index |= nf.has_scan_filter
-            self.has_tfbr_filter_index |= nf.has_tfbr_filter
-            self.has_no_filter_index |= not (self.has_scan_filter_index
-                                             or self.has_tfbr_filter_index
-                                             or self.has_local_filter)
-
-    def merge(self, other):
-        for a in self.__dict__.keys():
-            if getattr(other, a):
-                setattr(self, a, True)
-
-
-@dataclass(frozen=True)
-class PlanContext:
-    parent_query: Query
-    index: int
-    plan_tree: PlanNode
-
-    def get_query(self):
-        return self.parent_query.optimizations[self.index] if self.index else self.parent_query
-
-
-@dataclass(frozen=True)
-class NodeDetail:
-    plan_context: PlanContext
-    node_width: int
-    node_features: NodeFeatures
-
-    def get_query(self):
-        return self.plan_context.get_query()
-
-    def get_plan_tree(self):
-        return self.plan_context.plan_tree
-
-
-class PlanNodeCollectorContext:
-    def __init__(self):
-        self.seq_scan_nodes: Mapping[str: Iterable[ScanNode]] = dict()
-        self.any_index_scan_nodes: Mapping[str: Iterable[ScanNode]] = dict()
-        self.pf = PlanFeatures()
-
-    def __str__(self):
-        s = ''
-        for t, nodes in chain(self.seq_scan_nodes.items(),
-                              self.any_index_scan_nodes.items()):
-            s += f'  {t}: {len(nodes)} nodes'
-            for n in nodes:
-                s += f'    {n.get_full_str()}'
-        s += f' plan_features: [{self.pf}]'
-        return s
-
-
-class InvalidCostFixer(PlanNodeVisitor):
-    def __init__(self, root: PlanNode):
-        super().__init__()
-        self.root = root
-        self.error = False
-
-    def generic_visit(self, node):
-        if node.fixup_invalid_cost():
-            self.error = True
+    def make_variant(self, xtra_title, overwrite_title=False,
+                     description: str = None,
+                     xtra_query_filter: Callable[[str], bool] = None,
+                     xtra_node_filter: Callable[[PlanNode], bool] = None,
+                     xlabel: str = None,
+                     x_getter: Callable = None,
+                     series_suffix: str = None,
+                     options: ChartOptions = None):
+        var = deepcopy(self)
+        if overwrite_title:
+            var.title = xtra_title
         else:
-            super().generic_visit(node)
-        return self.error
+            var.title += f' ({xtra_title})'
+        if description:
+            var.description = description
+        if xtra_query_filter:
+            var.xtra_query_filter_list.append(xtra_query_filter)
+        if xtra_node_filter:
+            var.xtra_node_filter_list.append(xtra_node_filter)
+        if xlabel:
+            var.xlabel = xlabel
+        if x_getter:
+            var.x_getter = x_getter
+        if series_suffix:
+            var.series_suffix = series_suffix
+        if options:
+            var.options = options
+        return var
 
+    def test_query(self, query_str):
+        return all(f(query_str) for f in [self.query_filter, *self.xtra_query_filter_list])
 
-class PlanNodeCollector(PlanNodeVisitor):
-    def __init__(self, ctx, plan_ctx, node_detail_map, logger):
-        super().__init__()
-        self.ctx = ctx
-        self.plan_ctx = plan_ctx
-        self.node_detail_map = node_detail_map
-        self.logger = logger
-        self.num_scans = 0
-        self.depth = 0
-        self.scan_node_width_map = self.compute_scan_node_width(plan_ctx.get_query())
-
-    def __enter(self):
-        self.ctx.pf.__init__()
-
-    def __exit(self):
-        self.ctx.pf.has_single_scan_node = (self.num_scans == 1)
-        self.ctx.pf.has_no_condition_scan = not (self.ctx.pf.has_key_access_index
-                                                 or self.ctx.pf.has_scan_filter_index
-                                                 or self.ctx.pf.has_tfbr_filter_index
-                                                 or self.ctx.pf.has_table_filter_seqscan
-                                                 or self.ctx.pf.has_local_filter)
-
-    def generic_visit(self, node):
-        if self.depth == 0:
-            self.__enter()
-        self.depth += 1
-
-        node_feat = NodeFeatures(node)
-        self.ctx.pf.update(node_feat)
-        self.node_detail_map[id(node)] = NodeDetail(self.plan_ctx, None, node_feat)
-        super().generic_visit(node)
-
-        self.depth -= 1
-        if self.depth == 0:
-            self.__exit()
-
-    def visit_scan_node(self, node):
-        if self.depth == 0:
-            self.__enter()
-        self.depth += 1
-        self.num_scans += 1
-
-        if int(node.nloops) > 0:
-            table = node.table_alias or node.table_name
-            node_width = self.scan_node_width_map.get(table)
-            # try postgres-generated number suffixed alias
-            if (not node_width and node.table_alias
-                    and (m := re.fullmatch(fr'({node.table_name})_\d+', node.table_alias))):
-                table = m.group(1)
-                node_width = self.scan_node_width_map.get(table)
-            # use the estimated width if still no avail (TAQO collector was not able to find
-            # matching table/field metadata)
-            if not node_width:
-                node_width = node.plan_width
-
-            node_feat = NodeFeatures(node)
-            self.ctx.pf.update(node_feat)
-            self.node_detail_map[id(node)] = NodeDetail(self.plan_ctx, node_width, node_feat)
-
-            if node.is_seq_scan:
-                if table not in self.ctx.seq_scan_nodes:
-                    self.ctx.seq_scan_nodes[table] = []
-                self.ctx.seq_scan_nodes[table].append(node)
-            elif node.is_any_index_scan:
-                if table not in self.ctx.any_index_scan_nodes:
-                    self.ctx.any_index_scan_nodes[table] = []
-                self.ctx.any_index_scan_nodes[table].append(node)
-            else:
-                self.logger.warn(f'Unknown ScanNode: node_type={node.node_type}')
-
-        super().generic_visit(node)
-
-        self.depth -= 1
-        if self.depth == 0:
-            self.__exit()
-
-    @staticmethod
-    def compute_scan_node_width(query):
-        scan_node_width_map = dict()
-        if not query or not query.tables:
-            return dict()
-        for t in query.tables:
-            width = 0
-            for f in t.fields:
-                width += f.avg_width or f.defined_width
-            scan_node_width_map[t.alias or t.name] = width
-        return scan_node_width_map
-
-
-class ExpressionAnalyzer:
-    def __init__(self, expr):
-        self.expr = expr
-        self.columns: set[str] = set()
-        self.simple_comp_exprs: int = 0
-        self.literal_in_lists: int = 0
-        self.bnl_in_lists: int = 0
-        self.complex_exprs: int = 0
-        self.prop_list: Iterable[Mapping] = list()
-        self.__analyze()
-
-    def is_simple_expr(self):
-        return (len(self.columns) == 1
-                and self.simple_comp_exprs >= 1
-                and self.literal_in_lists == 0
-                and self.bnl_in_lists == 0
-                and self.complex_exprs == 0)
-
-    def __analyze(self):
-        if not self.expr or not self.expr.strip():
-            return list()
-        for branch in re.split('AND', self.expr):
-            if m := expr_classifier_pattern.match(branch):
-                if column := m.group('column'):
-                    self.columns.add(column)
-                op = m.group('op')
-                rhs = m.group('rhs')
-                number = m.group('number')
-                self.simple_comp_exprs += bool(column and op and number)
-
-                num_list_items = None
-
-                if literal_array := m.group('lit_array'):
-                    num_list_items = len(literal_array.split(','))
-                    self.literal_in_lists += 1
-                    bnl_array = None
-                elif bnl_array := m.group('bnl_array'):
-                    self.bnl_in_lists += 1
-                    num_list_items = self.__count_inlist_items(bnl_array)
-
-                self.prop_list.append(dict(column=column,
-                                           op=op,
-                                           rhs=rhs,
-                                           number=number,
-                                           num_list_items=num_list_items,
-                                           literal_array=literal_array,
-                                           bnl_array=bnl_array,))
-            else:
-                self.complex_exprs += 1
-                self.prop_list.append(dict(complex=branch))
-
-    @staticmethod
-    def __count_inlist_items(expr):
-        start = 0
-        end = 0
-        if ((start := expr.find('= ANY (')) > 0
-                and (end := expr.find(')', start)) > 0):
-            if m := re.search(r'\$(?P<first>\d+)[ ,\$0-9]+..., \$(?P<last>\d+)',
-                              expr[start:end]):
-                first = int(m.group('first'))
-                last = int(m.group('last'))
-                return last - first + 2
-            return len(expr[start:end].split(','))
-        return 0
+    def test_node(self, node):
+        return all(f(node) for f in [self.node_filter, *self.xtra_node_filter_list])
 
 
 class CostReport(AbstractReportAction):
     def __init__(self):
         super().__init__()
-
+        self.cm = CostMetrics()
         self.interactive = False
-
         self.report_location = f'report/{self.start_date}'
         self.image_folder = 'imgs'
-
-        self.table_row_map: Mapping[str: float] = dict()
-        self.node_detail_map: Mapping[int: NodeDetail] = dict()
-        self.scan_node_map: Mapping[str: Mapping[str: Iterable[ScanNode]]] = dict()
-        self.query_map: Mapping[str: tuple[Query, PlanFeatures]] = dict()
-
-        self.num_plans: int = 0
-        self.num_invalid_cost_plans: int = 0
-        self.num_invalid_cost_plans_fixed: int = 0
-        self.num_no_opt_queries: int = 0
 
     def get_image_path(self, file_name):
         return f'{self.report_location}/{self.image_folder}/{file_name}'
@@ -409,12 +148,13 @@ class CostReport(AbstractReportAction):
     @classmethod
     def generate_report(cls, loq: CollectResult, interactive):
         report = CostReport()
+        cm = report.cm
         report.interactive = interactive
 
-        chart_specs = report.get_chart_specs()
-
+        chart_specs = list()
         if interactive:
-            chart_specs = report.choose_chart_spec(chart_specs)
+            chart_specs = report.choose_chart_spec(report.get_xtc_chart_specs(cm)
+                                                   + report.get_exp_chart_specs(cm))
         else:
             report.define_version(loq.db_version)
             report.report_config(loq.config, "YB")
@@ -422,21 +162,30 @@ class CostReport(AbstractReportAction):
 
         report.logger.info('Processing queries...')
         for query in sorted(loq.queries, key=lambda query: query.query):
-            report.add_query(query)
+            cm.add_query(query)
 
-        report.logger.info(f"Processed {len(loq.queries)} queries  {report.num_plans} plans")
-        if report.num_no_opt_queries:
-            report.logger.warn(f"Queries without non-default plans: {report.num_no_opt_queries}")
-        if report.num_invalid_cost_plans:
-            report.logger.warn(f"Plans with invalid costs: {report.num_invalid_cost_plans}"
-                               f", fixed: {report.num_invalid_cost_plans_fixed}")
+        report.logger.info(f"Processed {len(loq.queries)} queries  {cm.num_plans} plans")
+        if cm.num_no_opt_queries:
+            report.logger.warn(f"Queries without non-default plans: {cm.num_no_opt_queries}")
+        if cm.num_invalid_cost_plans:
+            report.logger.warn(f"Plans with invalid costs: {cm.num_invalid_cost_plans}"
+                               f", fixed: {cm.num_invalid_cost_plans_fixed}")
+
+        # for now, print and run the queries then populate self.index_prefix_gap_map manually.
+        # TODO: move collect and record the ndv to the "collection" step via flag.
+        # cm.build_index_prefix_gap_queries()
+        # return
 
         if interactive:
             report.collect_nodes_and_create_plots(chart_specs)
         else:
-            dist_chart_specs = report.get_dist_chart_specs()
-            report.collect_nodes_and_create_plots(chart_specs + dist_chart_specs)
-            report.build_report(chart_specs, dist_chart_specs)
+            dist_chart_specs = report.get_dist_chart_specs(cm)
+            xtc_chart_specs = report.get_xtc_chart_specs(cm)
+            exp_chart_specs = report.get_exp_chart_specs(cm)
+            # exp_chart_specs += report.get_more_exp_chart_specs(cm)
+            report.collect_nodes_and_create_plots(dist_chart_specs
+                                                  + xtc_chart_specs + exp_chart_specs)
+            report.build_report(dist_chart_specs, xtc_chart_specs, exp_chart_specs)
             report.publish_report("cost")
 
     def get_report_name(self):
@@ -445,91 +194,44 @@ class CostReport(AbstractReportAction):
     def define_version(self, version):
         self.report += f"[VERSION]\n====\n{version}\n====\n\n"
 
-    def add_table_row_count(self, tables):
-        for t in tables:
-            self.table_row_map[t.name] = t.rows
+    def build_report(self, dist_chart_specs, xtc_chart_specs, exp_chart_specs):
+        def report_one_chart(self, id, spec):
+            self.report += f"=== {id}. {html.escape(spec.title)}\n{spec.description}\n"
+            self.report_chart(spec)
 
-    def process_plan(self, ctx, parent_query, index):
-        query = parent_query.optimizations[index] if index else parent_query
-        if not (plan := query.execution_plan):
-            self.logger.warn(f"=== Query ({index or 'default'}): [{query.query}]"
-                             " does not have any valid plan\n")
-            return
+        id = 0
+        self.report += "\n== Time & Cost <<_boxplot_chart, Distribution Charts>>\n"
+        for spec in dist_chart_specs:
+            report_one_chart(self, id, spec)
+            id += 1
 
-        if not (ptree := plan.parse_plan()):
-            self.logger.warn(f"=== Failed to parse plan ===\n{plan.full_str}\n")
-        else:
-            self.num_plans += 1
-            if not ptree.has_valid_cost():
-                self.num_invalid_cost_plans += 1
-                invalid_cost_plan = (f'hints: [{query.explain_hints}]\n'
-                                     f'{PlanPrinter.build_plan_tree_str(ptree, actual=False)}')
-                self.logger.debug(f'=== Found plan with invalid costs ===\n{invalid_cost_plan}\n')
-                if InvalidCostFixer(ptree).visit(ptree):
-                    self.logger.warn('*** Failed to fixup invalid costs:\n====\n'
-                                     f'{invalid_cost_plan}\n==== Skipping...')
-                    return
+        self.report += "\n== <<_time_cost_relationship_charts, Time - Cost Relationship Charts>>\n"
+        for spec in xtc_chart_specs:
+            report_one_chart(self, id, spec)
+            id += 1
 
-                self.num_invalid_cost_plans_fixed += 1
-                self.logger.debug('=== Fixed up invalid costs successfully ===\n'
-                                  f'{PlanPrinter.build_plan_tree_str(ptree, actual=False)}')
+        self.report += "\n== Experimental Charts\n"
+        for spec in exp_chart_specs:
+            report_one_chart(self, id, spec)
+            id += 1
 
-        pctx = PlanContext(parent_query, index, ptree)
-        PlanNodeCollector(ctx, pctx, self.node_detail_map, self.logger).visit(ptree)
-
-    def add_query(self, query: type[Query]):
-        self.logger.debug(f'{query.query_hash}: {query.query}...')
-        self.add_table_row_count(query.tables)
-
-        pf = PlanFeatures()
-
-        ctx = PlanNodeCollectorContext()
-        self.process_plan(ctx, query, index=None)
-        pf.merge(ctx.pf)
-
-        if not query.optimizations:
-            self.num_no_opt_queries += 1
-        else:
-            for ix, opt in enumerate(query.optimizations):
-                if opt.execution_plan and opt.execution_plan.full_str:
-                    self.process_plan(ctx, query, ix)
-                    pf.merge(ctx.pf)
-
-        pf.is_single_table = len(query.tables) == 1
-
-        self.logger.debug(f'query features: [{pf}]')
-
-        self.scan_node_map[query.query] = {}
-
-        for table, node_list in chain(ctx.any_index_scan_nodes.items(),
-                                      ctx.seq_scan_nodes.items()):
-            if table not in self.scan_node_map[query.query]:
-                self.scan_node_map[query.query][table] = []
-            self.scan_node_map[query.query][table] += node_list
-
-            # for node in node_list:
-            #     self.logger.debug(
-            #         '  '.join(
-            #             filter(lambda prop: prop, [
-            #                 node.name,
-            #                 node.get_index_cond(with_label=True),
-            #                 node.get_remote_tfbr_filter(with_label=True),
-            #                 node.get_remote_filter(with_label=True),
-            #                 node.get_local_filter(with_label=True),
-            #             ])))
-        self.query_map[query.query] = (query, pf)
+        self.report += "== Chart Descriptions\n"
+        self.report += BOXPLOT_DESCRIPTION
+        self.report += X_TIME_COST_CHART_DESCRIPTION
 
     def report_chart_filters(self, spec: ChartSpec):
         self._start_collapsible("Chart specifications")
         self._start_source(["python"])
         self.report += "=== Query Filters ===\n"
-        self.report += inspect.getsource(spec.query_filter)
+        for f in spec.query_filter, *spec.xtra_query_filter_list:
+            self.report += inspect.getsource(f)
         self.report += "=== Node Filters ===\n"
-        self.report += inspect.getsource(spec.node_filter)
+        for f in spec.node_filter, *spec.xtra_node_filter_list:
+            self.report += inspect.getsource(f)
         self.report += "=== X Axsis Data ===\n"
         self.report += inspect.getsource(spec.x_getter)
         self.report += "=== Series Suffix ===\n"
-        self.report += inspect.getsource(spec.series_label_suffix)
+        self.report += inspect.getsource(spec.series_suffix)
         self.report += "=== Options ===\n"
         self.report += str(spec.options)
         self._end_source()
@@ -546,6 +248,7 @@ class CostReport(AbstractReportAction):
     def report_outliers(self, outliers, axis_label, data_labels):
         if not outliers:
             return
+        cm = self.cm
         num_dp = sum([len(cond) for key, cond in outliers.items()])
         self._start_collapsible(
             f"#Extreme {axis_label} outliers excluded from the plots ({num_dp})#", sep="=====")
@@ -565,7 +268,7 @@ class CostReport(AbstractReportAction):
                 self._end_source()
                 self.report += "|\n"
                 self._start_source(["sql"], linenums=False)
-                self.report += self.get_node_query(node).query
+                self.report += cm.get_node_query(node).query
                 self._end_source()
 
             self._end_table()
@@ -632,7 +335,7 @@ class CostReport(AbstractReportAction):
         self._start_table()
         self.add_image(spec.file_name, '{title},align=\"center\"')
         self._end_table()
-        if spec.plotter == self.draw_boxplot:
+        if spec.is_boxplot():
             self.report_stats(spec)
 
         self.report_chart_filters(spec)
@@ -642,25 +345,6 @@ class CostReport(AbstractReportAction):
                               'time_ms', 'cost', 'node', 'queries'])
         self.report_plot_data(spec.series_data, [f'{html.escape(spec.xlabel)}',
                                                  'time_ms', 'cost', 'node'])
-
-    def build_report(self, chart_specs, dist_chart_specs):
-        self.report += REPORT_DESCRIPTION
-        self.report += "\n== Scan Nodes\n"
-        id = 0
-
-        def report_one_chart(self, id, spec):
-            self.report += f"=== {id}. {html.escape(spec.title)}\n{spec.description}\n"
-            self.report_chart(spec)
-
-        self.report += "\n=== Scan Node x-time-cost chartset\n"
-        for spec in chart_specs:
-            report_one_chart(self, id, spec)
-            id += 1
-
-        self.report += "\n=== Scan Node distribution charts\n"
-        for spec in dist_chart_specs:
-            report_one_chart(self, id, spec)
-            id += 1
 
     __spcrs = " !\"#$%&'()*+,./:;<=>?[\\]^`{|}~"
     __xtab = str.maketrans(" !\"#$%&'()*+,./:;<=>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^`{|}~",
@@ -759,7 +443,7 @@ class CostReport(AbstractReportAction):
         rcParams['font.family'] = 'serif'
         rcParams['font.size'] = 10
 
-        fig, ax = plt.subplots(1, figsize=(12, 3), layout='constrained')
+        fig, ax = plt.subplots(1, figsize=(12, 2.7), layout='constrained')
 
         ax.set_title(title, fontsize='large')
         ax.set_xlabel(xlabel)
@@ -822,11 +506,13 @@ class CostReport(AbstractReportAction):
     def collect_nodes_and_create_plots(self, specs: Iterable[ChartSpec]):
         self.logger.info('Collecting data points...')
 
-        for query_str, table_node_list_map in self.scan_node_map.items():
-            for node_list in table_node_list_map.values():
-                for node in node_list:
-                    for spec in specs:
-                        if not spec.test_node(query_str, node):
+        for spec in specs:
+            for query_str, table_node_list_map in self.cm.query_table_node_map.items():
+                if not spec.test_query(query_str):
+                    continue
+                for node_list in table_node_list_map.values():
+                    for node in node_list:
+                        if not spec.test_node(node):
                             continue
 
                         spec.queries.add(query_str)
@@ -850,13 +536,11 @@ class CostReport(AbstractReportAction):
                         else:
                             series_label = node.name
 
-                        if suffix := spec.series_label_suffix(node):
+                        if suffix := spec.series_suffix(node):
                             series_label += f' {suffix}'
 
-                        if series_label not in spec.series_data:
-                            spec.series_data[series_label] = list()
-
-                        spec.series_data[series_label].append(DataPoint(xdata, cost, time_ms, node))
+                        spec.series_data.setdefault(series_label, list()).append(
+                            DataPoint(xdata, cost, time_ms, node))
 
         self.logger.info('Generating plots...')
 
@@ -872,7 +556,7 @@ class CostReport(AbstractReportAction):
                 fmt += line_style[(i+5) % len(line_style)]
                 spec.series_format[series_label] = fmt
 
-            spec.plotter(spec)
+            spec.plotter(self, spec)
 
     def choose_chart_spec(self, chart_specs):
         choices = '\n'.join([f'{n}: {s.title}' for n, s in enumerate(chart_specs)])
@@ -926,13 +610,15 @@ class CostReport(AbstractReportAction):
                 ptree = self.get_node_plan_tree(node)
                 ann.set_text(f'{PlanPrinter.build_plan_tree_str(ptree)}')
             elif 'shift' in modifiers:
-                query = self.get_node_query(node)
+                query = self.cm.get_node_query(node)
                 ann.set_text(f'{query.query_hash}\n{query.query}')
             else:
                 ann.set_text('\n'.join([
                     series,
-                    *wrap(str(node)),
-                    node.get_estimate_str(), node.get_actual_str()]))
+                    *self.cm.wrap_expr(str(node), 72),
+                    node.get_estimate_str(), node.get_actual_str(),
+                    f'prefix gaps={self.cm.get_index_key_prefix_gaps(node)}',
+                ]))
 
             ann.xy = event.artist.get_xydata()[event.ind][0]
             ann.xyann = ((event.axx - 0.5)*(-200) - 120, (event.axy - 0.5)*(-200) + 40)
@@ -967,536 +653,322 @@ class CostReport(AbstractReportAction):
         fig.canvas.mpl_connect('button_release_event', on_button_release)
         plt.show()
 
-    def get_node_query(self, node):
-        return self.node_detail_map[id(node)].get_query()
-
-    def get_node_query_str(self, node):
-        return self.get_node_query(node).query
-
-    def get_node_plan_tree(self, node):
-        return self.node_detail_map[id(node)].get_plan_tree()
-
-    def get_node_table_rows(self, node):
-        return float(self.table_row_map.get(node.table_name))
-
-    def get_node_width(self, node):
-        return (0 if self.is_no_project_query(self.get_node_query(node).query)
-                else int(self.node_detail_map[id(node)].node_width))
-
-    def get_per_row_cost(self, node):
-        return ((float(node.total_cost) - float(node.startup_cost))
-                / (float(node.plan_rows) if float(node.plan_rows) else 1))
-
-    def get_per_row_time(self, node):
-        return ((float(node.total_ms) - float(node.startup_ms))
-                / (float(node.rows) if float(node.rows) else 1))
-
-    def get_actual_node_selectivity(self, node):
-        table_rows = float(self.get_node_table_rows(node))
-        return (float(node.rows) / table_rows) if table_rows else 0
-
-    def is_scan_with_simple_filter_condition(self, node, allow_local_filter):
-        return (isinstance(node, ScanNode)
-                and not node.has_no_filter()
-                and (allow_local_filter or not node.get_local_filter())
-                and self.is_simple_literal_condition(node.get_search_condition_str()))
-
-    def get_plan_features(self, query_str):
-        return self.query_map[query_str][1]
-
-    def is_single_table_query(self, query_str):
-        return self.get_plan_features(query_str).is_single_table
-
-    def is_no_project_query(self, query_str):
-        return (query_str.lower().startswith('select 0 from')
-                or query_str.lower().startswith('select count(*) from'))
-
-    def has_no_filter_indexscan(self, query_str):
-        return self.get_plan_features(query_str).has_no_filter_index
-
-    def has_scan_filter_indexscan(self, query_str):
-        return self.get_plan_features(query_str).has_scan_filter_index
-
-    def has_tfbr_filter_indexscan(self, query_str):
-        return self.get_plan_features(query_str).has_tfbr_filter_index
-
-    def has_local_filter(self, query_str):
-        return self.get_plan_features(query_str).has_local_filter
-
-    def has_aggregate(self, query_str):
-        return self.get_plan_features(query_str).has_aggregate
-
-    @staticmethod
-    def is_simple_literal_condition(expr):
-        # TODO: cache analyzed results
-        return not expr or ExpressionAnalyzer(expr).is_simple_expr()
-
-    @staticmethod
-    def count_literal_inlist_items(expr):
-        num_item_str_list = list()
-        # TODO: cache analyzed results
-        for ea_prop in ExpressionAnalyzer(expr).prop_list:
-            if ea_prop.get('literal_array'):
-                num_item_str_list.append(str(ea_prop.get('num_list_items')))
-
-        return ('x'.join(filter(lambda item: bool(item), sorted(num_item_str_list)))
-                if num_item_str_list else '')
-
-    def has_simple_index_cond(self, node, index_cond_only=False):
-        index_cond = node.get_index_cond()
-        return (index_cond
-                and self.is_simple_literal_condition(index_cond)
-                and (not index_cond_only
-                     or node.has_no_filter()))
-
-    def has_inlist_index_cond(self, node, parameterized=False):
-        index_cond = str(node.get_index_cond())
-        return (index_cond
-                and (eq_any_start := index_cond.find('= ANY (')) > 0
-                and (eq_any_end := index_cond.find(')', eq_any_start)) > 0
-                and (not parameterized
-                     or parameterized == (index_cond.find('$', eq_any_start, eq_any_end) > 0)))
-
-    def get_dist_chart_specs(self):
+    def get_dist_chart_specs(self, cm: CostMetrics):
         return [
-            ChartSpec(
-                self.draw_boxplot,
-                'Per row cost/time ratio of the scan nodes (width=0, rows>=1)',
+            (boxplot_simple_scan_node := ChartSpec(
+                CostReport.draw_boxplot,
+                '',
+                ('* Nodes with local filter, recheck-removed-rows or partial aggregate'
+                 ' are _excluded_\n'),
+                'xlabel', 'Node type', '',
+                lambda query: True,
+                lambda node: (
+                    float(node.nloops) == 1
+                    and float(node.rows) >= 1
+                    and cm.get_node_width(node) == 0
+                    and cm.has_no_local_filtering(node)
+                    and not cm.has_partial_aggregate(node)
+                ),
+                x_getter=lambda node: 1,
+            )).make_variant(
+                'Per row cost/time ratio of the scan nodes (width=0, rows>=1)', True,
                 ('  ((total_cost - startup_cost) / estimated_rows)'
                  ' / ((total_time - startup_time) / actual_rows)\n'
                  '\n* Nodes with local filter, recheck-removed-rows or partial aggregate'
                  ' are _excluded_\n'),
-                'Per row cost/time ratio [1/ms]', 'Node type', '',
-                lambda query: True,
-                lambda node: (float(node.nloops) == 1
-                              and float(node.rows) >= 1
-                              and self.get_node_width(node) == 0
-                              and not node.get_local_filter()
-                              and not node.get_rows_removed_by_recheck()
-                              and not node.is_scan_with_partial_aggregate()),
-                x_getter=lambda node: self.get_per_row_cost(node) / self.get_per_row_time(node),
+                xlabel='Per row cost/time ratio [1/ms]',
+                x_getter=lambda node: (cm.get_per_row_cost(node)
+                                       / (cm.get_per_row_time(node) or 0.01)),
             ),
-            ChartSpec(
-                self.draw_boxplot,
-                'Per row time of the scan nodes (width=0, rows>=1)',
-                ('* Nodes with local filter, recheck-removed-rows or partial aggregate'
-                 ' are _excluded_\n'),
-                'Per row execution time[ms]', 'Node type', '',
-                lambda query: True,
-                lambda node: (float(node.nloops) == 1
-                              and float(node.rows) >= 1
-                              and self.get_node_width(node) == 0
-                              and not node.get_local_filter()
-                              and not node.get_rows_removed_by_recheck()
-                              and not node.is_scan_with_partial_aggregate()),
-                x_getter=lambda node: self.get_per_row_time(node),
+            boxplot_simple_scan_node.make_variant(
+                'Per row time of the scan nodes (width=0, rows>=1)', True,
+                xlabel='Per row execution time[ms]',
+                x_getter=lambda node: cm.get_per_row_time(node),
             ),
-            ChartSpec(
-                self.draw_boxplot,
-                'Per row cost of the scan nodes (width=0, rows>=1)',
-                ('* Nodes with local filter, recheck-removed-rows or partial aggregate'
-                 ' are _excluded_\n'),
-                'Per row cost', 'Node type', '',
-                lambda query: True,
-                lambda node: (float(node.nloops) == 1
-                              and float(node.rows) >= 1
-                              and self.get_node_width(node) == 0
-                              and not node.get_local_filter()
-                              and not node.get_rows_removed_by_recheck()
-                              and not node.is_scan_with_partial_aggregate()),
-                x_getter=lambda node: self.get_per_row_cost(node),
+            boxplot_simple_scan_node.make_variant(
+                'Per row cost of the scan nodes (width=0, rows>=1)', True,
+                xlabel='Per row cost',
+                x_getter=lambda node: cm.get_per_row_cost(node),
             ),
-            ChartSpec(
-                self.draw_boxplot,
-                'Startup cost/time ratio of the scan nodes (width=0)',
-                ('  startup_cost / startup_time\n'
-                 '* Nodes with local filter, recheck-removed-rows or partial aggregate'
-                 ' are _excluded_\n'),
-                'Startup cost/time ratio [1/ms]', 'Node type', '',
-                lambda query: True,
-                lambda node: (float(node.nloops) == 1
-                              and self.get_node_width(node) == 0
-                              and not node.get_local_filter()
-                              and not node.get_rows_removed_by_recheck()
-                              and not node.is_scan_with_partial_aggregate()),
+            boxplot_simple_scan_node.make_variant(
+                'Startup cost/time ratio of the scan nodes (width=0)', True,
+                xlabel='Startup cost/time ratio [1/ms]',
                 x_getter=lambda node: (float(node.startup_cost)
                                        / (float(node.startup_ms)
                                           if float(node.startup_ms) else 0.001)),
             ),
-            ChartSpec(
-                self.draw_boxplot,
-                'Startup time of the scan nodes (width=0)',
-                ('* Nodes with local filter, recheck-removed-rows or partial aggregate'
-                 ' are _excluded_\n'),
-                'Startup time [ms]', 'Node type', '',
-                lambda query: True,
-                lambda node: (float(node.nloops) == 1
-                              and self.get_node_width(node) == 0
-                              and not node.get_local_filter()
-                              and not node.get_rows_removed_by_recheck()
-                              and not node.is_scan_with_partial_aggregate()),
+            boxplot_simple_scan_node.make_variant(
+                'Startup time of the scan nodes (width=0)', True,
+                xlabel='Startup time [ms]',
                 x_getter=lambda node: float(node.startup_ms),
-            ),
-            ChartSpec(
-                self.draw_boxplot,
-                'Startup cost of the scan nodes (width=0)',
-                ('* Nodes with local filter, recheck-removed-rows or partial aggregate'
-                 ' are _excluded_\n'),
-                'Startup cost', 'Node type', '',
-                lambda query: True,
-                lambda node: (float(node.nloops) == 1
-                              and self.get_node_width(node) == 0
-                              and not node.get_local_filter()
-                              and not node.get_rows_removed_by_recheck()
-                              and not node.is_scan_with_partial_aggregate()),
-                x_getter=lambda node: float(node.startup_cost),
             ),
         ]
 
-    def get_chart_specs(self):
+    def get_xtc_chart_specs(self, cm: CostMetrics):
         return [
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                ('Simple index access conditions and corresponding seq scans by node type'
-                 ' (t100000 and t100000w)'),
+            (chart_simple_index_scan := ChartSpec(
+                CostReport.draw_x_cost_time_plot,
+                ('Simple index access conditions and corresponding seq scans by node type'),
                 ('Index (Only) Scans with simple index access condition on single key item'
                  ' and the Seq Scans from the same queries.'
                  '\n\n* No IN-list, OR\'ed condition, etc.'
                  '\n\n* The nodes showing "Rows Removed by (Index) Recheck" are excluded.'
                  '\n\n* No nodes from EXISTS and JOIN queries'),
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: (('t100000 ' in query or 't100000w ' in query)
-                               and 'exist' not in query
-                               and 'join' not in query
-                               and self.has_no_filter_indexscan(query)
-                               and not self.has_local_filter(query)
-                               and not self.has_aggregate(query)),
-                lambda node: (float(self.get_node_table_rows(node)) == 100000
-                              and node.get_rows_removed_by_recheck() == 0
-                              and (self.has_simple_index_cond(node, index_cond_only=True)
-                                   or (node.is_seq_scan and node.get_remote_filter()))),
+                lambda query: (
+                    cm.is_single_table_query(query)
+                    and cm.has_no_filter_indexscan(query)
+                    and not cm.has_local_filter(query)
+                    and not cm.has_aggregate(query)
+                ),
+                lambda node: (
+                    cm.has_no_local_filtering(node)
+                    and not cm.has_no_condition(node)
+                    and (node.is_seq_scan
+                         or (node.is_any_index_scan
+                             and cm.has_only_simple_condition(node, index_cond_only=True)))
+                ),
                 x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.table_name}:width={self.get_node_width(node)}'),
+                series_suffix=(lambda node:
+                               f'{node.index_name or node.table_name}:'
+                               f'width={cm.get_node_width(node)}'),
+            )).make_variant(
+                't100000 and t100000w',
+                xtra_query_filter=lambda query: 't100000 ' in query or 't100000w ' in query,
+                xtra_node_filter=(lambda node:
+                                  float(cm.get_table_row_count(node.table_name)) == 100000),
+                series_suffix=(lambda node:
+                               f'{node.table_name}:width={cm.get_node_width(node)}'),
             ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                ('Simple index scans and seq scans, series by index'
-                 ' (t100000)'),
-                ('Index (Only) Scans with simple index access condition on single key item'
-                 ' and the Seq Scans from the same queries.'
-                 '\n\n* No IN-list, OR\'ed condition, etc.'
-                 '\n\n* The nodes showing "Rows Removed by (Index) Recheck" are excluded.'
-                 '\n\n* No nodes from EXISTS and JOIN queries'),
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: ('t100000 ' in query
-                               and 'exist' not in query
-                               and 'join' not in query
-                               and self.has_no_filter_indexscan(query)
-                               and not self.has_local_filter(query)
-                               and not self.has_aggregate(query)),
-                lambda node: (float(self.get_node_table_rows(node)) == 100000
-                              and node.get_rows_removed_by_recheck() == 0
-                              and (self.has_simple_index_cond(node, index_cond_only=True)
-                                   or (node.is_seq_scan and node.get_remote_filter()))),
-                x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name or node.table_name}:'
-                                     f'width={self.get_node_width(node)}'),
+            chart_simple_index_scan.make_variant(
+                't100000',
+                xtra_query_filter=lambda query: 't100000 ' in query,
+                xtra_node_filter=(lambda node:
+                                  float(cm.get_table_row_count(node.table_name)) == 100000),
             ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                ('Simple index scans and seq scans, series by index'
-                 ' (t100000w)'),
-                ('Index (Only) Scans with simple index access condition on single key item'
-                 ' and the Seq Scans from the same queries.'
-                 '\n\n* No IN-list, OR\'ed condition, etc.'
-                 '\n\n* The nodes showing "Rows Removed by (Index) Recheck" are excluded.'
-                 '\n\n* No nodes from EXISTS and JOIN queries'),
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: ('t100000w ' in query
-                               and 'exist' not in query
-                               and 'join' not in query
-                               and self.has_no_filter_indexscan(query)
-                               and not self.has_local_filter(query)
-                               and not self.has_aggregate(query)),
-                lambda node: (float(self.get_node_table_rows(node)) == 100000
-                              and node.get_rows_removed_by_recheck() == 0
-                              and (self.has_simple_index_cond(node, index_cond_only=True)
-                                   or (node.is_seq_scan and node.get_remote_filter()))),
-                x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name or node.table_name}:'
-                                     f'width={self.get_node_width(node)}'),
+            chart_simple_index_scan.make_variant(
+                't100000w',
+                xtra_query_filter=lambda query: 't100000w ' in query,
+                xtra_node_filter=(lambda node:
+                                  float(cm.get_table_row_count(node.table_name)) == 100000),
             ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                ('Simple index scans and seq scans, series by index'
-                 ' (t10000)'),
-                ('Index (Only) Scans with simple index access condition on single key item'
-                 ' and the Seq Scans from the same queries.'
-                 '\n\n* No IN-list, OR\'ed condition, etc.'
-                 '\n\n* The nodes showing "Rows Removed by (Index) Recheck" are excluded.'
-                 '\n\n* No nodes from EXISTS and JOIN queries'),
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: ('t10000 ' in query
-                               and 'exist' not in query
-                               and 'join' not in query
-                               and self.has_no_filter_indexscan(query)
-                               and not self.has_local_filter(query)
-                               and not self.has_aggregate(query)),
-                lambda node: (float(self.get_node_table_rows(node)) == 10000
-                              and node.get_rows_removed_by_recheck() == 0
-                              and (self.has_simple_index_cond(node, index_cond_only=True)
-                                   or (node.is_seq_scan and node.get_remote_filter()))),
-                x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name or node.table_name}:'
-                                     f'width={self.get_node_width(node)}'),
+            chart_simple_index_scan.make_variant(
+                't10000',
+                xtra_query_filter=lambda query: 't10000 ' in query,
+                xtra_node_filter=(lambda node:
+                                  float(cm.get_table_row_count(node.table_name)) == 10000),
             ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                ('Simple index scans and seq scans, series by index'
-                 ' (t1000)'),
-                ('Index (Only) Scans with simple index access condition on single key item'
-                 ' and the Seq Scans from the same queries.'
-                 '\n\n* No IN-list, OR\'ed condition, etc.'
-                 '\n\n* The nodes showing "Rows Removed by (Index) Recheck" are excluded.'
-                 '\n\n* No nodes from EXISTS and JOIN queries'),
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: ('t1000 ' in query
-                               and 'exist' not in query
-                               and 'join' not in query
-                               and self.has_no_filter_indexscan(query)
-                               and not self.has_local_filter(query)
-                               and not self.has_aggregate(query)),
-                lambda node: (float(self.get_node_table_rows(node)) == 1000
-                              and node.get_rows_removed_by_recheck() == 0
-                              and (self.has_simple_index_cond(node, index_cond_only=True)
-                                   or (node.is_seq_scan and node.get_remote_filter()))),
-                x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name or node.table_name}:'
-                                     f'width={self.get_node_width(node)}'),
+            chart_simple_index_scan.make_variant(
+                't1000',
+                xtra_query_filter=lambda query: 't1000 ' in query,
+                xtra_node_filter=(lambda node:
+                                  float(cm.get_table_row_count(node.table_name)) == 1000),
             ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                ('Simple index scans and seq scans, series by index'
-                 ' (t100)'),
-                ('Index (Only) Scans with simple index access condition on single key item'
-                 ' and the Seq Scans from the same queries.'
-                 '\n\n* No IN-list, OR\'ed condition, etc.'
-                 '\n\n* The nodes showing "Rows Removed by (Index) Recheck" are excluded.'
-                 '\n\n* No nodes from EXISTS and JOIN queries'),
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: ('t100 ' in query
-                               and 'exist' not in query
-                               and 'join' not in query
-                               and self.has_no_filter_indexscan(query)
-                               and not self.has_local_filter(query)
-                               and not self.has_aggregate(query)),
-                lambda node: (float(self.get_node_table_rows(node)) == 100
-                              and node.get_rows_removed_by_recheck() == 0
-                              and (self.has_simple_index_cond(node, index_cond_only=True)
-                                   or (node.is_seq_scan and node.get_remote_filter()))),
-                x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name or node.table_name}:'
-                                     f'width={self.get_node_width(node)}'),
+            chart_simple_index_scan.make_variant(
+                't100',
+                xtra_query_filter=lambda query: 't100 ' in query,
+                xtra_node_filter=(lambda node:
+                                  float(cm.get_table_row_count(node.table_name)) == 100),
             ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
+            chart_literal_in_list := ChartSpec(
+                CostReport.draw_x_cost_time_plot,
                 'Index scan nodes with literal IN-list',
                 ("Index (Only) Scans with literal IN-list in the index access condition."),
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: ' in (' in query.lower(),
-                lambda node: (self.has_inlist_index_cond(node, parameterized=False)
-                              and node.get_rows_removed_by_recheck() == 0
-                              and node.has_no_filter()),
+                lambda query: True,
+                lambda node: (
+                    cm.has_literal_inlist_index_cond(node)
+                    and cm.has_no_local_filtering(node)
+                ),
                 x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name}:width={self.get_node_width(node)}'),
+                series_suffix=(lambda node:
+                               ''.join([
+                                   f'{node.index_name or node.table_name}:',
+                                   f'width={cm.get_node_width(node)}',
+                                   ' ncInItems=',
+                                   cm.build_non_contiguous_literal_inlist_count_str(
+                                       node.table_name, node.get_index_cond()),
+                               ])),
             ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                'Index scan nodes with literal IN-list (output <= 200 rows)',
-                ("Index (Only) Scans with literal IN-list in the index access condition."
-                 "\n\n  * The series are grouped by node_width and the number of IN-list items"),
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: ' in (' in query.lower(),
-                lambda node: (self.has_inlist_index_cond(node, parameterized=False)
-                              and node.get_rows_removed_by_recheck() == 0
-                              and node.has_no_filter()
-                              and float(node.rows) <= 200),
-                x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name}'
-                                     f':width={self.get_node_width(node)}'
-                                     f' IN={self.count_literal_inlist_items(node.get_index_cond())}'),
+            chart_literal_in_list.make_variant(
+                "output <= 200 rows",
+                xtra_node_filter=lambda node: float(node.rows) <= 100,
             ),
+        ]
+
+    def get_exp_chart_specs(self, cm: CostMetrics):
+        column_and_value_metric_chart = ChartSpec(
+            CostReport.draw_x_cost_time_plot,
+            '', '',
+            '', 'Estimated cost', 'Execution time [ms]',
+            lambda query: (
+                cm.is_single_table_query(query)
+                and len(cm.get_columns_in_query(query)) == 1
+            ),
+            lambda node: (
+                node.table_name in ('t1000000m', 't1000000c10')
+                and (cm.has_no_condition(node)
+                     or cm.has_only_simple_condition(node, index_cond_only=True))
+                and not cm.has_partial_aggregate(node)
+            ),
+            x_getter=lambda node: 0,
+        )
+
+        return [
             ChartSpec(
-                self.draw_x_cost_time_plot,
+                CostReport.draw_x_cost_time_plot,
                 'Parameterized IN-list index scans (BNL)',
                 ("Index (Only) Scans with BNL-generaed parameterized IN-list, plus the Seq Scans"
                  " from the same queries."),
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
                 lambda query: True,
-                lambda node: (self.has_inlist_index_cond(node, parameterized=True)
-                              and node.get_rows_removed_by_recheck() == 0
-                              and node.has_no_filter()),
+                lambda node: (
+                    cm.has_bnl_inlist_index_cond(node)
+                    and cm.has_no_local_filtering(node)
+                ),
                 x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name}:width="'
-                                     f'{self.get_node_width(node)} loops={node.nloops}'),
+                series_suffix=(lambda node:
+                               f'{node.index_name}:width={cm.get_node_width(node)}'
+                               f' loops={node.nloops}'
+                               ),
             ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
+            chart_composite_key := ChartSpec(
+                CostReport.draw_x_cost_time_plot,
                 'Composite key index scans',
                 ("* The clustered plots near the lower left corner need adjustments the series"
-                 " criteria and/or node filtering."
-                 "\n\n  * Try adding index key prefix NDV before the first equality to"
-                 " the series criteria.\n\ne.g.: for index key `(c3, c4, c5)`,"
-                 " condition: `c4 >= x and c5 = y` then the prefix NDV would be:"
-                 " `select count(*) from (select distinct c3, c4 from t where c4 >= x) v;`"),
+                 " criteria and/or node filtering."),
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: 't1000000m' in query or 't100000c10' in query,
-                lambda node: (self.has_simple_index_cond(node, index_cond_only=True)
-                              and node.get_rows_removed_by_recheck() == 0),
+                lambda query: 't1000000m' in query or 't1000000c10' in query,
+                lambda node: (
+                    cm.has_no_local_filtering(node)
+                    and cm.has_only_simple_condition(node, index_cond_only=True)
+                ),
                 x_getter=lambda node: float(node.rows),
-                series_label_suffix=lambda node: f'{node.index_name} loops={node.nloops}',
+                series_suffix=lambda node: f'{node.index_name}',
             ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                'Composite key index scans (output <= 100 rows)',
-                ("* The clustered plots near the lower left corner need adjustments the series"
-                 " criteria and/or node filtering."
-                 "\n\n  * Try adding index key prefix NDV before the first equality to"
-                 " the series criteria.\n\ne.g.: for index key `(c3, c4, c5)`,"
-                 " condition: `c4 >= x and c5 = y` then the prefix NDV would be:"
-                 " `select count(*) from (select distinct c3, c4 from t where c4 >= x) v;`"),
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: 't1000000m' in query or 't100000c10' in query,
-                lambda node: (self.has_simple_index_cond(node, index_cond_only=True)
-                              and node.get_rows_removed_by_recheck() == 0
-                              and float(node.rows) <= 100),
-                x_getter=lambda node: float(node.rows),
-                series_label_suffix=lambda node: f'{node.index_name} loops={node.nloops}',
+            chart_composite_key.make_variant(
+                'output rows <= 100',
+                xtra_node_filter=lambda node: float(node.rows) <= 100,
             ),
+            chart_composite_key.make_variant(
+                'output rows <= 100, x=output_row_count x key_prefix_gaps',
+                description=(
+                    "Index key prefix gaps: NDV of the keys before the first equality condition."
+                    "\n\ne.g.: for index key `(c3, c4, c5)`,"
+                    " condition: `c4 >= x and c5 = y` then the prefix NDV would be:"
+                    " `select count(*) from (select distinct c3, c4 from t where c4 >= x) v;`"),
+                xtra_node_filter=lambda node: float(node.rows) <= 100,
+                xlabel='Output row count x key prefix gaps',
+                x_getter=lambda node: float(node.rows) * cm.get_index_key_prefix_gaps(node),
+            ),
+            chart_composite_key.make_variant(
+                'key_prefix_gaps in series criteria',
+                description=(
+                    "Index key prefix gaps: NDV of the keys before the first equality condition."
+                    "\n\ne.g.: for index key `(c3, c4, c5)`,"
+                    " condition: `c4 >= x and c5 = y` then the prefix NDV would be:"
+                    " `select count(*) from (select distinct c3, c4 from t where c4 >= x) v;`"),
+                series_suffix=lambda node: (f'{node.index_name}'
+                                            ' gaps={cm.get_index_key_prefix_gaps(node)}'),
+            ),
+            column_and_value_metric_chart.make_variant(
+                'Value position in column - time - cost', True,
+                xtra_node_filter=(lambda node:
+                                  cm.get_single_column_query_column_position(node) == 1
+                                  and (cm.get_single_column_node_normalized_eq_cond_value(node)
+                                       is not None)
+                                  ),
+                xlabel='Value position',
+                x_getter=lambda node: cm.get_single_column_node_normalized_eq_cond_value(node),
+                series_suffix=(lambda node:
+                               ''.join([
+                                   cm.get_single_column_query_column(node),
+                                   ' w=', str(cm.get_node_width(node)),
+                               ])),
+                # options=ChartOptions(adjust_cost_by_actual_rows=False,
+                #                      log_scale_x=False,
+                #                      log_scale_cost=True,
+                #                      log_scale_time=True),
+            ),
+            column_and_value_metric_chart.make_variant(
+                'Column position - time - cost', True,
+                "",
+                xtra_node_filter=(lambda node:
+                                  cm.get_single_column_query_column_position(node) > 0),
+                xlabel='Column position',
+                x_getter=lambda node: cm.get_single_column_query_column_position(node),
+                series_suffix=(lambda node:
+                               ''.join([
+                                   'n=', node.rows,
+                                   ' w=', str(cm.get_node_width(node)),
+                                   ' rf=', str(bool(node.get_remote_filter())),
+                               ])),
+            ),
+        ]
+
+    def get_more_exp_chart_specs(self, cm: CostMetrics):
+        return [
             ChartSpec(
-                self.draw_x_cost_time_plot,
+                CostReport.draw_x_cost_time_plot,
                 'Scans with simple remote index and/or table filter',
                 "* Index (Only) Scans may or may not have index access condition as well.",
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: self.has_scan_filter_indexscan(query),
-                lambda node: self.is_scan_with_simple_filter_condition(node,
-                                                                       allow_local_filter=False),
+                lambda query: cm.has_scan_filter_indexscan(query),
+                lambda node: (
+                    cm.has_only_scan_filter_condition(node)
+                    or cm.has_only_simple_condition(node, index_cond_only=True)
+                ),
                 x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name or node.table_name}'
-                                     f':width={self.get_node_width(node)} loops={node.nloops}'),
+                series_suffix=lambda node: (
+                    f'{node.index_name or node.table_name}'
+                    f':width={cm.get_node_width(node)} loops={node.nloops}'
+                ),
             ),
             ChartSpec(
-                self.draw_x_cost_time_plot,
-                'Scans with simple filter(s)',
-                'For PG comparisons',
+                CostReport.draw_x_cost_time_plot,
+                'Scans with remote filter(s)',
+                '',
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
                 lambda query: True,
-                lambda node: self.is_scan_with_simple_filter_condition(node,
-                                                                       allow_local_filter=True),
+                lambda node: cm.has_only_simple_condition(node, index_cond_only=False),
                 x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name or node.table_name}'
-                                     f':width={self.get_node_width(node)} loops={node.nloops}'),
+                series_suffix=(lambda node:
+                               f'{node.index_name or node.table_name}'
+                               f':width={cm.get_node_width(node)} loops={node.nloops}'),
             ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                'Scans with complex (but no IN-lists) remote index and/or table filter',
-                "* Index (Only) Scans may or may not have index access condition as well.",
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: self.has_scan_filter_indexscan(query),
-                lambda node: self.is_scan_with_simple_filter_condition(node,
-                                                                       allow_local_filter=False),
-                x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name or node.table_name}'
-                                     f':width={self.get_node_width(node)} loops={node.nloops}'),
-            ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                'Scans with complex (but no IN-lists) index and/or table filter',
-                'For PG comparisons',
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: True,
-                lambda node: self.is_scan_with_simple_filter_condition(node,
-                                                                       allow_local_filter=True),
-                x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name or node.table_name}'
-                                     f':width={self.get_node_width(node)} loops={node.nloops}'),
-            ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                'Full scan + agg push down by table rows (linear scale)',
+            chart_agg_pushdown := ChartSpec(
+                CostReport.draw_x_cost_time_plot,
+                'Full scan + agg push down by table rows',
                 ('Scan nodes from `select count(*) from ...` single table queries without'
                  ' any search conditions'
                  '\n\n* The costs are not adjusted'),
                 'Table rows', 'Estimated cost', 'Execution time [ms]',
-                lambda query: self.has_aggregate(query),
-                lambda node: (node.is_scan_with_partial_aggregate()
-                              and not node.get_local_filter()),
-                x_getter=lambda node: float(self.get_node_table_rows(node)),
-                series_label_suffix=lambda node: f'{node.index_name or node.table_name}',
+                lambda query: cm.has_aggregate(query),
+                lambda node: (
+                    cm.has_partial_aggregate(node)
+                    and cm.has_no_local_filtering(node)
+                    ),
+                x_getter=lambda node: float(cm.get_table_row_count(node.table_name)),
+                series_suffix=lambda node: f'{node.index_name or node.table_name}',
                 options=ChartOptions(adjust_cost_by_actual_rows=False),
             ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                'Full scan + agg push down by table rows (log scale)',
-                ('Scan nodes from `select count(*) from ...` single table queries without'
-                 ' any search conditions'
-                 '\n\n* The costs are not adjusted'),
-                'Table rows', 'Estimated cost', 'Execution time [ms]',
-                lambda query: (self.has_aggregate(query)
-                               and not self.has_local_filter(query)),
-                lambda node: node.is_scan_with_partial_aggregate(),
-                x_getter=lambda node: float(self.get_node_table_rows(node)),
-                series_label_suffix=lambda node: f'{node.index_name or node.table_name}',
+            chart_agg_pushdown.make_variant(
+                'log scale',
                 options=ChartOptions(adjust_cost_by_actual_rows=False,
                                      log_scale_x=True,
                                      log_scale_cost=True,
                                      log_scale_time=True),
             ),
             ChartSpec(
-                self.draw_x_cost_time_plot,
-                '(EXP) Scans with local filter, may have index access condition and/or remote filter',
-                '* need to add the queries and figure out series grouping and query/node selection',
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: self.has_scan_filter_indexscan(query),
-                lambda node: node.get_local_filter(),
-                x_getter=lambda node: float(node.rows),
-                series_label_suffix=(lambda node:
-                                     f'{node.index_name or node.table_name}'
-                                     f':width={self.get_node_width(node)} loops={node.nloops}'),
-            ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                '(EXP) No filter full scans by output row x width',
+                CostReport.draw_x_cost_time_plot,
+                'No filter full scans by output row x width',
                 '* need to adjust series grouping and query/node selection',
                 'Output rows x width', 'Estimated cost', 'Execution time [ms]',
                 lambda query: True,
                 lambda node: (node.has_no_filter()
                               and not node.get_index_cond()
-                              and not node.is_scan_with_partial_aggregate()),
-                x_getter=lambda node: float(node.rows) * self.get_node_width(node),
-                series_label_suffix=lambda node: f'{node.index_name or node.table_name}',
-            ),
-            ChartSpec(
-                self.draw_x_cost_time_plot,
-                '(EXP) All the scan nodes',
-                ('For examining all the collected nodes'),
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: True,
-                lambda node: isinstance(node, ScanNode),
-                x_getter=lambda node: float(node.rows),
-                series_label_suffix=lambda node: f'width={self.get_node_width(node)}',
+                              and not cm.has_partial_aggregate(node)),
+                x_getter=lambda node: float(node.rows) * cm.get_node_width(node),
+                series_suffix=lambda node: f'{node.index_name or node.table_name}',
             ),
         ]

@@ -213,12 +213,15 @@ class PlanNode:
 
 
 class ScanNode(PlanNode):
-    def __init__(self, accessor, node_type, table_name, table_alias, index_name, is_backward):
+    def __init__(self, accessor, node_type, table_name, table_alias, index_name,
+                 is_backward, is_distinct, is_parallel):
         super().__init__(accessor, node_type)
         self.table_name: str = table_name
         self.table_alias: str = table_alias
         self.index_name: str = index_name
         self.is_backward: bool = is_backward
+        self.is_distinct: bool = is_distinct
+        self.is_parallel: bool = is_parallel
 
         self.is_seq_scan = self.acc.is_seq_scan(self)
         self.is_index_scan = self.acc.is_index_scan(self)
