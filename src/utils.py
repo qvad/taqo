@@ -101,10 +101,10 @@ def calculate_avg_execution_time(cur,
                         collect_execution_plan(cur, connection, query, sut_database)
                         execution_plan_collected = True
 
-                    if with_analyze:
-                        evaluate_sql(cur, query_str)
-                        _, result = get_result(cur, is_dml)
+                    evaluate_sql(cur, query_str)
+                    _, result = get_result(cur, is_dml)
 
+                    if with_analyze:
                         execution_times.append(extract_execution_time_from_analyze(result))
                     else:
                         execution_times.append(current_milli_time() - start_time)
