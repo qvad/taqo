@@ -422,6 +422,7 @@ class CostReport(AbstractReportAction):
                     ax.set_ybound(lower=0.0)
 
         if self.interactive:
+            [self.logger.debug(query_str) for query_str in sorted(spec.queries)]
             self.show_charts_and_handle_events(spec, fig, axs)
         else:
             if spec.series_data:
@@ -531,8 +532,9 @@ class CostReport(AbstractReportAction):
                         elif node.is_any_index_scan:
                             series_label = ''.join([
                                 f"{node.node_type}",
-                                (' (PK)' if '_pkey' in str(node.index_name) else ''),
-                                (' Backward' if node.is_backward else '')])
+                                (' (PK)' if node.index_name.endswith('_pkey') else ''),
+                                (' Backward' if node.is_backward else ''),
+                            ])
                         else:
                             series_label = node.name
 
@@ -705,6 +707,14 @@ class CostReport(AbstractReportAction):
         ]
 
     def get_xtc_chart_specs(self, cm: CostMetrics):
+        return (self.get_column_and_value_metric_chart_specs(cm)
+                + self.get_simple_index_scan_chart_specs(cm)
+                + self.get_in_list_chart_specs(cm))
+
+    def get_exp_chart_specs(self, cm: CostMetrics):
+        return self.get_composite_key_access_chart_specs(cm)
+
+    def get_simple_index_scan_chart_specs(self, cm: CostMetrics):
         return [
             (chart_simple_index_scan := ChartSpec(
                 CostReport.draw_x_cost_time_plot,
@@ -770,6 +780,101 @@ class CostReport(AbstractReportAction):
                 xtra_node_filter=(lambda node:
                                   float(cm.get_table_row_count(node.table_name)) == 100),
             ),
+        ]
+
+    def get_column_and_value_metric_chart_specs(self, cm: CostMetrics):
+        column_and_value_metric_chart = ChartSpec(
+            CostReport.draw_x_cost_time_plot,
+            'Column/value num/position metric test queries', '',
+            '', 'Estimated cost', 'Execution time [ms]',
+            lambda query: (
+                cm.is_single_table_query(query)
+                and not cm.has_aggregate(query)
+            ),
+            lambda node: (
+                node.table_name == 't1000000c10'
+                and not cm.has_partial_aggregate(node)
+            ),
+            x_getter=lambda node: 0,
+        )
+
+        column_and_value_metric_single_column_chart = (
+            column_and_value_metric_chart.make_variant(
+                'Column/value num/position metric test queries (single column)', '',
+                xtra_query_filter=lambda query: (
+                    len(cm.get_columns_in_query(query)) == 1
+                ),
+            )
+        )
+
+        return [
+            column_and_value_metric_chart.make_variant(
+                'Column count (select-list, no condition)', True,
+                xtra_node_filter=lambda node: (
+                    cm.has_no_condition(node)
+                    and (len(cm.get_columns_in_query(cm.get_node_query_str(node))) > 1
+                         or (cm.get_columns_in_query(cm.get_node_query_str(node))
+                             in (['c4'], ['c5'])))
+                ),
+                xlabel='Column count',
+                x_getter=lambda node: (
+                    len(cm.get_columns_in_query(cm.get_node_query_str(node)))
+                ),
+            ),
+            column_and_value_metric_chart.make_variant(
+                'Column count (columns in condition)', True,
+                xtra_query_filter=lambda query: (
+                    re.match(r'select 0 from t1000000c10 where [c0-9+ ]+ = +500000', query)
+                ),
+                xlabel='Column count',
+                x_getter=lambda node: (
+                    len(cm.get_columns_in_query(cm.get_node_query_str(node)))
+                ),
+                series_suffix=lambda node: (
+                    ''.join([
+                        '(remote filter)' if cm.has_only_scan_filter_condition(node) else ''
+                    ])),
+            ),
+            column_and_value_metric_single_column_chart.make_variant(
+                'Column position (select-list, no condition)', True,
+                xtra_node_filter=lambda node: (
+                    cm.has_no_condition(node)
+                    and cm.get_node_width(node) == 4
+                ),
+                xlabel='Column position',
+                x_getter=lambda node: cm.get_single_column_query_column_position(node),
+            ),
+            column_and_value_metric_single_column_chart.make_variant(
+                'Column position (select-list and condition)', True,
+                xtra_node_filter=lambda node: (
+                    not cm.has_no_condition(node)
+                    and cm.has_only_simple_condition(node,
+                                                     index_cond_only=False,
+                                                     index_key_prefix_only=True)
+                    and abs(0.5 - cm.get_single_column_node_normalized_eq_cond_value(node)) < 0.01
+                    and cm.get_node_width(node) == 4
+                ),
+                xlabel='Column position',
+                x_getter=lambda node: cm.get_single_column_query_column_position(node),
+            ),
+            column_and_value_metric_single_column_chart.make_variant(
+                'Normalizd value (value position) in condition', True,
+                xtra_node_filter=lambda node: (
+                    not cm.has_no_condition(node)
+                    and cm.has_only_simple_condition(node,
+                                                     index_cond_only=True,
+                                                     index_key_prefix_only=True)
+                    and cm.get_single_column_node_normalized_eq_cond_value(node) is not None
+                    and cm.get_node_width(node) == 4
+                ),
+                xlabel='Normalized value',
+                x_getter=lambda node: cm.get_single_column_node_normalized_eq_cond_value(node),
+                series_suffix=lambda node: node.index_name or '',
+            ),
+        ]
+
+    def get_in_list_chart_specs(self, cm: CostMetrics):
+        return [
             chart_literal_in_list := ChartSpec(
                 CostReport.draw_x_cost_time_plot,
                 'Index scan nodes with literal IN-list',
@@ -794,27 +899,6 @@ class CostReport(AbstractReportAction):
                 "output <= 200 rows",
                 xtra_node_filter=lambda node: float(node.rows) <= 100,
             ),
-        ]
-
-    def get_exp_chart_specs(self, cm: CostMetrics):
-        column_and_value_metric_chart = ChartSpec(
-            CostReport.draw_x_cost_time_plot,
-            '', '',
-            '', 'Estimated cost', 'Execution time [ms]',
-            lambda query: (
-                cm.is_single_table_query(query)
-                and len(cm.get_columns_in_query(query)) == 1
-            ),
-            lambda node: (
-                node.table_name in ('t1000000m', 't1000000c10')
-                and (cm.has_no_condition(node)
-                     or cm.has_only_simple_condition(node, index_cond_only=True))
-                and not cm.has_partial_aggregate(node)
-            ),
-            x_getter=lambda node: 0,
-        )
-
-        return [
             ChartSpec(
                 CostReport.draw_x_cost_time_plot,
                 'Parameterized IN-list index scans (BNL)',
@@ -832,6 +916,10 @@ class CostReport(AbstractReportAction):
                                f' loops={node.nloops}'
                                ),
             ),
+        ]
+
+    def get_composite_key_access_chart_specs(self, cm: CostMetrics):
+        return [
             chart_composite_key := ChartSpec(
                 CostReport.draw_x_cost_time_plot,
                 'Composite key index scans',
@@ -870,39 +958,6 @@ class CostReport(AbstractReportAction):
                     " `select count(*) from (select distinct c3, c4 from t where c4 >= x) v;`"),
                 series_suffix=lambda node: (f'{node.index_name}'
                                             ' gaps={cm.get_index_key_prefix_gaps(node)}'),
-            ),
-            column_and_value_metric_chart.make_variant(
-                'Value position in column - time - cost', True,
-                xtra_node_filter=(lambda node:
-                                  cm.get_single_column_query_column_position(node) == 1
-                                  and (cm.get_single_column_node_normalized_eq_cond_value(node)
-                                       is not None)
-                                  ),
-                xlabel='Value position',
-                x_getter=lambda node: cm.get_single_column_node_normalized_eq_cond_value(node),
-                series_suffix=(lambda node:
-                               ''.join([
-                                   cm.get_single_column_query_column(node),
-                                   ' w=', str(cm.get_node_width(node)),
-                               ])),
-                # options=ChartOptions(adjust_cost_by_actual_rows=False,
-                #                      log_scale_x=False,
-                #                      log_scale_cost=True,
-                #                      log_scale_time=True),
-            ),
-            column_and_value_metric_chart.make_variant(
-                'Column position - time - cost', True,
-                "",
-                xtra_node_filter=(lambda node:
-                                  cm.get_single_column_query_column_position(node) > 0),
-                xlabel='Column position',
-                x_getter=lambda node: cm.get_single_column_query_column_position(node),
-                series_suffix=(lambda node:
-                               ''.join([
-                                   'n=', node.rows,
-                                   ' w=', str(cm.get_node_width(node)),
-                                   ' rf=', str(bool(node.get_remote_filter())),
-                               ])),
             ),
         ]
 

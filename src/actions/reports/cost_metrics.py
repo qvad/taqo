@@ -162,6 +162,15 @@ class ExpressionAnalyzer:
                 and self.bnl_in_lists == 0
                 and self.complex_exprs == 0)
 
+    def has_key_prefix_cond_only(self, key_cols):
+        cols = set(self.columns)  # make a copy
+        for kc in key_cols:
+            if kc in cols:
+                cols.remove(kc)
+                if not len(cols):
+                    return True
+        return False
+
     def __analyze(self):
         if not self.expr or not self.expr.strip():
             return list()
@@ -439,20 +448,27 @@ class CostMetrics:
         nc = self.get_node_classifiers(node)
         return not nc.has_local_filter and not nc.has_rows_removed_by_recheck
 
-    def has_only_simple_condition(self, node, index_cond_only=False):
+    def has_only_simple_condition(self, node, index_cond_only=False, index_key_prefix_only=False):
         nc = self.get_node_classifiers(node)
         if (nc.has_partial_aggregate
             or not any([nc.has_index_access_cond,
                         nc.has_scan_filter,
                         nc.has_tfbr_filter])):
             return False
-        conds = [node.get_index_cond()]
+        conds = list()
+
+        if node.index_name:
+            conds += [node.get_index_cond()]
+            if index_key_prefix_only:
+                key_cols, _ = self.get_index_columns(node.index_name)
+                if not self.get_expression_analyzer(*conds).has_key_prefix_cond_only(key_cols):
+                    return False
         if not index_cond_only:
             conds += [node.get_remote_filter(), node.get_remote_tfbr_filter()]
         elif nc.has_scan_filter or nc.has_tfbr_filter:
             return False
         cond_str = ' AND '.join(filter(lambda cond: bool(cond), conds))
-        return self.is_simple_literal_condition(cond_str)
+        return self.get_expression_analyzer(cond_str).is_simple_expr()
 
     def has_only_scan_filter_condition(self, node):
         nc = self.get_node_classifiers(node)
@@ -479,15 +495,16 @@ class CostMetrics:
     @staticmethod
     def get_index_columns(index_name):
         # TODO: load the index key columns and save them into the .json
+        key_cols = list()
+        inc_cols = list()
         if index_name in ('t1000000m_pkey', 't1000000c10_pkey'):
-            return list('c0')
+            key_cols = list(['c0'])
         elif index_name.endswith('_pkey'):
-            return list('c1')
-        if (m := index_key_extraction_pattern.match(index_name)):
+            key_cols = list(['c1'])
+        elif (m := index_key_extraction_pattern.match(index_name)):
             key_cols = packed_column_list_pattern.findall(m.group('key'))
             inc_cols = packed_column_list_pattern.findall(m.group('inc') or '')
-            return key_cols, inc_cols
-        return list(), list()
+        return key_cols, inc_cols
 
     def get_column_position(self, table_name, index_name, column_name):
         if index_name:
@@ -559,9 +576,6 @@ class CostMetrics:
             ea = ExpressionAnalyzer(expr)
             self.expr_analyzers[expr] = ea
         return ea
-
-    def is_simple_literal_condition(self, expr):
-        return self.get_expression_analyzer(expr).is_simple_expr()
 
     def count_non_contiguous_literal_inlist_items(self, table, expr):
         num_item_list = list()
