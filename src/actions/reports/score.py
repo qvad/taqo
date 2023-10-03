@@ -1,23 +1,23 @@
-import numpy as np
-from scipy.stats import linregress
 from typing import Type
 
+import numpy as np
+from bokeh.embed import components
+from bokeh.layouts import gridplot
+from bokeh.models import ColumnDataSource, HoverTool, TapTool, BoxZoomTool, WheelZoomTool, PanTool, SaveTool, ResetTool
+from bokeh.models import OpenURL, CDSView, GroupFilter
+from bokeh.plotting import figure
+from bokeh.transform import factor_cmap
 from matplotlib import pyplot as plt
 from matplotlib import rcParams
+from scipy.stats import linregress
 from sql_formatter.core import format_sql
 
+from actions.report import AbstractReportAction
 from collect import CollectResult
 from db.postgres import PostgresQuery
 from objects import Query
-from actions.report import AbstractReportAction
-from utils import allowed_diff
+from utils import allowed_diff, get_plan_diff
 
-from bokeh.plotting import figure
-from bokeh.layouts import gridplot
-from bokeh.models import ColumnDataSource, OpenURL, TapTool, Circle, CDSView, GroupFilter
-from bokeh.embed import components
-from bokeh.transform import factor_cmap
-from bokeh.models import ColumnDataSource, HoverTool, TapTool, BoxZoomTool, WheelZoomTool, PanTool, SaveTool, ResetTool
 
 class ScoreReport(AbstractReportAction):
     def __init__(self):
@@ -52,7 +52,7 @@ class ScoreReport(AbstractReportAction):
         return "score"
 
     def define_version(self, version):
-        self.report += f"[VERSION]\n====\n{version}\n====\n\n"
+        self.content += f"[VERSION]\n====\n{version}\n====\n\n"
 
     def calculate_score(self, query):
         if query.execution_time_ms == 0:
@@ -60,28 +60,28 @@ class ScoreReport(AbstractReportAction):
         else:
             return "{:.2f}".format(
                 query.get_best_optimization(self.config).execution_time_ms / query.execution_time_ms)
-    
-    def create_default_query_plots_interactive(self):        
+
+    def create_default_query_plots_interactive(self):
         data = {
-            'query_hash' : [],
-            'query_tag' : [],
-            'query' : [],
-            'yb_cost' : [],
-            'yb_time' : [],
-            'pg_cost' : [],
-            'pg_time' : [],
+            'query_hash': [],
+            'query_tag': [],
+            'query': [],
+            'yb_cost': [],
+            'yb_time': [],
+            'pg_cost': [],
+            'pg_time': [],
         }
-        
+
         data_yb_bad_plans = {
-            'yb_cost' : [],
-            'yb_time' : [],
-            'query_tag' : [],
+            'yb_cost': [],
+            'yb_time': [],
+            'query_tag': [],
         }
-        
+
         data_pg_bad_plans = {
-            'pg_cost' : [],
-            'pg_time' : [],
-            'query_tag' : [],
+            'pg_cost': [],
+            'pg_time': [],
+            'query_tag': [],
         }
 
         tags = []
@@ -122,80 +122,80 @@ class ScoreReport(AbstractReportAction):
         hover_tool = HoverTool(tooltips=TOOLTIPS)
         hover_tool.renderers = []
         TOOLS = [TapTool(), BoxZoomTool(), WheelZoomTool(), PanTool(), SaveTool(), ResetTool(), hover_tool]
-        
+
         tags = sorted(list(set(data['query_tag'])))
-        
+
         # YB Plot
-        yb_plot = figure(x_axis_label = 'Estimated Cost', 
-                         y_axis_label = 'Execution Time (ms)',
-                         title = 'Yugabyte',
-                         width = 600, height = 600, 
-                         tools = TOOLS, active_drag = None)
-        
+        yb_plot = figure(x_axis_label='Estimated Cost',
+                         y_axis_label='Execution Time (ms)',
+                         title='Yugabyte',
+                         width=600, height=600,
+                         tools=TOOLS, active_drag=None)
+
         for tag in tags:
             view = CDSView(filter=GroupFilter(column_name='query_tag', group=tag))
             # Highliht queries with bad plans
-            yb_plot.scatter("yb_cost", "yb_time", size=14, line_width=4, 
-                        source=source_yb_bad_plans, legend_label=tag, line_color='firebrick',
-                        color=None, fill_alpha = 0.0, view=view)
+            yb_plot.scatter("yb_cost", "yb_time", size=14, line_width=4,
+                            source=source_yb_bad_plans, legend_label=tag, line_color='firebrick',
+                            color=None, fill_alpha=0.0, view=view)
             # Scatter plot for all queries
-            yb_scatter = yb_plot.scatter("yb_cost", "yb_time", size=10, source=source, 
-                                hover_color="black", legend_label=tag, view=view,
-                                color=factor_cmap('query_tag', 'Category20_20', tags),
-                                selection_color='black', nonselection_alpha=1.0)
+            yb_scatter = yb_plot.scatter("yb_cost", "yb_time", size=10, source=source,
+                                         hover_color="black", legend_label=tag, view=view,
+                                         color=factor_cmap('query_tag', 'Category20_20', tags),
+                                         selection_color='black', nonselection_alpha=1.0)
             hover_tool.renderers.append(yb_scatter)
 
         # Interactive Legend
-        yb_plot.legend.click_policy='hide'
-        
+        yb_plot.legend.click_policy = 'hide'
+
         # Linear Regression Line
         yb_x_np = np.array(data['yb_cost'])
         yb_y_np = np.array(data['yb_time'])
         res = linregress(yb_x_np, yb_y_np)
         yb_y_data_regress = res.slope * yb_x_np + res.intercept
         yb_plot.line(x=yb_x_np, y=yb_y_data_regress)
-        
+
         # Tap event to jump to query
         yb_url = '#@query_hash'
         yb_taptool = yb_plot.select(type=TapTool)
         yb_taptool.callback = OpenURL(url=yb_url, same_tab=True)
-        
+
         # PG Plot
-        pg_plot = figure(x_axis_label = 'Estimated Cost', 
-                        y_axis_label = 'Execution Time (ms)',
-                        title = 'Postgres',
-                        width = 600, height = 600, 
-                        tools = TOOLS, tooltips=TOOLTIPS, active_drag = None)
-        
+        pg_plot = figure(x_axis_label='Estimated Cost',
+                         y_axis_label='Execution Time (ms)',
+                         title='Postgres',
+                         width=600, height=600,
+                         tools=TOOLS, tooltips=TOOLTIPS, active_drag=None)
+
         for tag in tags:
             view = CDSView(filter=GroupFilter(column_name='query_tag', group=tag))
             # Highliht queries with bad plans
-            pg_plot.scatter("pg_cost", "pg_time", size=14, line_width=4, 
-                        source=source_pg_bad_plans, legend_label=tag, line_color='firebrick',
-                        color=None, fill_alpha = 0.0, view=view)
+            pg_plot.scatter("pg_cost", "pg_time", size=14, line_width=4,
+                            source=source_pg_bad_plans, legend_label=tag, line_color='firebrick',
+                            color=None, fill_alpha=0.0, view=view)
             # Scatter plot for all queries
-            pg_scatter = pg_plot.scatter("pg_cost", "pg_time", size=10, source=source, 
-                                hover_color="black", legend_label=tag, view=view,
-                                color=factor_cmap('query_tag', 'Category20_20', tags),
-                                selection_color='black', nonselection_alpha=1.0)
+            pg_scatter = pg_plot.scatter("pg_cost", "pg_time", size=10, source=source,
+                                         hover_color="black", legend_label=tag, view=view,
+                                         color=factor_cmap('query_tag', 'Category20_20', tags),
+                                         selection_color='black', nonselection_alpha=1.0)
             hover_tool.renderers.append(pg_scatter)
 
         # Interactive Legend
-        pg_plot.legend.click_policy='hide'
-        
+        pg_plot.legend.click_policy = 'hide'
+
         # Linear Regression Line
         pg_x_np = np.array(data['pg_cost'])
         pg_y_np = np.array(data['pg_time'])
         res = linregress(pg_x_np, pg_y_np)
         pg_y_data_regress = res.slope * pg_x_np + res.intercept
         pg_plot.line(x=pg_x_np, y=pg_y_data_regress)
-        
+
         # Tap event to jump to query
         pg_url = '#@query_hash'
         pg_taptool = pg_plot.select(type=TapTool)
         pg_taptool.callback = OpenURL(url=pg_url, same_tab=True)
 
-        GRIDPLOT = gridplot([[yb_plot, pg_plot]], sizing_mode='scale_both', 
+        GRIDPLOT = gridplot([[yb_plot, pg_plot]], sizing_mode='scale_both',
                             merge_tools=False)
         script, div = components(GRIDPLOT)
         return script, div
@@ -256,7 +256,7 @@ class ScoreReport(AbstractReportAction):
 
     def build_report(self):
         script, div = self.create_default_query_plots_interactive()
-        self.report += f"""
+        self.content += f"""
 ++++
 <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.2.1.min.js"></script>
 <script type="text/javascript">
@@ -267,7 +267,7 @@ class ScoreReport(AbstractReportAction):
 ++++
 """
 
-        self.report += "\n== QO score\n"
+        self.content += "\n== QO score\n"
 
         yb_bests = 0
         pg_bests = 0
@@ -303,25 +303,25 @@ class ScoreReport(AbstractReportAction):
 
                 total += 1
 
-        self._start_table("4,1,1")
-        self.report += "|Statistic|YB|PG\n"
-        self.report += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_bests) * 100 / total)}%" \
+        self.start_table("4,1,1")
+        self.content += "|Statistic|YB|PG\n"
+        self.content += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_bests) * 100 / total)}%" \
                        f"|{'{:.2f}'.format(float(pg_bests) * 100 / total)}%\n"
-        self.report += f"|Geometric mean QE best\n2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
-        self.report += f"|Geometric mean QO default vs best|{'{:.2f}'.format(qo_yb_bests_geo ** (1 / total))}" \
+        self.content += f"|Geometric mean QE best\n2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
+        self.content += f"|Geometric mean QO default vs best|{'{:.2f}'.format(qo_yb_bests_geo ** (1 / total))}" \
                        f"|{'{:.2f}'.format(qo_pg_bests_geo ** (1 / total))}\n"
-        self.report += f"|% Queries > 10x: YB default vs PG default\n" \
+        self.content += f"|% Queries > 10x: YB default vs PG default\n" \
                        f"2+m|{slower_then_10x}/{total} (+{timed_out} timed out)\n"
-        self.report += f"|% Queries > 10x: YB best vs PG default\n2+m|{best_slower_then_10x}/{total}\n"
-        self._end_table()
+        self.content += f"|% Queries > 10x: YB best vs PG default\n2+m|{best_slower_then_10x}/{total}\n"
+        self.end_table()
 
-        self.report += "\n[#top]\n== QE score\n"
+        self.content += "\n[#top]\n== QE score\n"
 
         num_columns = 7
         for tag, queries in self.queries.items():
-            self._start_table("1,1,1,1,1,1,4")
-            self.report += "|YB|YB Best|PG|PG Best|Ratio YB vs PG|Ratio Best YB vs PG|Query\n"
-            self.report += f"{num_columns}+m|{tag}.sql\n"
+            self.start_table("1,1,1,1,1,1,4")
+            self.content += "|YB|YB Best|PG|PG Best|Ratio YB vs PG|Ratio Best YB vs PG|Query\n"
+            self.content += f"{num_columns}+m|{tag}.sql\n"
             for query in queries:
                 yb_query = query[0]
                 pg_query = query[1]
@@ -352,31 +352,35 @@ class ScoreReport(AbstractReportAction):
                 bitmap_flag = "[blue]" \
                     if pg_success and "bitmap" in pg_query.execution_plan.full_str.lower() else "[black]"
 
-                self.report += f"a|[black]#*{'{:.2f}'.format(yb_query.execution_time_ms)}*#\n" \
+                self.content += f"a|[black]#*{'{:.2f}'.format(yb_query.execution_time_ms)}*#\n" \
                                f"a|{default_yb_equality}#*{'{:.2f}'.format(yb_best.execution_time_ms)}*#\n" \
                                f"a|{bitmap_flag}#*{'{:.2f}'.format(pg_query.execution_time_ms)}*#\n" \
                                f"a|{default_pg_equality}#*{'{:.2f}'.format(pg_best.execution_time_ms)}*#\n" \
                                f"a|{ratio_color}#*{ratio_x3_str}*#\n" \
                                f"a|{ratio_best_color}#*{best_yb_pg_equality}{ratio_best_x3_str}*#\n"
-                self.report += f"a|[#{yb_query.query_hash}_top]\n<<{yb_query.query_hash}>>\n"
-                self._start_source(["sql"])
-                self.report += format_sql(pg_query.get_reportable_query())
-                self._end_source()
-                self.report += "\n"
-                self._end_table_row()
 
-            self._end_table()
+                self.content += f"a|[#{yb_query.query_hash}_top]"
+                self.append_tag_page_link(tag, yb_query.query_hash, f"Query {yb_query.query_hash}")
+
+                self.start_source(["sql"])
+                self.content += format_sql(pg_query.get_reportable_query())
+                self.end_source()
+                self.content += "\n"
+                self.end_table_row()
+
+            self.end_table()
 
         # different results links
         for tag in self.queries.keys():
-            self.report += f"\n<<{tag}>>\n"
+            self.append_tag_page_link(tag, None, f"{tag} queries file")
 
         for tag, queries in self.queries.items():
-            self.report += f"\n[#{tag}]\n== {tag} queries file\n\n"
+            sub_report = self.create_sub_report(tag)
+            sub_report.content += f"\n[#{tag}]\n== {tag} queries file\n\n"
             for query in queries:
-                self.__report_query(query[0], query[1], True)
+                self.__report_query(sub_report, query[0], query[1], True)
 
-    def __report_near_queries(self, query: Type[Query]):
+    def __report_near_queries(self, report, query: Type[Query]):
         if query.optimizations:
             best_optimization = query.get_best_optimization(self.config)
             if add_to_report := "".join(
@@ -384,9 +388,9 @@ class ScoreReport(AbstractReportAction):
                     for optimization in query.optimizations
                     if allowed_diff(self.config, best_optimization.execution_time_ms,
                                     optimization.execution_time_ms)):
-                self._start_collapsible("Near best optimization hints")
-                self.report += add_to_report
-                self._end_collapsible()
+                report.start_collapsible("Near best optimization hints")
+                report.content += add_to_report
+                report.end_collapsible()
 
     def build_xls_report(self):
         import xlsxwriter
@@ -517,7 +521,7 @@ class ScoreReport(AbstractReportAction):
 
         workbook.close()
 
-    def __report_heatmap(self, query: Type[Query]):
+    def __report_heatmap(self, report, query: Type[Query]):
         """
         Here is the deal. In PG plans we can separate each plan tree node by splitting by `->`
         When constructing heatmap need to add + or - to the beginning of string `\n`.
@@ -551,11 +555,11 @@ class ScoreReport(AbstractReportAction):
             if row_id != last_rowid:
                 result += "->"
 
-        self._start_collapsible("Plan heatmap")
-        self._start_source(["diff"])
-        self.report += result
-        self._end_source()
-        self._end_collapsible()
+        report.start_collapsible("Plan heatmap")
+        report.start_source(["diff"])
+        report.content += result
+        report.end_source()
+        report.end_collapsible()
 
     @staticmethod
     def fix_last_newline_in_result(result, rows):
@@ -568,52 +572,52 @@ class ScoreReport(AbstractReportAction):
         return result
 
     # noinspection InsecureHash
-    def __report_query(self, yb_query: Type[Query], pg_query: Type[Query], show_best: bool):
+    def __report_query(self, report, yb_query: Type[Query], pg_query: Type[Query], show_best: bool):
         yb_best = yb_query.get_best_optimization(self.config)
 
         self.reported_queries_counter += 1
 
-        self.report += f"\n[#{yb_query.query_hash}]\n"
-        self.report += f"=== Query {yb_query.query_hash}"
-        self.report += f"\n{yb_query.tag}\n"
-        self.report += "\n<<top,Go to top>>\n"
-        self.report += f"\n<<{yb_query.query_hash}_top,Show in summary>>\n"
-        self._add_double_newline()
+        report.content += f"\n[#{yb_query.query_hash}]\n"
+        report.content += f"=== Query {yb_query.query_hash}"
+        report.content += f"\n{yb_query.tag}\n"
+        report.append_index_page_hashtag_link("top", "Go to index")
+        report.append_index_page_hashtag_link(f"{yb_query.query_hash}_top", "Show in summary")
+        report.add_double_newline()
 
-        self._start_source(["sql"])
-        self.report += format_sql(yb_query.get_reportable_query())
-        self._end_source()
+        report.start_source(["sql"])
+        report.content += format_sql(yb_query.get_reportable_query())
+        report.end_source()
 
-        self._add_double_newline()
-        self.report += f"YB Default explain hints - `{yb_query.explain_hints}`"
-        self._add_double_newline()
+        report.add_double_newline()
+        report.content += f"YB Default explain hints - `{yb_query.explain_hints}`"
+        report.add_double_newline()
 
         if show_best:
-            self._add_double_newline()
-            self.report += f"YB Best explain hints - `{yb_best.explain_hints}`"
-            self._add_double_newline()
+            report.add_double_newline()
+            report.content += f"YB Best explain hints - `{yb_best.explain_hints}`"
+            report.add_double_newline()
 
-            self.__report_near_queries(yb_query)
+            self.__report_near_queries(report, yb_query)
 
-        self._start_table("2")
-        self.report += "|Default|Log scale\n"
+        report.start_table("2")
+        report.content += "|Default|Log scale\n"
         query_plot = self.create_query_plot(yb_best, yb_query.optimizations, yb_query)
         query_plot_log = self.create_query_plot(yb_best, yb_query.optimizations, yb_query, "log")
-        self.report += f"a|image::{query_plot}[Default,align=\"center\"]\n"
-        self.report += f"a|image::{query_plot_log}[Log scale,align=\"center\"]\n"
-        self._end_table()
+        report.content += f"a|image::../{query_plot}[Default,align=\"center\"]\n"
+        report.content += f"a|image::../{query_plot_log}[Log scale,align=\"center\"]\n"
+        report.end_table()
 
-        self._add_double_newline()
+        report.add_double_newline()
 
-        self._add_double_newline()
+        report.add_double_newline()
         default_yb_equality = "(eq) " if yb_query.compare_plans(yb_best.execution_plan) else ""
         default_pg_equality = ""
         default_yb_pg_equality = ""
 
         best_yb_pg_equality = ""
         if pg_query and pg_query.execution_time_ms > 0:
-            self._start_table("5")
-            self.report += "|Metric|YB|YB Best|PG|PG Best\n"
+            report.start_table("5")
+            report.content += "|Metric|YB|YB Best|PG|PG Best\n"
 
             pg_best = pg_query.get_best_optimization(self.config)
             default_pg_equality = "(eq) " if pg_query.compare_plans(pg_best.execution_plan) else ""
@@ -621,144 +625,151 @@ class ScoreReport(AbstractReportAction):
             default_yb_pg_equality = "(eq) " if yb_query.compare_plans(pg_query.execution_plan) else ""
 
             if 'order by' in yb_query.query:
-                self._start_table_row()
-                self.report += f"!! Result hash" \
-                               f"|{yb_query.result_hash}" \
-                               f"|{yb_best.result_hash}" \
-                               f"|{pg_query.result_hash}" \
-                               f"|{pg_best.result_hash}" \
+                report.start_table_row()
+                report.content += f"!! Result hash" \
+                          f"|{yb_query.result_hash}" \
+                          f"|{yb_best.result_hash}" \
+                          f"|{pg_query.result_hash}" \
+                          f"|{pg_best.result_hash}" \
                     if pg_query.result_hash != yb_query.result_hash else \
                     f"Result hash" \
                     f"|`{yb_query.result_hash}" \
                     f"|{yb_best.result_hash}" \
                     f"|{pg_query.result_hash}" \
                     f"|{pg_best.result_hash}"
-                self._end_table_row()
+                report.end_table_row()
 
-            self._start_table_row()
-            self.report += f"Cardinality" \
-                           f"|{yb_query.result_cardinality}" \
-                           f"|{yb_best.result_cardinality}" \
-                           f"|{pg_query.result_cardinality}" \
-                           f"|{pg_best.result_cardinality}"
-            self._end_table_row()
-            self._start_table_row()
-            self.report += f"Estimated cost" \
-                           f"|{yb_query.execution_plan.get_estimated_cost()}" \
-                           f"|{default_yb_equality}{yb_best.execution_plan.get_estimated_cost()}" \
-                           f"|{pg_query.execution_plan.get_estimated_cost()}" \
-                           f"|{default_pg_equality}{pg_best.execution_plan.get_estimated_cost()}"
-            self._end_table_row()
-            self._start_table_row()
-            self.report += f"Execution time" \
-                           f"|{'{:.2f}'.format(yb_query.execution_time_ms)}" \
-                           f"|{default_yb_equality}{'{:.2f}'.format(yb_best.execution_time_ms)}" \
-                           f"|{'{:.2f}'.format(pg_query.execution_time_ms)}" \
-                           f"|{default_pg_equality}{'{:.2f}'.format(pg_best.execution_time_ms)}"
-            self._end_table_row()
+            report.start_table_row()
+            report.content += f"Cardinality" \
+                      f"|{yb_query.result_cardinality}" \
+                      f"|{yb_best.result_cardinality}" \
+                      f"|{pg_query.result_cardinality}" \
+                      f"|{pg_best.result_cardinality}"
+            report.end_table_row()
+            report.start_table_row()
+            report.content += f"Estimated cost" \
+                      f"|{yb_query.execution_plan.get_estimated_cost()}" \
+                      f"|{default_yb_equality}{yb_best.execution_plan.get_estimated_cost()}" \
+                      f"|{pg_query.execution_plan.get_estimated_cost()}" \
+                      f"|{default_pg_equality}{pg_best.execution_plan.get_estimated_cost()}"
+            report.end_table_row()
+            report.start_table_row()
+            report.content += f"Execution time" \
+                      f"|{'{:.2f}'.format(yb_query.execution_time_ms)}" \
+                      f"|{default_yb_equality}{'{:.2f}'.format(yb_best.execution_time_ms)}" \
+                      f"|{'{:.2f}'.format(pg_query.execution_time_ms)}" \
+                      f"|{default_pg_equality}{'{:.2f}'.format(pg_best.execution_time_ms)}"
+            report.end_table_row()
         else:
-            self._start_table("3")
-            self.report += "|Metric|YB|YB Best\n"
+            report.start_table("3")
+            report.content += "|Metric|YB|YB Best\n"
 
             if yb_best.result_hash != yb_query.result_hash:
-                self.report += f"!! Result hash|{yb_query.result_hash}|{yb_best.result_hash}"
+                report.content += f"!! Result hash|{yb_query.result_hash}|{yb_best.result_hash}"
             else:
-                self.report += f"Result hash|{yb_query.result_hash}|{yb_best.result_hash}"
-            self._end_table_row()
+                report.content += f"Result hash|{yb_query.result_hash}|{yb_best.result_hash}"
+            report.end_table_row()
 
-            self._start_table_row()
-            self.report += f"Cardinality" \
-                           f"|{yb_query.result_cardinality}" \
-                           f"|{yb_best.result_cardinality}"
-            self._end_table_row()
-            self._start_table_row()
-            self.report += f"Optimizer cost" \
-                           f"|{yb_query.execution_plan.get_estimated_cost()}" \
-                           f"|{default_yb_equality}{yb_best.execution_plan.get_estimated_cost()}"
-            self._end_table_row()
-            self._start_table_row()
-            self.report += f"Execution time" \
-                           f"|{yb_query.execution_time_ms}" \
-                           f"|{default_yb_equality}{yb_best.execution_time_ms}"
-            self._end_table_row()
-        self._end_table()
+            report.start_table_row()
+            report.content += f"Cardinality" \
+                      f"|{yb_query.result_cardinality}" \
+                      f"|{yb_best.result_cardinality}"
+            report.end_table_row()
+            report.start_table_row()
+            report.content += f"Optimizer cost" \
+                      f"|{yb_query.execution_plan.get_estimated_cost()}" \
+                      f"|{default_yb_equality}{yb_best.execution_plan.get_estimated_cost()}"
+            report.end_table_row()
+            report.start_table_row()
+            report.content += f"Execution time" \
+                      f"|{yb_query.execution_time_ms}" \
+                      f"|{default_yb_equality}{yb_best.execution_time_ms}"
+            report.end_table_row()
+        report.end_table()
 
-        self._start_table()
-        self._start_table_row()
+        report.start_table()
+        report.start_table_row()
 
         if yb_query.query_stats:
-            self._start_collapsible("YB statistics")
-            self._start_source()
-            self.report += str(yb_query.query_stats)
-            self._end_source()
-            self._end_collapsible()
+            report.start_collapsible("YB stats default")
+            report.start_source()
+            report.content += str(yb_query.query_stats)
+            report.end_source()
+            report.end_collapsible()
+
+        if yb_best.query_stats and not yb_query.compare_plans(yb_best.execution_plan):
+            report.start_collapsible("YB stats best")
+            report.start_source()
+            report.content += str(yb_best.query_stats)
+            report.end_source()
+            report.end_collapsible()
 
         if pg_query and pg_query.execution_time_ms > 0:
             bitmap_used = "(bm) " if "bitmap" in pg_query.execution_plan.full_str.lower() else ""
-            self._start_collapsible(f"{bitmap_used}PG plan")
-            self._start_source(["diff"])
-            self.report += pg_query.execution_plan.full_str
-            self._end_source()
-            self._end_collapsible()
+            report.start_collapsible(f"{bitmap_used}PG plan")
+            report.start_source(["diff"])
+            report.content += pg_query.execution_plan.full_str
+            report.end_source()
+            report.end_collapsible()
 
             pg_best = pg_query.get_best_optimization(self.config)
             bitmap_used = "(bm) " if "bitmap" in pg_best.execution_plan.full_str.lower() else ""
-            self._start_collapsible(f"{default_pg_equality}{bitmap_used}PG best")
-            self._start_source(["diff"])
-            self.report += pg_best.execution_plan.full_str
-            self._end_source()
-            self._end_collapsible()
+            report.start_collapsible(f"{default_pg_equality}{bitmap_used}PG best")
+            report.start_source(["diff"])
+            report.content += pg_best.execution_plan.full_str
+            report.end_source()
+            report.end_collapsible()
 
-            self._start_collapsible(f"{default_yb_pg_equality}PG default vs YB default")
-            self._start_source(["diff"])
+            report.start_collapsible(f"{default_yb_pg_equality}PG default vs YB default")
+            report.start_source(["diff"])
 
             # postgres plan should be red
-            self.report += self._get_plan_diff(
-                pg_query.execution_plan.full_str,
-                yb_query.execution_plan.full_str,
+            report.content += get_plan_diff(
+                pg_query.execution_plan.full_str.replace("|", "\|"),
+                yb_query.execution_plan.full_str.replace("|", "\|"),
             )
-            self._end_source()
-            self._end_collapsible()
+            report.end_source()
+            report.end_collapsible()
 
-            self._start_collapsible(f"{best_yb_pg_equality}PG best vs YB best")
-            self._start_source(["diff"])
-            self.report += self._get_plan_diff(
-                pg_best.execution_plan.full_str,
-                yb_best.execution_plan.full_str,
+            report.start_collapsible(f"{best_yb_pg_equality}PG best vs YB best")
+            report.start_source(["diff"])
+            report.content += get_plan_diff(
+                pg_best.execution_plan.full_str.replace("|", "\|"),
+                yb_best.execution_plan.full_str.replace("|", "\|"),
             )
-            self._end_source()
-            self._end_collapsible()
+            report.end_source()
+            report.end_collapsible()
 
         if show_best:
-            self.__report_heatmap(yb_query)
+            self.__report_heatmap(report, yb_query)
 
-        self._start_collapsible("YB default plan")
-        self._start_source(["diff"])
-        self.report += yb_query.execution_plan.full_str
-        self._end_source()
-        self._end_collapsible()
+        report.start_collapsible("YB default plan")
+        report.start_source(["diff"])
+        report.content += yb_query.execution_plan.full_str.replace("|", "\|")
+        report.end_source()
+        report.end_collapsible()
 
-        self._start_collapsible(f"{default_yb_equality}YB best plan")
-        self._start_source(["diff"])
-        self.report += yb_best.execution_plan.full_str
-        self._end_source()
-        self._end_collapsible()
+        report.start_collapsible(f"{default_yb_equality}YB best plan")
+        report.start_source(["diff"])
+        report.content += yb_best.execution_plan.full_str.replace("|", "\|")
+        report.end_source()
+        report.end_collapsible()
 
-        self.report += f"{default_yb_equality}YB default vs YB best\n"
-        self._start_source(["diff"])
-        diff = self._get_plan_diff(
-            yb_query.execution_plan.full_str,
-            yb_best.execution_plan.full_str
+        report.content += f"{default_yb_equality}YB default vs YB best\n"
+        report.start_source(["diff"])
+        diff = get_plan_diff(
+            yb_query.execution_plan.full_str.replace("|", "\|"),
+            yb_best.execution_plan.full_str.replace("|", "\|")
         )
         if not diff:
-            diff = yb_query.execution_plan.full_str
+            diff = yb_query.execution_plan.full_str.replace("|", "\|")
 
-        self.report += diff
-        self._end_source()
-        self._end_table_row()
+        report.content += diff
+        report.end_source()
+        report.end_table_row()
 
-        self.report += "\n"
+        report.content += "\n"
 
-        self._end_table()
+        report.end_table()
 
-        self._add_double_newline()
+        report.add_double_newline()

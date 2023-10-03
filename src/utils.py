@@ -1,3 +1,4 @@
+import difflib
 import hashlib
 import json
 import re
@@ -391,3 +392,9 @@ def get_model_path(model):
 
 def disabled_path(query):
     return query.execution_plan.get_estimated_cost() < 10000000000
+
+
+def get_plan_diff(baseline, changed):
+    return "\n".join(
+        text for text in difflib.unified_diff(baseline.split("\n"), changed.split("\n")) if
+        text[:3] not in ('+++', '---', '@@ '))
