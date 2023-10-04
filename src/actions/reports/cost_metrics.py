@@ -599,9 +599,17 @@ class CostMetrics:
         return ('x'.join(filter(lambda item: bool(item), map(str, sorted(num_item_list))))
                 if num_item_list else '1')
 
-    def has_literal_inlist_index_cond(self, node):
-        return (self.get_expression_analyzer(node.get_index_cond()).literal_in_lists > 0
-                if isinstance(node, ScanNode) else False)
+    def has_literal_inlist_index_cond(self, node, single_in_list_only=False):
+        if not isinstance(node, ScanNode):
+            return False
+        ea = self.get_expression_analyzer(node.get_index_cond())
+        if single_in_list_only:
+            return (len(ea.columns) == 1
+                    and ea.simple_comp_exprs == 0
+                    and ea.literal_in_lists == 1
+                    and ea.bnl_in_lists == 0
+                    and ea.complex_exprs == 0)
+        return ea.literal_in_lists > 0
 
     def has_bnl_inlist_index_cond(self, node):
         return (self.get_expression_analyzer(node.get_index_cond()).bnl_in_lists > 0

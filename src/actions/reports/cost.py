@@ -11,9 +11,13 @@ from matplotlib import rcParams
 from collect import CollectResult
 from objects import PlanPrinter
 from objects import PlanNode
-from actions.report import AbstractReportAction
+from actions.report import AbstractReportAction, SubReport
 from actions.reports.cost_metrics import CostMetrics
-from actions.reports.cost_chart_specs import CostChartSpecs, ChartSpec, DataPoint, PlotType
+from actions.reports.cost_chart_specs import (CostChartSpecs, ChartGroup, ChartSpec,
+                                              DataPoint, PlotType)
+
+
+IMAGE_FILE_SUFFIX = '.svg'
 
 
 BOXPLOT_DESCRIPTION = (
@@ -38,7 +42,7 @@ BOXPLOT_DESCRIPTION = (
 )
 
 X_TIME_COST_CHART_DESCRIPTION = (
-    '=== Time-Cost Relationship Charts\n'
+    '=== X-Time-Cost Relationship Charts\n'
     '\n* Each chartset consists of three charts: (x, y) = (cost, exec time), (x-metric, exec time)'
     ' and (x-metric, cost) where `x-metric` is the metric of interest that affects the execution'
     ' time such as node input-output row count ratio, node output data size, etc.'
@@ -53,26 +57,31 @@ class CostReport(AbstractReportAction):
     def __init__(self):
         super().__init__()
         self.cm = CostMetrics()
+        self.cs = CostChartSpecs(self.cm)
         self.interactive = False
         self.report_location = f'report/{self.start_date}'
         self.image_folder = 'imgs'
 
-    def get_image_path(self, file_name):
-        return f'{self.report_location}/{self.image_folder}/{file_name}'
+    def get_image_location(self):
+        return f'{self.report_location}/{self.image_folder}/'
 
-    def add_image(self, file_name, title):
-        self.content += f"a|image::{self.image_folder}/{file_name}[{title}]\n"
+    def make_image_block(self, file_name, attrs, is_sub_report=False):
+        pre = 'image::'
+        if is_sub_report:
+            pre += '../'
+        return f'{pre}{self.image_folder}/{file_name}[{attrs}]\n'
 
     @classmethod
     def generate_report(cls, loq: CollectResult, interactive):
         report = CostReport()
         cm = report.cm
+        cs = report.cs
         report.interactive = interactive
 
         chart_specs = list()
         if interactive:
-            chart_specs = report.choose_chart_spec(CostChartSpecs.get_xtc_chart_specs(cm)
-                                                   + CostChartSpecs.get_exp_chart_specs(cm))
+            chart_specs = report.choose_chart_spec(cs.get_xtc_chart_specs()
+                                                   + cs.get_exp_chart_specs())
         else:
             report.define_version(loq.db_version)
             report.report_config(loq.config, "YB")
@@ -97,13 +106,14 @@ class CostReport(AbstractReportAction):
         if interactive:
             report.collect_nodes_and_create_plots(chart_specs)
         else:
-            dist_chart_specs = CostChartSpecs.get_dist_chart_specs(cm)
-            xtc_chart_specs = CostChartSpecs.get_xtc_chart_specs(cm)
-            exp_chart_specs = CostChartSpecs.get_exp_chart_specs(cm)
-            # exp_chart_specs += CostChartSpecs.get_more_exp_chart_specs(cm)
-            report.collect_nodes_and_create_plots(dist_chart_specs
-                                                  + xtc_chart_specs + exp_chart_specs)
-            report.build_report(dist_chart_specs, xtc_chart_specs, exp_chart_specs)
+            report.collect_nodes_and_create_plots(
+                cs.get_dist_chart_specs()
+                + cs.get_xtc_chart_specs()
+                + cs.get_exp_chart_specs()
+                + cs.get_more_exp_chart_specs()
+            )
+
+            report.build_report()
             report.publish_report("cost")
 
     def get_report_name(self):
@@ -112,302 +122,197 @@ class CostReport(AbstractReportAction):
     def define_version(self, version):
         self.content += f"[VERSION]\n====\n{version}\n====\n\n"
 
-    def build_report(self, dist_chart_specs, xtc_chart_specs, exp_chart_specs):
-        def report_one_chart(self, id, spec):
-            self.content += f"=== {id}. {html.escape(spec.title)}\n{spec.description}\n"
-            self.report_chart(spec)
-
+    def build_report(self):
         id = 0
-        self.content += "\n== Time & Cost <<_boxplot_chart, Distribution Charts>>\n"
-        for spec in dist_chart_specs:
-            report_one_chart(self, id, spec)
-            id += 1
 
-        self.content += "\n== <<_time_cost_relationship_charts, Time - Cost Relationship Charts>>\n"
-        for spec in xtc_chart_specs:
-            report_one_chart(self, id, spec)
-            id += 1
+        self.content += "\n== Time & Cost Distribution Charts\n"
+        self.content += "\n<<_boxplot_chart, Boxplot distribution chart description>>\n"
+        self.report_chart_groups(id, self.cs.dist_chart_groups)
 
-        self.content += "\n== Experimental Charts\n"
-        for spec in exp_chart_specs:
-            report_one_chart(self, id, spec)
-            id += 1
+        self.content += "\n== Time - Cost Relationship Charts\n"
+        self.content += "\n<<_x_time_cost_relationship_charts, time - cost chart description>>\n"
+        id += self.report_chart_groups(id, self.cs.xtc_chart_groups)
+
+        id += self.report_chart_groups(id, self.cs.exp_chart_groups)
+        id += self.report_chart_groups(id, self.cs.more_exp_chart_groups)
 
         self.content += "== Chart Descriptions\n"
         self.content += BOXPLOT_DESCRIPTION
         self.content += X_TIME_COST_CHART_DESCRIPTION
 
-    def report_chart_filters(self, spec: ChartSpec):
-        self.start_collapsible("Chart specifications")
-        self.start_source(["python"])
-        self.content += "=== Query Filters ===\n"
+    def report_chart_groups(self, start_id: int, chart_groups: Iterable[ChartGroup]):
+        id = start_id
+        cols = 3
+        i = 0
+        for cg in chart_groups:
+            self.content += f"\n=== {cg.title}\n"
+            self.content += f"\n{cg.description}\n"
+            self.start_table(cols)
+            title_row = ''
+            image_row = ''
+            for spec in cg.chart_specs:
+                sub_report_tag = spec.file_name.replace(IMAGE_FILE_SUFFIX, '')
+                title = f'{id}. {html.escape(spec.title)}'
+                sub_report = self.create_sub_report(sub_report_tag)
+                sub_report.content += f"\n[#{sub_report_tag}]\n"
+                sub_report.content += f"== {title}\n\n{spec.description}\n\n"
+                self.report_chart(sub_report, spec)
+                title_row += f'|{title}'
+                image_row += 'a|'
+                image_attrs = (f'link="tags/{sub_report_tag}.html",align="center"')
+                image_row += self.make_image_block(spec.file_name, image_attrs)
+                if i % cols == 2:
+                    self.content += title_row
+                    self.content += '\n'
+                    self.content += image_row
+                    title_row = ''
+                    image_row = ''
+                i += 1
+                id += 1
+            while i % cols != 0:
+                title_row += '|'
+                image_row += 'a|\n'
+                i += 1
+            self.content += title_row
+            self.content += '\n'
+            self.content += image_row
+
+            self.end_table()
+        return id - start_id
+
+    @staticmethod
+    def report_chart_filters(report: SubReport, spec: ChartSpec):
+        report.start_collapsible("Chart specifications")
+        report.start_source(["python"])
+        report.content += "=== Query Filters ===\n"
         for f in spec.query_filter, *spec.xtra_query_filter_list:
-            self.content += inspect.getsource(f)
-        self.content += "=== Node Filters ===\n"
+            report.content += inspect.getsource(f)
+        report.content += "=== Node Filters ===\n"
         for f in spec.node_filter, *spec.xtra_node_filter_list:
-            self.content += inspect.getsource(f)
-        self.content += "=== X Axsis Data ===\n"
-        self.content += inspect.getsource(spec.x_getter)
-        self.content += "=== Series Suffix ===\n"
-        self.content += inspect.getsource(spec.series_suffix)
-        self.content += "=== Options ===\n"
-        self.content += str(spec.options)
-        self.end_source()
-        self.end_collapsible()
+            report.content += inspect.getsource(f)
+        report.content += "=== X Axsis Data ===\n"
+        report.content += inspect.getsource(spec.x_getter)
+        report.content += "=== Series Suffix ===\n"
+        report.content += inspect.getsource(spec.series_suffix)
+        report.content += "=== Options ===\n"
+        report.content += str(spec.options)
+        report.end_source()
+        report.end_collapsible()
 
-    def report_queries(self, queries):
-        self.start_collapsible(f"Queries ({len(queries)})")
-        self.start_source(["sql"])
-        self.content += "\n".join([query if query.endswith(";") else f"{query};"
-                                   for query in sorted(queries)])
-        self.end_source()
-        self.end_collapsible()
+    @staticmethod
+    def report_queries(report: SubReport, queries):
+        report.start_collapsible(f"Queries ({len(queries)})")
+        report.start_source(["sql"])
+        report.content += "\n".join([query if query.endswith(";") else f"{query};"
+                                     for query in sorted(queries)])
+        report.end_source()
+        report.end_collapsible()
 
-    def report_outliers(self, outliers, axis_label, data_labels):
+    @staticmethod
+    def report_outliers(report: SubReport, cm: CostMetrics, outliers, axis_label, data_labels):
         if not outliers:
             return
-        cm = self.cm
         num_dp = sum([len(cond) for key, cond in outliers.items()])
-        self.start_collapsible(
+        report.start_collapsible(
             f"#Extreme {axis_label} outliers excluded from the plots ({num_dp})#", sep="=====")
-        self.content += "'''\n"
+        report.content += "'''\n"
         table_header = '|'.join(data_labels)
         table_header += '\n'
         for series_label, data_points in sorted(outliers.items()):
-            self.start_collapsible(f"`{series_label}` ({len(data_points)})")
-            self.start_table('<1m,2*^1m,2*5a')
-            self.start_table_row()
-            self.content += table_header
-            self.end_table_row()
+            report.start_collapsible(f"`{series_label}` ({len(data_points)})")
+            report.start_table('<1m,2*^1m,2*5a')
+            report.start_table_row()
+            report.content += table_header
+            report.end_table_row()
             for x, cost, time_ms, node in data_points:
-                self.content += f">|{x:.3f}\n>|{time_ms:.3f}\n>|{cost:.3f}\n|\n"
-                self.start_source(["sql"], linenums=False)
-                self.content += str(node)
-                self.end_source()
-                self.content += "|\n"
-                self.start_source(["sql"], linenums=False)
-                self.content += cm.get_node_query(node).query
-                self.end_source()
+                report.content += f">|{x:.3f}\n>|{time_ms:.3f}\n>|{cost:.3f}\n|\n"
+                report.start_source(["sql"], linenums=False)
+                report.content += str(node)
+                report.end_source()
+                report.content += "|\n"
+                report.start_source(["sql"], linenums=False)
+                report.content += cm.get_node_query(node).query
+                report.end_source()
 
-            self.end_table()
-            self.end_collapsible()
+            report.end_table()
+            report.end_collapsible()
 
-        self.content += "'''\n"
-        self.end_collapsible(sep="=====")
+        report.content += "'''\n"
+        report.end_collapsible(sep="=====")
 
-    def report_plot_data(self, plot_data, data_labels):
+    @staticmethod
+    def report_plot_data(report: SubReport, plot_data, data_labels):
         num_dp = sum([len(cond) for key, cond in plot_data.items()])
-        self.start_collapsible(f"Plot data ({num_dp})", sep="=====")
-        self.content += "'''\n"
+        report.start_collapsible(f"Plot data ({num_dp})", sep="=====")
+        report.content += "'''\n"
         if plot_data:
             table_header = '|'.join(data_labels)
             table_header += '\n'
             for series_label, data_points in sorted(plot_data.items()):
-                self.start_collapsible(f"`{series_label}` ({len(data_points)})")
-                self.start_table('<1m,2*^1m,8a')
-                self.start_table_row()
-                self.content += table_header
-                self.end_table_row()
+                report.start_collapsible(f"`{series_label}` ({len(data_points)})")
+                report.start_table('<1m,2*^1m,8a')
+                report.start_table_row()
+                report.content += table_header
+                report.end_table_row()
                 for x, cost, time_ms, node in sorted(data_points,
                                                      key=attrgetter('x', 'time_ms', 'cost')):
-                    self.content += f">|{x:.3f}\n>|{time_ms:.3f}\n>|{cost:.3f}\n|\n"
-                    self.start_source(["sql"], linenums=False)
-                    self.content += str(node)
-                    self.end_source()
+                    report.content += f">|{x:.3f}\n>|{time_ms:.3f}\n>|{cost:.3f}\n|\n"
+                    report.start_source(["sql"], linenums=False)
+                    report.content += str(node)
+                    report.end_source()
 
-                self.end_table()
-                self.end_collapsible()
+                report.end_table()
+                report.end_collapsible()
 
-        self.content += "'''\n"
-        self.end_collapsible(sep="=====")
+        report.content += "'''\n"
+        report.end_collapsible(sep="=====")
 
-    def report_stats(self, spec: ChartSpec):
-        self.start_table('3,8*^1m')
-        self.content += f'|{html.escape(spec.ylabel1)}'
-        self.content += '|p0 (min)'
-        self.content += '|p25 (Q1)'
-        self.content += '|p50{nbsp}(median)'
-        self.content += '|mean'
-        self.content += '|p75 (Q3)'
-        self.content += '|p100 (max)'
-        self.content += '|IQR (Q3-Q1)'
-        self.content += '|SD\n\n'
+    @staticmethod
+    def report_stats(report: SubReport, spec: ChartSpec):
+        report.start_table('3,8*^1m')
+        report.content += f'|{html.escape(spec.ylabel1)}'
+        report.content += '|p0 (min)'
+        report.content += '|p25 (Q1)'
+        report.content += '|p50{nbsp}(median)'
+        report.content += '|mean'
+        report.content += '|p75 (Q3)'
+        report.content += '|p100 (max)'
+        report.content += '|IQR (Q3-Q1)'
+        report.content += '|SD\n\n'
 
         for series_label, data_points in sorted(spec.series_data.items()):
             transposed_data = np.split(np.array(data_points).transpose(), len(DataPoint._fields))
             xdata = transposed_data[0][0]
             ptile = np.percentile(xdata, [0, 25, 50, 75, 100])
-            self.content += f'|{series_label}\n'
-            self.content += f'>|{ptile[0]:.3f}\n'
-            self.content += f'>|{ptile[1]:.3f}\n'
-            self.content += f'>|{ptile[2]:.3f}\n'
-            self.content += f'>|{np.mean(xdata):.3f}\n'
-            self.content += f'>|{ptile[3]:.3f}\n'
-            self.content += f'>|{ptile[4]:.3f}\n'
-            self.content += f'>|{ptile[3] - ptile[1]:.3f}\n'
-            self.content += f'>|{np.std(xdata):.3f}\n'
+            report.content += f'|{series_label}\n'
+            report.content += f'>|{ptile[0]:.3f}\n'
+            report.content += f'>|{ptile[1]:.3f}\n'
+            report.content += f'>|{ptile[2]:.3f}\n'
+            report.content += f'>|{np.mean(xdata):.3f}\n'
+            report.content += f'>|{ptile[3]:.3f}\n'
+            report.content += f'>|{ptile[4]:.3f}\n'
+            report.content += f'>|{ptile[3] - ptile[1]:.3f}\n'
+            report.content += f'>|{np.std(xdata):.3f}\n'
 
-        self.end_table()
+        report.end_table()
 
-    def report_chart(self, spec: ChartSpec):
-        self.start_table()
-        self.add_image(spec.file_name, '{title},align=\"center\"')
-        self.end_table()
+    def report_chart(self, report: SubReport, spec: ChartSpec):
+        report.start_table()
+        report.content += 'a|'
+        report.content += self.make_image_block(spec.file_name, f'{spec.title},align="center"',
+                                                True)
+        report.end_table()
         if spec.is_boxplot():
-            self.report_stats(spec)
+            CostReport.report_stats(report, spec)
 
-        self.report_chart_filters(spec)
-        self.report_queries(spec.queries)
-        self.report_outliers(spec.outliers, spec.outlier_axis,
-                             [f'{html.escape(spec.xlabel)}',
-                              'time_ms', 'cost', 'node', 'queries'])
-        self.report_plot_data(spec.series_data, [f'{html.escape(spec.xlabel)}',
-                                                 'time_ms', 'cost', 'node'])
-
-    __spcrs = " !\"#$%&'()*+,./:;<=>?[\\]^`{|}~"
-    __xtab = str.maketrans(" !\"#$%&'()*+,./:;<=>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^`{|}~",
-                           "---------------------abcdefghijklmnopqrstuvwxyz---------")
-
-    def make_file_name(self, str_list: Iterable[str]):
-        return f"{'-'.join(s.strip(self.__spcrs).translate(self.__xtab) for s in str_list)}.svg"
-
-    def draw_x_time_cost_plot(self, spec):
-        title = spec.title
-        xy_labels = [spec.xlabel, spec.ylabel1, spec.ylabel2]
-
-        rcParams['font.family'] = 'serif'
-        rcParams['font.size'] = 10
-
-        fig, axs = plt.subplots(1, 3, figsize=(27, 8), layout='constrained')
-        fig.suptitle(title, fontsize='xx-large')
-
-        chart_ix = [(1, 2), (0, 2), (0, 1)]  # cost-time, x-time, x-cost
-        log_scale_axis = [spec.options.log_scale_x,
-                          spec.options.log_scale_cost,
-                          spec.options.log_scale_time]
-        for i in range(len(chart_ix)):
-            ax = axs[i]
-            x, y = chart_ix[i]
-            xlabel = xy_labels[x] + (' (log)' if log_scale_axis[x] else '')
-            ylabel = xy_labels[y] + (' (log)' if log_scale_axis[y] else '')
-
-            ax.set_box_aspect(1)
-            ax.set_title(f'{xlabel} - {ylabel}', fontsize='x-large')
-            ax.set_xlabel(xlabel)
-            ax.set_ylabel(ylabel)
-            if not spec.series_data:
-                ax.text(0.5, 0.5, "NO DATA", size=50, family='sans serif', rotation=30.,
-                        ha="center", va="center", alpha=0.4)
-
-        for series_label, data_points in sorted(spec.series_data.items()):
-            data_points.sort(key=attrgetter('x', 'time_ms', 'cost'))
-            transposed_data = np.split(np.array(data_points).transpose(), len(DataPoint._fields))
-            cost_per_time = transposed_data[1][0] / transposed_data[2][0]
-            if (iqr := np.subtract(*np.percentile(cost_per_time, [75, 25]))) > 0:
-                indices = np.nonzero(cost_per_time >
-                                     (np.percentile(cost_per_time, [75]) + 4 * iqr))[0]
-                outliers = list()
-                for ix in reversed(indices):
-                    outliers.append(data_points[ix])
-                    del data_points[ix]
-
-                if outliers:
-                    outliers.sort(key=attrgetter('cost', 'x', 'time_ms'), reverse=True)
-                    spec.outliers[series_label] = outliers
-                    transposed_data = np.split(np.array(data_points).transpose(),
-                                               len(DataPoint._fields))
-
-            for i in range(len(chart_ix)):
-                x, y = chart_ix[i]
-                ax = axs[i]
-                ax.plot(transposed_data[x][0],
-                        transposed_data[y][0],
-                        spec.series_format[series_label],
-                        label=series_label,
-                        alpha=0.35,
-                        picker=self.line_picker)
-
-                if log_scale_axis[x]:
-                    ax.set_xscale('log')
-                    ax.set_xbound(lower=1.0)
-                else:
-                    ax.set_xbound(lower=0.0)
-
-                if log_scale_axis[y]:
-                    ax.set_yscale('log')
-                    ax.set_ybound(lower=1.0)
-                else:
-                    ax.set_ybound(lower=0.0)
-
-        if self.interactive:
-            [self.logger.debug(query_str) for query_str in sorted(spec.queries)]
-            self.show_charts_and_handle_events(spec, fig, axs)
-        else:
-            if spec.series_data:
-                # show the legend on the last subplot
-                axs[-1].legend(fontsize='xx-small',
-                               ncols=int((len(spec.series_data.keys())+39)/40.0))
-
-            spec.file_name = self.make_file_name([title, xlabel])
-            plt.savefig(self.get_image_path(spec.file_name),
-                        dpi=50 if spec.series_data else 300)
-
-        plt.close()
-
-    def draw_boxplot(self, spec):
-        title = spec.title
-        xlabel = spec.xlabel
-        ylabel = spec.ylabel1
-
-        rcParams['font.family'] = 'serif'
-        rcParams['font.size'] = 10
-
-        fig, ax = plt.subplots(1, figsize=(12, 2.7), layout='constrained')
-
-        ax.set_title(title, fontsize='large')
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        if not spec.series_data:
-            ax.text(0.5, 0.5, "NO DATA", size=50, family='sans serif', rotation=30.,
-                    ha="center", va="center", alpha=0.4)
-
-        data = list()
-        labels = list()
-        for series_label, data_points in sorted(spec.series_data.items()):
-            transposed_data = np.split(np.array(data_points).transpose(), len(DataPoint._fields))
-            xdata = transposed_data[0][0]
-            if (iqr := np.subtract(*np.percentile(xdata, [75, 25]))) > 0:
-                indices = np.nonzero(xdata > (np.percentile(xdata, [75]) + 3 * iqr))[0]
-                outliers = list()
-                for ix in reversed(indices):
-                    outliers.append(data_points[ix])
-                    del data_points[ix]
-
-                if outliers:
-                    spec.outlier_axis = "x-axis value"
-                    outliers.sort(key=attrgetter('x', 'time_ms', 'cost'), reverse=True)
-                    spec.outliers[series_label] = outliers
-                    xdata = np.delete(xdata, indices, axis=0)
-
-            data.append(xdata)
-            labels.append(series_label)
-
-        ax.boxplot(data, labels=labels, vert=False, meanline=True, showmeans=True,
-                   sym=None if spec.options.bp_show_fliers else '')
-
-        ax.xaxis.grid(True)
-
-        if spec.options.log_scale_x:
-            ax.set_xscale('log')
-
-        if self.interactive:
-            self.show_charts_and_handle_events(spec, fig, [ax])
-        else:
-            spec.file_name = self.make_file_name([title, xlabel])
-            plt.savefig(self.get_image_path(spec.file_name),
-                        dpi=50 if spec.series_data else 300)
-
-        plt.close()
+        CostReport.report_chart_filters(report, spec)
+        CostReport.report_queries(report, spec.queries)
+        CostReport.report_outliers(report, self.cm,
+                                   spec.outliers, spec.outlier_axis,
+                                   [f'{html.escape(spec.xlabel)}',
+                                    'time_ms', 'cost', 'node', 'queries'])
+        CostReport.report_plot_data(report, spec.series_data, [f'{html.escape(spec.xlabel)}',
+                                                               'time_ms', 'cost', 'node'])
 
     @staticmethod
     def get_series_color(series_label):
@@ -495,6 +400,155 @@ class CostReport(AbstractReportAction):
                 print(f"*** Enter a number in range [0..{len(chart_specs)-1}] ***")
                 response = -1
         return [chart_specs[int(response)]]
+
+    __xtab = str.maketrans(" !\"#$%&'()*+,./:;<=>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^`{|}~",
+                           "---------------------abcdefghijklmnopqrstuvwxyz---------")
+    __fno = -1
+
+    @staticmethod
+    def make_file_name(name: str):
+        CostReport.__fno += 1
+        return (f"{CostReport.__fno:06d}-"
+                f"{re.sub(r'-+', '-', name.translate(CostReport.__xtab).strip('-'))}"
+                f"{IMAGE_FILE_SUFFIX}")
+
+    def draw_x_time_cost_plot(self, spec):
+        title = spec.title
+        xy_labels = [spec.xlabel, spec.ylabel1, spec.ylabel2]
+
+        rcParams['font.family'] = 'serif'
+        rcParams['font.size'] = 10
+
+        fig, axs = plt.subplots(1, 3, figsize=(27, 8), layout='constrained')
+        fig.suptitle(title, fontsize='xx-large')
+
+        chart_ix = [(1, 2), (0, 2), (0, 1)]  # cost-time, x-time, x-cost
+        log_scale_axis = [spec.options.log_scale_x,
+                          spec.options.log_scale_cost,
+                          spec.options.log_scale_time]
+        for i in range(len(chart_ix)):
+            ax = axs[i]
+            x, y = chart_ix[i]
+            xlabel = xy_labels[x] + (' (log)' if log_scale_axis[x] else '')
+            ylabel = xy_labels[y] + (' (log)' if log_scale_axis[y] else '')
+
+            ax.set_box_aspect(1)
+            ax.set_title(f'{xlabel} - {ylabel}', fontsize='x-large')
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
+            if not spec.series_data:
+                ax.text(0.5, 0.5, "NO DATA", size=50, family='sans serif', rotation=30.,
+                        ha="center", va="center", alpha=0.4)
+
+        for series_label, data_points in sorted(spec.series_data.items()):
+            data_points.sort(key=attrgetter('x', 'time_ms', 'cost'))
+            transposed_data = np.split(np.array(data_points).transpose(), len(DataPoint._fields))
+            cost_per_time = transposed_data[1][0] / transposed_data[2][0]
+            if (iqr := np.subtract(*np.percentile(cost_per_time, [75, 25]))) > 0:
+                indices = np.nonzero(cost_per_time >
+                                     (np.percentile(cost_per_time, [75]) + 4 * iqr))[0]
+                outliers = list()
+                for ix in reversed(indices):
+                    outliers.append(data_points[ix])
+                    del data_points[ix]
+
+                if outliers:
+                    outliers.sort(key=attrgetter('cost', 'x', 'time_ms'), reverse=True)
+                    spec.outliers[series_label] = outliers
+                    transposed_data = np.split(np.array(data_points).transpose(),
+                                               len(DataPoint._fields))
+
+            for i in range(len(chart_ix)):
+                x, y = chart_ix[i]
+                ax = axs[i]
+                ax.plot(transposed_data[x][0],
+                        transposed_data[y][0],
+                        spec.series_format[series_label],
+                        label=series_label,
+                        alpha=0.35,
+                        picker=self.line_picker)
+
+                if log_scale_axis[x]:
+                    ax.set_xscale('log')
+                    ax.set_xbound(lower=1.0)
+                else:
+                    ax.set_xbound(lower=0.0)
+
+                if log_scale_axis[y]:
+                    ax.set_yscale('log')
+                    ax.set_ybound(lower=1.0)
+                else:
+                    ax.set_ybound(lower=0.0)
+
+        if self.interactive:
+            [self.logger.debug(query_str) for query_str in sorted(spec.queries)]
+            self.show_charts_and_handle_events(spec, fig, axs)
+        else:
+            if spec.series_data:
+                # show the legend on the last subplot
+                axs[-1].legend(fontsize='xx-small',
+                               ncols=int((len(spec.series_data.keys())+39)/40.0))
+
+            spec.file_name = self.make_file_name('-'.join([title, xlabel]))
+            plt.savefig(self.get_image_location() + spec.file_name,
+                        dpi=50 if spec.series_data else 300)
+
+        plt.close()
+
+    def draw_boxplot(self, spec):
+        title = spec.title
+        xlabel = spec.xlabel
+        ylabel = spec.ylabel1
+
+        rcParams['font.family'] = 'serif'
+        rcParams['font.size'] = 10
+
+        fig, ax = plt.subplots(1, figsize=(12, 2.7), layout='constrained')
+
+        ax.set_title(title, fontsize='large')
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        if not spec.series_data:
+            ax.text(0.5, 0.5, "NO DATA", size=50, family='sans serif', rotation=30.,
+                    ha="center", va="center", alpha=0.4)
+
+        data = list()
+        labels = list()
+        for series_label, data_points in sorted(spec.series_data.items()):
+            transposed_data = np.split(np.array(data_points).transpose(), len(DataPoint._fields))
+            xdata = transposed_data[0][0]
+            if (iqr := np.subtract(*np.percentile(xdata, [75, 25]))) > 0:
+                indices = np.nonzero(xdata > (np.percentile(xdata, [75]) + 3 * iqr))[0]
+                outliers = list()
+                for ix in reversed(indices):
+                    outliers.append(data_points[ix])
+                    del data_points[ix]
+
+                if outliers:
+                    spec.outlier_axis = "x-axis value"
+                    outliers.sort(key=attrgetter('x', 'time_ms', 'cost'), reverse=True)
+                    spec.outliers[series_label] = outliers
+                    xdata = np.delete(xdata, indices, axis=0)
+
+            data.append(xdata)
+            labels.append(series_label)
+
+        ax.boxplot(data, labels=labels, vert=False, meanline=True, showmeans=True,
+                   sym=None if spec.options.bp_show_fliers else '')
+
+        ax.xaxis.grid(True)
+
+        if spec.options.log_scale_x:
+            ax.set_xscale('log')
+
+        if self.interactive:
+            self.show_charts_and_handle_events(spec, fig, [ax])
+        else:
+            spec.file_name = self.make_file_name('-'.join([title, xlabel]))
+            plt.savefig(self.get_image_location() + spec.file_name,
+                        dpi=50 if spec.series_data else 300)
+
+        plt.close()
 
     @staticmethod
     def line_picker(line, event):

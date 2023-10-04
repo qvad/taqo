@@ -95,9 +95,82 @@ class ChartSpec:
         return all(f(node) for f in [self.node_filter, *self.xtra_node_filter_list])
 
 
+@dataclass
+class ChartGroup:
+    title: str
+    description: str
+    chart_specs: Iterable[ChartSpec]
+
+
 class CostChartSpecs:
+    def __init__(self, cm: CostMetrics):
+        self.dist_specs = self.__make_dist_specs(cm)
+        self.column_and_value_metric_specs = self.__make_column_and_value_metric_specs(cm)
+        self.simple_index_scan_specs = self.__make_simple_index_scan_specs(cm)
+        self.literal_in_list_specs = self.__make_literal_in_list_specs(cm)
+        self.bnl_in_list_specs = self.__make_bnl_in_list_specs(cm)
+        self.composite_key_access_specs = self.__make_composite_key_access_specs(cm)
+        self.more_exp_specs = self.__make_more_exp_specs(cm)
+
+        self.dist_chart_groups = [
+            ChartGroup(
+                "Time & cost distribution of scan nodes without any local filtering",
+                '',
+                self.dist_specs,
+            ),
+        ]
+
+        self.xtc_chart_groups = [
+            ChartGroup(
+                "Column/Value Position and Column Count",
+                ("1,000,000 row table with all unique columns\n\n"),
+                self.column_and_value_metric_specs,
+            ),
+            ChartGroup(
+                "Simple Index Access Conditions",
+                'Index scans with simple index access conditions and corresponding seq scans',
+                self.simple_index_scan_specs,
+            ),
+            ChartGroup(
+                "Index scan nodes with literal IN-list",
+                '',
+                self.literal_in_list_specs,
+            ),
+        ]
+
+        self.exp_chart_groups = [
+            ChartGroup(
+                "Experimental Charts",
+                '',
+                self.composite_key_access_specs,
+            ),
+        ]
+
+        self.more_exp_chart_groups = [
+            ChartGroup(
+                "More Experimental Charts",
+                '',
+                self.more_exp_specs,
+            ),
+        ]
+
+    def get_dist_chart_specs(self):
+        return self.dist_specs
+
+    def get_xtc_chart_specs(self):
+        return (self.column_and_value_metric_specs
+                + self.simple_index_scan_specs
+                + self.literal_in_list_specs
+                + self.bnl_in_list_specs)
+
+    def get_exp_chart_specs(self):
+        return self.composite_key_access_specs
+
+    def get_more_exp_chart_specs(self):
+        return self.more_exp_specs
+
     @staticmethod
-    def get_dist_chart_specs(cm: CostMetrics):
+    def __make_dist_specs(cm: CostMetrics) -> Iterable[ChartSpec]:
         return [
             (boxplot_simple_scan_node := ChartSpec(
                 PlotType.BOXPLOT,
@@ -149,86 +222,7 @@ class CostChartSpecs:
         ]
 
     @staticmethod
-    def get_xtc_chart_specs(cm: CostMetrics):
-        return (CostChartSpecs.get_column_and_value_metric_chart_specs(cm)
-                + CostChartSpecs.get_simple_index_scan_chart_specs(cm)
-                + CostChartSpecs.get_in_list_chart_specs(cm))
-
-    @staticmethod
-    def get_exp_chart_specs(cm: CostMetrics):
-        return CostChartSpecs.get_composite_key_access_chart_specs(cm)
-
-    @staticmethod
-    def get_simple_index_scan_chart_specs(cm: CostMetrics):
-        return [
-            (chart_simple_index_scan := ChartSpec(
-                PlotType.X_TIME_COST_PLOT,
-                ('Simple index access conditions and corresponding seq scans by node type'),
-                ('Index (Only) Scans with simple index access condition on single key item'
-                 ' and the Seq Scans from the same queries.'
-                 '\n\n* No IN-list, OR\'ed condition, etc.'
-                 '\n\n* The nodes showing "Rows Removed by (Index) Recheck" are excluded.'
-                 '\n\n* No nodes from EXISTS and JOIN queries'),
-                'Output row count', 'Estimated cost', 'Execution time [ms]',
-                lambda query: (
-                    cm.is_single_table_query(query)
-                    and cm.has_no_filter_indexscan(query)
-                    and not cm.has_local_filter(query)
-                    and not cm.has_aggregate(query)
-                ),
-                lambda node: (
-                    cm.has_no_local_filtering(node)
-                    and not cm.has_no_condition(node)
-                    and (node.is_seq_scan
-                         or (node.is_any_index_scan
-                             and cm.has_only_simple_condition(node, index_cond_only=True)))
-                ),
-                x_getter=lambda node: float(node.rows),
-                series_suffix=(lambda node:
-                               f'{node.index_name or node.table_name}:'
-                               f'width={cm.get_node_width(node)}'),
-            )).make_variant(
-                't100000 and t100000w',
-                xtra_query_filter=lambda query: 't100000 ' in query or 't100000w ' in query,
-                xtra_node_filter=(lambda node:
-                                  float(cm.get_table_row_count(node.table_name)) == 100000),
-                series_suffix=(lambda node:
-                               f'{node.table_name}:width={cm.get_node_width(node)}'),
-            ),
-            chart_simple_index_scan.make_variant(
-                't100000',
-                xtra_query_filter=lambda query: 't100000 ' in query,
-                xtra_node_filter=(lambda node:
-                                  float(cm.get_table_row_count(node.table_name)) == 100000),
-            ),
-            chart_simple_index_scan.make_variant(
-                't100000w',
-                xtra_query_filter=lambda query: 't100000w ' in query,
-                xtra_node_filter=(lambda node:
-                                  float(cm.get_table_row_count(node.table_name)) == 100000),
-            ),
-            chart_simple_index_scan.make_variant(
-                't10000',
-                xtra_query_filter=lambda query: 't10000 ' in query,
-                xtra_node_filter=(lambda node:
-                                  float(cm.get_table_row_count(node.table_name)) == 10000),
-            ),
-            chart_simple_index_scan.make_variant(
-                't1000',
-                xtra_query_filter=lambda query: 't1000 ' in query,
-                xtra_node_filter=(lambda node:
-                                  float(cm.get_table_row_count(node.table_name)) == 1000),
-            ),
-            chart_simple_index_scan.make_variant(
-                't100',
-                xtra_query_filter=lambda query: 't100 ' in query,
-                xtra_node_filter=(lambda node:
-                                  float(cm.get_table_row_count(node.table_name)) == 100),
-            ),
-        ]
-
-    @staticmethod
-    def get_column_and_value_metric_chart_specs(cm: CostMetrics):
+    def __make_column_and_value_metric_specs(cm: CostMetrics) -> Iterable[ChartSpec]:
         column_and_value_metric_chart = ChartSpec(
             PlotType.X_TIME_COST_PLOT,
             'Column/value num/position metric test queries', '',
@@ -320,12 +314,98 @@ class CostChartSpecs:
         ]
 
     @staticmethod
-    def get_in_list_chart_specs(cm: CostMetrics):
+    def __make_simple_index_scan_specs(cm: CostMetrics) -> Iterable[ChartSpec]:
         return [
+            (chart_simple_index_scan := ChartSpec(
+                PlotType.X_TIME_COST_PLOT,
+                ('Index scans with simple index access conditions and corresponding seq scans'),
+                '',
+                'Output row count', 'Estimated cost', 'Execution time [ms]',
+                lambda query: (
+                    cm.is_single_table_query(query)
+                    and cm.has_no_filter_indexscan(query)
+                    and not cm.has_local_filter(query)
+                    and not cm.has_aggregate(query)
+                ),
+                lambda node: (
+                    cm.has_no_local_filtering(node)
+                    and not cm.has_no_condition(node)
+                    and (node.is_seq_scan
+                         or (node.is_any_index_scan
+                             and cm.has_only_simple_condition(node, index_cond_only=True)))
+                ),
+                x_getter=lambda node: float(node.rows),
+                series_suffix=(lambda node:
+                               f'{node.index_name or node.table_name}:'
+                               f'width={cm.get_node_width(node)}'),
+            )).make_variant(
+                'Table t100000 and t100000w, series by node type', True,
+                xtra_query_filter=lambda query: 't100000 ' in query or 't100000w ' in query,
+                xtra_node_filter=(lambda node:
+                                  float(cm.get_table_row_count(node.table_name)) == 100000),
+                series_suffix=(lambda node:
+                               f'{node.table_name}:width={cm.get_node_width(node)}'),
+            ),
+            chart_simple_index_scan.make_variant(
+                'Table t100000, series by index', True,
+                xtra_query_filter=lambda query: 't100000 ' in query,
+                xtra_node_filter=(lambda node:
+                                  float(cm.get_table_row_count(node.table_name)) == 100000),
+            ),
+            chart_simple_index_scan.make_variant(
+                'Table t100000w, series by index', True,
+                xtra_query_filter=lambda query: 't100000w ' in query,
+                xtra_node_filter=(lambda node:
+                                  float(cm.get_table_row_count(node.table_name)) == 100000),
+            ),
+            chart_simple_index_scan.make_variant(
+                'Table t10000, series by index', True,
+                xtra_query_filter=lambda query: 't10000 ' in query,
+                xtra_node_filter=(lambda node:
+                                  float(cm.get_table_row_count(node.table_name)) == 10000),
+            ),
+            chart_simple_index_scan.make_variant(
+                'Table t1000, series by index', True,
+                xtra_query_filter=lambda query: 't1000 ' in query,
+                xtra_node_filter=(lambda node:
+                                  float(cm.get_table_row_count(node.table_name)) == 1000),
+            ),
+            chart_simple_index_scan.make_variant(
+                'Table t100, series by index', True,
+                xtra_query_filter=lambda query: 't100 ' in query,
+                xtra_node_filter=(lambda node:
+                                  float(cm.get_table_row_count(node.table_name)) == 100),
+            ),
+        ]
+
+    @staticmethod
+    def __make_literal_in_list_specs(cm: CostMetrics) -> Iterable[ChartSpec]:
+        return [
+            chart_single_literal_in_list := ChartSpec(
+                PlotType.X_TIME_COST_PLOT,
+                'Index scan nodes with single literal IN-list',
+                '',
+                'Output row count', 'Estimated cost', 'Execution time [ms]',
+                lambda query: True,
+                lambda node: (
+                    cm.has_literal_inlist_index_cond(node, single_in_list_only=True)
+                    and cm.has_no_local_filtering(node)
+                ),
+                x_getter=lambda node: float(node.rows),
+                series_suffix=(lambda node:
+                               ''.join([
+                                   f'{node.index_name or node.table_name}:',
+                                   f'width={cm.get_node_width(node)}',
+                                   ' ncInItems=',
+                                   cm.build_non_contiguous_literal_inlist_count_str(
+                                       node.table_name, node.get_index_cond()),
+                               ])),
+            ),
             chart_literal_in_list := ChartSpec(
                 PlotType.X_TIME_COST_PLOT,
-                'Index scan nodes with literal IN-list',
-                ("Index (Only) Scans with literal IN-list in the index access condition."),
+                ('Index scan nodes with literal IN-list'
+                 '- 1 or 2 IN-lists, or an IN-list and a simple index access condition'),
+                '',
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
                 lambda query: True,
                 lambda node: (
@@ -342,15 +422,23 @@ class CostChartSpecs:
                                        node.table_name, node.get_index_cond()),
                                ])),
             ),
-            chart_literal_in_list.make_variant(
-                "output <= 200 rows",
+            chart_single_literal_in_list.make_variant(
+                "output <= 100 rows",
                 xtra_node_filter=lambda node: float(node.rows) <= 100,
             ),
+            chart_literal_in_list.make_variant(
+                "output <= 100 rows",
+                xtra_node_filter=lambda node: float(node.rows) <= 100,
+            ),
+        ]
+
+    @staticmethod
+    def __make_bnl_in_list_specs(cm: CostMetrics) -> Iterable[ChartSpec]:
+        return [
             ChartSpec(
                 PlotType.X_TIME_COST_PLOT,
                 'Parameterized IN-list index scans (BNL)',
-                ("Index (Only) Scans with BNL-generaed parameterized IN-list, plus the Seq Scans"
-                 " from the same queries."),
+                '',
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
                 lambda query: True,
                 lambda node: (
@@ -366,13 +454,12 @@ class CostChartSpecs:
         ]
 
     @staticmethod
-    def get_composite_key_access_chart_specs(cm: CostMetrics):
+    def __make_composite_key_access_specs(cm: CostMetrics) -> Iterable[ChartSpec]:
         return [
             chart_composite_key := ChartSpec(
                 PlotType.X_TIME_COST_PLOT,
                 'Composite key index scans',
-                ("* The clustered plots near the lower left corner need adjustments the series"
-                 " criteria and/or node filtering."),
+                '',
                 'Output row count', 'Estimated cost', 'Execution time [ms]',
                 lambda query: 't1000000m' in query or 't1000000c10' in query,
                 lambda node: (
@@ -410,7 +497,7 @@ class CostChartSpecs:
         ]
 
     @staticmethod
-    def get_more_exp_chart_specs(cm: CostMetrics):
+    def __make_more_exp_specs(cm: CostMetrics) -> Iterable[ChartSpec]:
         return [
             ChartSpec(
                 PlotType.X_TIME_COST_PLOT,
