@@ -156,7 +156,7 @@ class ScoreReport(AbstractReportAction):
         yb_plot.line(x=yb_x_np, y=yb_y_data_regress)
 
         # Tap event to jump to query
-        yb_url = '#@query_hash'
+        yb_url = 'tags/@query_tag.html#@query_hash'
         yb_taptool = yb_plot.select(type=TapTool)
         yb_taptool.callback = OpenURL(url=yb_url, same_tab=True)
 
@@ -191,7 +191,7 @@ class ScoreReport(AbstractReportAction):
         pg_plot.line(x=pg_x_np, y=pg_y_data_regress)
 
         # Tap event to jump to query
-        pg_url = '#@query_hash'
+        pg_url = 'tags/@query_tag.html#@query_hash'
         pg_taptool = pg_plot.select(type=TapTool)
         pg_taptool.callback = OpenURL(url=pg_url, same_tab=True)
 
