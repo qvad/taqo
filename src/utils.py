@@ -101,6 +101,9 @@ def calculate_avg_execution_time(cur,
                         collect_execution_plan(cur, connection, query, sut_database)
                         execution_plan_collected = True
 
+                        # prepare execution again
+                        sut_database.prepare_query_execution(cur)
+
                     start_time = current_milli_time()
 
                     evaluate_sql(cur, query_str)
@@ -141,7 +144,6 @@ def collect_execution_plan(cur,
                            query: Query,
                            sut_database: Database):
     try:
-        sut_database.prepare_query_execution(cur)
         evaluate_sql(cur, query.get_explain())
         query.execution_plan = sut_database.get_execution_plan(
             '\n'.join(str(item[0]) for item in cur.fetchall())
