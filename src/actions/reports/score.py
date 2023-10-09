@@ -289,7 +289,7 @@ class ScoreReport(AbstractReportAction):
 
                 pg_success = pg_query.execution_time_ms > 0
 
-                qe_default_geo *= yb_query.execution_time_ms / yb_query.execution_time_ms if pg_success else 1
+                qe_default_geo *= yb_query.execution_time_ms / pg_query.execution_time_ms if pg_success else 1
                 qe_bests_geo *= yb_best.execution_time_ms / pg_best.execution_time_ms if pg_success else 1
 
                 qo_yb_bests_geo *= (yb_query.execution_time_ms if yb_query.execution_time_ms > 0 else 1.0) / \
