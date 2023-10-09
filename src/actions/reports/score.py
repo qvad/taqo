@@ -292,10 +292,10 @@ class ScoreReport(AbstractReportAction):
                 qe_default_geo *= yb_query.execution_time_ms / pg_query.execution_time_ms if pg_success else 1
                 qe_bests_geo *= yb_best.execution_time_ms / pg_best.execution_time_ms if pg_success else 1
 
-                qo_yb_bests_geo *= (yb_query.execution_time_ms if yb_query.execution_time_ms > 0 else 1.0) / \
-                                   (yb_best.execution_time_ms if yb_best.execution_time_ms > 0 else 1)
-                qo_pg_bests_geo *= pg_query.execution_time_ms / pg_best.execution_time_ms \
-                    if pg_best.execution_time_ms > 0 else 9999999
+                if yb_query.execution_time_ms > 0 and yb_best.execution_time_ms > 0:
+                    qo_yb_bests_geo *= yb_query.execution_time_ms / yb_best.execution_time_ms
+                if pg_query.execution_time_ms > 0 and pg_best.execution_time_ms > 0:
+                    qo_pg_bests_geo *= pg_query.execution_time_ms / pg_best.execution_time_ms
 
                 yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
                 pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best.execution_plan) else 0
