@@ -150,20 +150,24 @@ class CostReport(AbstractReportAction):
             self.start_table(cols)
             title_row = ''
             image_row = ''
-            for spec in cg.chart_specs:
+            for spec in filter(lambda s: bool(s.file_name), cg.chart_specs):
                 sub_report_tag = spec.file_name.replace(IMAGE_FILE_SUFFIX, '')
-                title = f'{id}. {html.escape(spec.title)}'
+                title = html.escape(f'{id} {spec.title}')
                 sub_report = self.create_sub_report(sub_report_tag)
                 sub_report.content += f"\n[#{sub_report_tag}]\n"
                 sub_report.content += f"== {title}\n\n{spec.description}\n\n"
                 self.report_chart(sub_report, spec)
-                title_row += f'|{title}'
+                dpstr = f'{sum([len(dp) for dp in spec.series_data.values()])} data points'
+                olstr = (f' after excluding #{sum([len(dp) for dp in spec.outliers.values()])}'
+                         ' extreme outliers#') if spec.outliers else ''
+                title_row += f'|{title} +\n({dpstr}{olstr})'
+
                 image_row += 'a|'
                 image_attrs = (f'link="tags/{sub_report_tag}.html",align="center"')
                 image_row += self.make_image_block(spec.file_name, image_attrs)
                 if i % cols == 2:
                     self.content += title_row
-                    self.content += '\n'
+                    self.content += '\n\n'
                     self.content += image_row
                     title_row = ''
                     image_row = ''
@@ -212,7 +216,7 @@ class CostReport(AbstractReportAction):
     def report_outliers(report: SubReport, cm: CostMetrics, outliers, axis_label, data_labels):
         if not outliers:
             return
-        num_dp = sum([len(cond) for key, cond in outliers.items()])
+        num_dp = sum([len(dp) for dp in outliers.values()])
         report.start_collapsible(
             f"#Extreme {axis_label} outliers excluded from the plots ({num_dp})#", sep="=====")
         report.content += "'''\n"
@@ -242,7 +246,7 @@ class CostReport(AbstractReportAction):
 
     @staticmethod
     def report_plot_data(report: SubReport, plot_data, data_labels):
-        num_dp = sum([len(cond) for key, cond in plot_data.items()])
+        num_dp = sum([len(dp) for key, dp in plot_data.items()])
         report.start_collapsible(f"Plot data ({num_dp})", sep="=====")
         report.content += "'''\n"
         if plot_data:
