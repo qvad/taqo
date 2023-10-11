@@ -128,6 +128,9 @@ class NodeContext:
     node_width: int
     node_classifiers: NodeClassifiers
 
+    def get_parent_query(self):
+        return self.plan_context.parent_query
+
     def get_query(self):
         return self.plan_context.get_query()
 
@@ -384,7 +387,7 @@ class CostMetrics:
         PlanNodeCollector(ctx, pctx, self.node_context_map, self.logger).visit(ptree)
 
     def add_query(self, query: type[Query]):
-        self.logger.debug(f'{query.query_hash}: {query.query}...')
+        self.logger.debug(f'Adding {query.tag} {query.query_hash}: {query.query}...')
         self.add_table_metadata(query.tables)
 
         pc = PlanClassifiers()
@@ -414,6 +417,9 @@ class CostMetrics:
 
     def get_node_query(self, node):
         return self.node_context_map[id(node)].get_query()
+
+    def get_node_parent_query(self, node):
+        return self.node_context_map[id(node)].get_parent_query()
 
     def get_node_query_str(self, node):
         return self.get_node_query(node).query

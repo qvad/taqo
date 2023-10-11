@@ -1,16 +1,17 @@
 import html
 import inspect
-import numpy as np
 import re
 from collections.abc import Iterable
 from operator import attrgetter
+from urllib.parse import quote as url_quote
 
+import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import rcParams
+from sql_formatter.core import format_sql
 
 from collect import CollectResult
-from objects import PlanPrinter
-from objects import PlanNode
+from objects import PlanNode, PlanPrinter, Query, ScanNode
 from actions.report import AbstractReportAction, SubReport
 from actions.reports.cost_metrics import CostMetrics
 from actions.reports.cost_chart_specs import (CostChartSpecs, ChartGroup, ChartSpec,
@@ -88,7 +89,7 @@ class CostReport(AbstractReportAction):
             report.report_model(loq.model_queries)
 
         report.logger.info('Processing queries...')
-        for query in sorted(loq.queries, key=lambda query: query.query):
+        for query in sorted(loq.queries, key=attrgetter('tag', 'query')):
             cm.add_query(query)
 
         report.logger.info(f"Processed {len(loq.queries)} queries  {cm.num_plans} plans")
@@ -135,6 +136,9 @@ class CostReport(AbstractReportAction):
 
         id += self.report_chart_groups(id, self.cs.exp_chart_groups)
         id += self.report_chart_groups(id, self.cs.more_exp_chart_groups)
+
+        self.content += "== All Queries\n"
+        self.build_all_plan_subreports()
 
         self.content += "== Chart Descriptions\n"
         self.content += BOXPLOT_DESCRIPTION
@@ -213,57 +217,48 @@ class CostReport(AbstractReportAction):
         report.end_collapsible()
 
     @staticmethod
-    def report_outliers(report: SubReport, cm: CostMetrics, outliers, axis_label, data_labels):
-        if not outliers:
-            return
-        num_dp = sum([len(dp) for dp in outliers.values()])
-        report.start_collapsible(
-            f"#Extreme {axis_label} outliers excluded from the plots ({num_dp})#", sep="=====")
-        report.content += "'''\n"
-        table_header = '|'.join(data_labels)
-        table_header += '\n'
-        for series_label, data_points in sorted(outliers.items()):
-            report.start_collapsible(f"`{series_label}` ({len(data_points)})")
-            report.start_table('<1m,2*^1m,2*5a')
-            report.start_table_row()
-            report.content += table_header
-            report.end_table_row()
-            for x, cost, time_ms, node in data_points:
-                report.content += f">|{x:.3f}\n>|{time_ms:.3f}\n>|{cost:.3f}\n|\n"
-                report.start_source(["sql"], linenums=False)
-                report.content += str(node)
-                report.end_source()
-                report.content += "|\n"
-                report.start_source(["sql"], linenums=False)
-                report.content += cm.get_node_query(node).query
-                report.end_source()
+    def make_plan_node_link(cm: CostMetrics, node: PlanNode):
+        query = cm.get_node_query(node)
+        sqlfile = cm.get_node_parent_query(node).tag
+        anchor = query.query_hash + (CostReport.make_name(query.explain_hints)
+                                     if query.explain_hints else '')
 
-            report.end_table()
-            report.end_collapsible()
-
-        report.content += "'''\n"
-        report.end_collapsible(sep="=====")
+        node_str = node.get_full_str(estimate=True, actual=True, properties=False, level=False)
+        if isinstance(node, ScanNode):
+            pat_str = r' on (?P<schema>\S+\.)' + node.table_name + ' '
+            if m := re.search(pat_str, query.execution_plan.full_str):
+                node_str = node_str.replace(' on ' + node.table_name,
+                                            ' on ' + m.group('schema') + node.table_name)
+        highlight = url_quote(node_str, safe='/()')
+        return f"{sqlfile}.html#{anchor}:~:text={highlight}"
 
     @staticmethod
-    def report_plot_data(report: SubReport, plot_data, data_labels):
-        num_dp = sum([len(dp) for key, dp in plot_data.items()])
-        report.start_collapsible(f"Plot data ({num_dp})", sep="=====")
+    def report_plot_data(report: SubReport, cm: CostMetrics, title,
+                         plot_data, data_labels, outliers):
+        num_dp = sum([len(dp) for dp in plot_data.values()])
+        enh = '#' if outliers else ''
+        report.start_collapsible(f"{enh}{title} ({num_dp}){enh}", sep="=====")
         report.content += "'''\n"
         if plot_data:
             table_header = '|'.join(data_labels)
             table_header += '\n'
             for series_label, data_points in sorted(plot_data.items()):
                 report.start_collapsible(f"`{series_label}` ({len(data_points)})")
-                report.start_table('<1m,2*^1m,8a')
+                report.start_table('<1m,2*^1m,8a,1a')
                 report.start_table_row()
                 report.content += table_header
                 report.end_table_row()
                 for x, cost, time_ms, node in sorted(data_points,
-                                                     key=attrgetter('x', 'time_ms', 'cost')):
+                                                     key=attrgetter('x', 'time_ms', 'cost'),
+                                                     reverse=outliers):
                     report.content += f">|{x:.3f}\n>|{time_ms:.3f}\n>|{cost:.3f}\n|\n"
                     report.start_source(["sql"], linenums=False)
                     report.content += str(node)
                     report.end_source()
+                    report.content += '\n|'
+                    report.content += (f'link:{CostReport.make_plan_node_link(cm, node)}'
+                                       f'[{cm.get_node_query(node).query_hash}]')
+                    report.content += '\n'
 
                 report.end_table()
                 report.end_collapsible()
@@ -311,12 +306,66 @@ class CostReport(AbstractReportAction):
 
         CostReport.report_chart_filters(report, spec)
         CostReport.report_queries(report, spec.queries)
-        CostReport.report_outliers(report, self.cm,
-                                   spec.outliers, spec.outlier_axis,
-                                   [f'{html.escape(spec.xlabel)}',
-                                    'time_ms', 'cost', 'node', 'queries'])
-        CostReport.report_plot_data(report, spec.series_data, [f'{html.escape(spec.xlabel)}',
-                                                               'time_ms', 'cost', 'node'])
+        cost_label = ('adjusted ' if spec.options.adjust_cost_by_actual_rows else '') + 'cost'
+        data_labels = [f'{html.escape(spec.xlabel)}', 'time_ms', cost_label, 'node', 'query hash']
+        if spec.outliers:
+            CostReport.report_plot_data(report, self.cm,
+                                        ''.join(['Extreme ',
+                                                 spec.outlier_axis,
+                                                 ' outliers excluded from the plots']),
+                                        spec.outliers, data_labels, outliers=True)
+        CostReport.report_plot_data(report, self.cm, 'Plot data',
+                                    spec.series_data, data_labels, outliers=False)
+
+    def build_all_plan_subreports(self):
+        tags = dict()
+        for qctx in self.cm.query_context_map.values():
+            if not qctx.query.tag:
+                self.logger.warn(f'Found "Query" without tag: {qctx.query.query}')
+            tags.setdefault(qctx.query.tag, list()).append(qctx.query)
+
+        for tag, queries in sorted(tags.items()):
+            queries.sort(key=attrgetter('query'))
+            sub_report = self.create_sub_report(tag)
+            self.report_all_plans(sub_report, queries)
+
+            self.start_collapsible(f"link:tags/{tag}.html[{tag}.sql]")
+            for query in queries:
+                self.content += f"\n[#{query.query_hash}_top]\n"
+                self.content += f"link:tags/{tag}.html#{query.query_hash}[{query.query_hash}]\n"
+                self.start_source(["sql"])
+                self.content += format_sql(query.get_reportable_query())
+                self.end_source()
+                self.content += '\n\n'
+            self.end_collapsible()
+
+    @staticmethod
+    def report_all_plans(report: SubReport, queries: Iterable[Query]):
+        for query in queries:
+            report.content += f"\n[#{query.query_hash}]\n"
+            report.content += f"== Query {query.query_hash}\n\n"
+            report.append_index_page_hashtag_link("top", "Go to index")
+            report.append_index_page_hashtag_link(f"{query.query_hash}_top", "Show in summary")
+            report.add_double_newline()
+
+            report.start_source(["sql"])
+            report.content += format_sql(query.get_reportable_query())
+            report.end_source()
+
+            report.content += '=== No hint\n'
+            report.start_source(["diff"])
+            report.content += query.execution_plan.full_str
+            report.end_source()
+
+            for opt in query.optimizations:
+                if not opt.execution_plan:
+                    continue
+                anchor = query.query_hash + CostReport.make_name(opt.explain_hints)
+                report.content += f"\n[#{anchor}]\n"
+                report.content += f'=== Hints: [`{opt.explain_hints}`]\n'
+                report.start_source(["diff"])
+                report.content += opt.execution_plan.full_str
+                report.end_source()
 
     @staticmethod
     def get_series_color(series_label):
@@ -407,18 +456,26 @@ class CostReport(AbstractReportAction):
 
     __xtab = str.maketrans(" !\"#$%&'()*+,./:;<=>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^`{|}~",
                            "---------------------abcdefghijklmnopqrstuvwxyz---------")
+
+    @staticmethod
+    def make_name(text):
+        return text.translate(CostReport.__xtab).strip('-')
+
     __fno = -1
 
     @staticmethod
-    def make_file_name(name: str):
+    def make_file_name(text: str):
         CostReport.__fno += 1
         return (f"{CostReport.__fno:06d}-"
-                f"{re.sub(r'-+', '-', name.translate(CostReport.__xtab).strip('-'))}"
+                f"{re.sub(r'-+', '-', CostReport.make_name(text))}"
                 f"{IMAGE_FILE_SUFFIX}")
 
     def draw_x_time_cost_plot(self, spec):
         title = spec.title
-        xy_labels = [spec.xlabel, spec.ylabel1, spec.ylabel2]
+        xy_labels = [spec.xlabel,
+                     spec.ylabel1 + (' (adjusted)'
+                                     if spec.options.adjust_cost_by_actual_rows else ''),
+                     spec.ylabel2]
 
         rcParams['font.family'] = 'serif'
         rcParams['font.size'] = 10
@@ -451,12 +508,12 @@ class CostReport(AbstractReportAction):
             if (iqr := np.subtract(*np.percentile(cost_per_time, [75, 25]))) > 0:
                 indices = np.nonzero(cost_per_time >
                                      (np.percentile(cost_per_time, [75]) + 4 * iqr))[0]
-                outliers = list()
-                for ix in reversed(indices):
-                    outliers.append(data_points[ix])
-                    del data_points[ix]
+                if len(indices):
+                    outliers = list()
+                    for ix in reversed(indices):
+                        outliers.append(data_points[ix])
+                        del data_points[ix]
 
-                if outliers:
                     outliers.sort(key=attrgetter('cost', 'x', 'time_ms'), reverse=True)
                     spec.outliers[series_label] = outliers
                     transposed_data = np.split(np.array(data_points).transpose(),
@@ -523,12 +580,12 @@ class CostReport(AbstractReportAction):
             xdata = transposed_data[0][0]
             if (iqr := np.subtract(*np.percentile(xdata, [75, 25]))) > 0:
                 indices = np.nonzero(xdata > (np.percentile(xdata, [75]) + 3 * iqr))[0]
-                outliers = list()
-                for ix in reversed(indices):
-                    outliers.append(data_points[ix])
-                    del data_points[ix]
+                if len(indices):
+                    outliers = list()
+                    for ix in reversed(indices):
+                        outliers.append(data_points[ix])
+                        del data_points[ix]
 
-                if outliers:
                     spec.outlier_axis = "x-axis value"
                     outliers.sort(key=attrgetter('x', 'time_ms', 'cost'), reverse=True)
                     spec.outliers[series_label] = outliers

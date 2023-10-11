@@ -20,7 +20,7 @@ class PlotType(Enum):
 
 @dataclass(frozen=True)
 class ChartOptions:
-    adjust_cost_by_actual_rows: bool = True
+    adjust_cost_by_actual_rows: bool = False
     multipy_by_nloops: bool = False
     log_scale_x: bool = False
     log_scale_cost: bool = False
@@ -136,6 +136,11 @@ class CostChartSpecs:
                 '',
                 self.literal_in_list_specs,
             ),
+            ChartGroup(
+                "Index scan nodes with parameterized IN-list created by BNL",
+                '',
+                self.bnl_in_list_specs,
+            ),
         ]
 
         self.exp_chart_groups = [
@@ -187,6 +192,7 @@ class CostChartSpecs:
                     and not cm.has_partial_aggregate(node)
                 ),
                 x_getter=lambda node: 1,
+                options=ChartOptions(adjust_cost_by_actual_rows=True),
             )).make_variant(
                 'Per row cost/time ratio of the scan nodes (width=0, rows>=1)', True,
                 ('  ((total_cost - startup_cost) / estimated_rows)'
@@ -236,6 +242,7 @@ class CostChartSpecs:
                 and not cm.has_partial_aggregate(node)
             ),
             x_getter=lambda node: 0,
+            options=ChartOptions(adjust_cost_by_actual_rows=False),
         )
 
         column_and_value_metric_single_column_chart = (
@@ -338,6 +345,7 @@ class CostChartSpecs:
                 series_suffix=(lambda node:
                                f'{node.index_name or node.table_name}:'
                                f'width={cm.get_node_width(node)}'),
+                options=ChartOptions(adjust_cost_by_actual_rows=True),
             )).make_variant(
                 'Table t100000 and t100000w, series by node type', True,
                 xtra_query_filter=lambda query: 't100000 ' in query or 't100000w ' in query,
@@ -450,6 +458,7 @@ class CostChartSpecs:
                                f'{node.index_name}:width={cm.get_node_width(node)}'
                                f' loops={node.nloops}'
                                ),
+                options=ChartOptions(adjust_cost_by_actual_rows=True),
             ),
         ]
 

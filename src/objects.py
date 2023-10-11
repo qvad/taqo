@@ -154,11 +154,11 @@ class Optimization(Query):
 
 
 class PlanNode:
-    def __init__(self, accessor: PlanNodeAccessor, node_type):
+    def __init__(self, accessor: PlanNodeAccessor, node_type, node_name):
         self.acc: PlanNodeAccessor = accessor
         self.node_type: str = node_type
         self.level: int = 0
-        self.name: str = None
+        self.name: str = node_name
         self.properties: Mapping[str: str] = dict()
         self.child_nodes: Iterable[PlanNode] = list()
 
@@ -176,14 +176,14 @@ class PlanNode:
         pass  # todo
 
     def __str__(self):
-        return self.name
+        return self.get_full_str(estimate=True, actual=True)
 
     def get_full_str(self, estimate=True, actual=True, properties=False, level=False):
         return ''.join([
             f'{self.level}: ' if level else '',
             self.name,
             f'  {self.get_estimate_str()}' if estimate else '',
-            f'  {self.get_actual_str()}' if actual else '',
+            f' {self.get_actual_str()}' if actual else '',
             str(self.properties) if properties and len(self.properties) > 0 else '',
         ])
 
@@ -213,9 +213,9 @@ class PlanNode:
 
 
 class ScanNode(PlanNode):
-    def __init__(self, accessor, node_type, table_name, table_alias, index_name,
+    def __init__(self, accessor, node_type, node_name, table_name, table_alias, index_name,
                  is_backward, is_distinct, is_parallel):
-        super().__init__(accessor, node_type)
+        super().__init__(accessor, node_type, node_name)
         self.table_name: str = table_name
         self.table_alias: str = table_alias
         self.index_name: str = index_name
@@ -230,7 +230,7 @@ class ScanNode(PlanNode):
 
     def __str__(self):
         return '  '.join(filter(lambda s: s,
-                                [self.name,
+                                [self.get_full_str(),
                                  self.get_search_condition_str(with_label=True),
                                  ('Partial Aggregate'
                                   if self.is_scan_with_partial_aggregate() else '')]))

@@ -432,6 +432,9 @@ class PostgresExecutionPlan(ExecutionPlan):
     def make_node(self, node_name):
         index_name = table_name = table_alias = is_backward = is_parallel = None
         if match := node_name_decomposition_pattern.search(node_name):
+            # strip off the schema name added by EXPLAIN VERBOSE
+            if schema_name := match.group('schema'):
+                node_name = node_name.replace(f" {schema_name}.", ' ')
             node_type = match.group('type')
             index_name = match.group('index')
             is_parallel = match.group('parallel') is not None
@@ -446,19 +449,19 @@ class PostgresExecutionPlan(ExecutionPlan):
             node_type = node_name
 
         if table_name:
-            return ScanNode(self.__node_accessor, node_type, table_name, table_alias,
+            return ScanNode(self.__node_accessor, node_type, node_name, table_name, table_alias,
                             index_name, is_backward, is_distinct, is_parallel)
 
         if 'Join' in node_type or 'Nested Loop' in node_type:
-            return JoinNode(self.__node_accessor, node_type)
+            return JoinNode(self.__node_accessor, node_type, node_name)
 
         if 'Aggregate' in node_type or 'Group' in node_type:
-            return AggregateNode(self.__node_accessor, node_type)
+            return AggregateNode(self.__node_accessor, node_type, node_name)
 
         if 'Sort' in node_type:
-            return SortNode(self.__node_accessor, node_type)
+            return SortNode(self.__node_accessor, node_type, node_name)
 
-        return PlanNode(self.__node_accessor, node_type)
+        return PlanNode(self.__node_accessor, node_type, node_name)
 
     def parse_plan(self):
         node = None
@@ -486,8 +489,6 @@ class PostgresExecutionPlan(ExecutionPlan):
 
                 is_scan_node = isinstance(node, ScanNode)
                 node.level = node_level
-                # strip off the schema name added by EXPLAIN VERBOSE
-                node.name = node_name.replace(' public.', ' ').replace(' pg_catalog.', ' ')
                 node.startup_cost = match.group('sc')
                 node.total_cost = match.group('tc')
                 node.plan_rows = match.group('prows')
