@@ -258,7 +258,7 @@ class ScoreReport(AbstractReportAction):
         script, div = self.create_default_query_plots_interactive()
         self.content += f"""
 ++++
-<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.2.1.min.js"></script>
+<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.3.0.min.js"></script>
 <script type="text/javascript">
     Bokeh.set_log_level("info");
 </script>
