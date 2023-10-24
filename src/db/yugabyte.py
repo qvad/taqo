@@ -48,6 +48,9 @@ def yb_db_factory(config):
 
 class Yugabyte(Postgres):
     def run_compaction(self, tables: list[str]):
+        # Temp workaround to only do one flush and compaction for colocaiton scenario
+        tables = tables[:1]
+
         self.logger.info(f"Evaluating flush on tables {[table.name for table in tables]}")
         for table in tables:
             subprocess.call(f'./yb-admin -init_master_addrs {self.config.connection.host}:7100 '
@@ -65,6 +68,12 @@ class Yugabyte(Postgres):
         sleep(self.config.compaction_timeout)
 
         self.logger.info(f"Evaluating compaction on tables {[table.name for table in tables]}")
+        # Compact sys catalog tables
+        subprocess.call(f'./yb-admin -init_master_addrs {self.config.connection.host}:7100 '
+                        f'compact_sys_catalog',
+                        shell=True,
+                        cwd=self.config.yugabyte_bin_path)
+
         for table in tables:
             retries = 1
             while retries < 5:
@@ -75,13 +84,6 @@ class Yugabyte(Postgres):
                         shell=True,
                         cwd=self.config.yugabyte_bin_path)
                     self.logger.info(result)
-
-                    # Compact sys catalog tables
-                    subprocess.call(f'./yb-admin -init_master_addrs {self.config.connection.host}:7100 '
-                                    f'compact_sys_catalog',
-                                    shell=True,
-                                    cwd=self.config.yugabyte_bin_path)
-
                     break
                 except Exception as e:
                     retries += 1
