@@ -54,6 +54,12 @@ class Yugabyte(Postgres):
                             f'flush_table ysql.{self.config.connection.database} {table.name}',
                             shell=True,
                             cwd=self.config.yugabyte_bin_path)
+            
+        # Flush sys catalog tables
+        subprocess.call(f'./yb-admin -init_master_addrs {self.config.connection.host}:7100 '
+                        f'flush_sys_catalog',
+                        shell=True,
+                        cwd=self.config.yugabyte_bin_path)
 
         self.logger.info("Waiting for 2 minutes to operations to complete")
         sleep(self.config.compaction_timeout)
@@ -69,6 +75,12 @@ class Yugabyte(Postgres):
                         shell=True,
                         cwd=self.config.yugabyte_bin_path)
                     self.logger.info(result)
+
+                    # Compact sys catalog tables
+                    subprocess.call(f'./yb-admin -init_master_addrs {self.config.connection.host}:7100 '
+                                    f'compact_sys_catalog',
+                                    shell=True,
+                                    cwd=self.config.yugabyte_bin_path)
 
                     break
                 except Exception as e:
