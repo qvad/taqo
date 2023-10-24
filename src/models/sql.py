@@ -19,36 +19,36 @@ from utils import get_alias_table_names, evaluate_sql, get_md5, get_model_path
 class SQLModel(QTFModel):
 
     def create_tables(self, conn, skip_analyze=False, db_prefix=None):
-        _, teardown_queries = self.evaluate_ddl_queries(conn, DDLStep.DROP, DDLStep.DROP in self.config.ddls, db_prefix)
+        _, _, teardown_queries = self.evaluate_ddl_queries(conn, DDLStep.DROP, DDLStep.DROP in self.config.ddls, db_prefix)
         teardown_queries.insert(0, "-- DROP QUERIES")
 
-        created_tables, create_queries = self.evaluate_ddl_queries(conn,
+        created_tables, non_catalog_tables, create_queries = self.evaluate_ddl_queries(conn,
                                                                    DDLStep.CREATE,
                                                                    DDLStep.CREATE in self.config.ddls,
                                                                    db_prefix)
         create_queries.insert(0, "-- CREATE QUERIES")
 
-        _, import_queries = self.evaluate_ddl_queries(conn,
+        _, _, import_queries = self.evaluate_ddl_queries(conn,
                                                       DDLStep.IMPORT,
                                                       DDLStep.IMPORT in self.config.ddls,
                                                       db_prefix)
         import_queries.insert(0, "-- IMPORT QUERIES")
 
 
-        analyzed_tables, analyze_queries = self.evaluate_ddl_queries(conn,
-                                                                     DDLStep.ANALYZE,
-                                                                     DDLStep.ANALYZE in self.config.ddls,
-                                                                     db_prefix)
+        _, _, analyze_queries = self.evaluate_ddl_queries(conn,
+                                                          DDLStep.ANALYZE,
+                                                          DDLStep.ANALYZE in self.config.ddls,
+                                                          db_prefix)
         analyze_queries.insert(0, "-- ANALYZE QUERIES")
 
         if not created_tables:
             # try to load current tables
             with conn.cursor() as cur:
-                created_tables = self.load_tables_from_public(cur)
+                created_tables, non_catalog_tables = self.load_tables_from_public(cur)
 
         self.load_table_stats(conn.cursor(), created_tables)
 
-        return created_tables, teardown_queries, create_queries, analyze_queries, import_queries
+        return created_tables, non_catalog_tables, teardown_queries, create_queries, analyze_queries, import_queries
 
     def evaluate_ddl_queries(self, conn,
                              step_prefix: DDLStep,
@@ -57,6 +57,7 @@ class SQLModel(QTFModel):
         self.logger.info(f"Evaluating DDL {step_prefix.name} step")
 
         created_tables: List[Table] = []
+        non_catalog_tables: List[Table] = []
         file_name = step_prefix.name.lower()
 
         db_prefix = self.config.ddl_prefix or db_prefix
@@ -90,9 +91,9 @@ class SQLModel(QTFModel):
                                 raise e
                 if step_prefix == DDLStep.CREATE:
                     if do_execute:
-                        created_tables = self.load_tables_from_public(cur)
+                        created_tables, non_catalog_tables = self.load_tables_from_public(cur)
 
-            return created_tables, model_queries
+            return created_tables, non_catalog_tables, model_queries
         except Exception as e:
             self.logger.exception(e)
             raise e
@@ -138,7 +139,8 @@ class SQLModel(QTFModel):
                 attname as column_name,
                 attnum as column_position,
                 case when attlen > 0 then attlen else atttypmod end column_width,
-                coalesce(index_names, '{{}}') as index_names
+                coalesce(index_names, '{{}}') as index_names,
+                nspname as namespace_name
             from
                 pg_namespace nc
                 join pg_class c on nc.oid = relnamespace
@@ -168,18 +170,21 @@ class SQLModel(QTFModel):
             """)
 
         created_tables = []
+        non_catalog_tables = []
         table = Table()
-        for tname, cname, cpos, clen, inames in cur.fetchall():
+        for tname, cname, cpos, clen, inames, nname in cur.fetchall():
             if tname != table.name:
                 table = Table(name=tname, fields=[], rows=0, size=0)
                 created_tables.append(table)
+                if nname != 'pg_catalog':
+                    non_catalog_tables.append(table)
 
             table.fields.append(Field(name=cname, position=cpos,
                                       is_index=bool(inames),
                                       indexes=inames,
                                       defined_width=clen))
 
-        return created_tables
+        return created_tables, non_catalog_tables
 
     def load_table_stats(self, cur, tables):
         catalog_schema = ", 'pg_catalog'" if self.config.load_catalog_tables else ""

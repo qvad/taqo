@@ -70,6 +70,7 @@ class CollectAction:
             model = get_test_model()
 
             created_tables, \
+                non_catalog_tables, \
                 teardown_queries, \
                 create_queries, \
                 analyze_queries, \
@@ -79,7 +80,7 @@ class CollectAction:
             queries = model.get_queries(created_tables)
 
             if DDLStep.COMPACT in self.config.ddls:
-                self.sut_database.run_compaction(tables=created_tables)
+                self.sut_database.run_compaction(tables=non_catalog_tables)
         except Exception as e:
             self.logger.exception("Failed to evaluate DDL queries", e)
             exit(1)
