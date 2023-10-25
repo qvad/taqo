@@ -48,9 +48,6 @@ def yb_db_factory(config):
 
 class Yugabyte(Postgres):
     def run_compaction(self, tables: list[str]):
-        # Temp workaround to only do one flush and compaction for colocaiton scenario
-        tables = tables[:1]
-
         self.logger.info(f"Evaluating flush on tables {[table.name for table in tables]}")
         for table in tables:
             subprocess.call(f'./yb-admin -init_master_addrs {self.config.connection.host}:7100 '
