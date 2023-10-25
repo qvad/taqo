@@ -252,7 +252,7 @@ session-props = [
 skip-percentage-delta = 0.15
 
 # query execution related options
-ddl-query-timeout = 3600 # skip DDL if they evaluated in more than 1200 seconds
+ddl-query-timeout = 3600 # skip DDL if they evaluated in more than 3600 seconds
 test-query-timeout = 1200 # skip queries if they evaluated in more than 1200 seconds
 
 # optimization generation
@@ -356,19 +356,19 @@ See prepared scenarios in `bin/` directory
 Collect queries results for basic model for localhost cluster
 
 ```
-src/runner.py
+python3 src/runner.py
 collect
 --optimizations
 --model=basic
---config=config/qo.conf
---output=taqo_complex_yb
+--config=config/default.conf
+--output=taqo_basic_yb
 --database=taqo
 ```
 
 Generate comparison report for 2 previous collect runs
 
 ```
-src/runner.py
+python3 src/runner.py
 report
 --type=regression
 --config=config/qo.conf
@@ -379,7 +379,7 @@ report
 Generate score report which contains taqo analysis and comparison with postgres
 
 ```
-src/runner.py
+python3 src/runner.py
 report
 --type=score
 --config=config/qo.conf
