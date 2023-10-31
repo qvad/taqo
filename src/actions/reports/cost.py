@@ -55,9 +55,9 @@ X_TIME_COST_CHART_DESCRIPTION = (
 
 
 class CostReport(AbstractReportAction):
-    def __init__(self):
+    def __init__(self, model):
         super().__init__()
-        self.cm = CostMetrics()
+        self.cm = CostMetrics(model)
         self.cs = CostChartSpecs(self.cm)
         self.interactive = False
         self.report_location = f'report/{self.start_date}'
@@ -74,7 +74,8 @@ class CostReport(AbstractReportAction):
 
     @classmethod
     def generate_report(cls, loq: CollectResult, interactive):
-        report = CostReport()
+        model = m.group(1) if (m := re.search(r"'model': '((?:\w|-)*)'", loq.config)) else ''
+        report = CostReport(model)
         cm = report.cm
         cs = report.cs
         report.interactive = interactive

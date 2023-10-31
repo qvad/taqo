@@ -6,7 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum
 
-from objects import PlanNode
+from objects import PlanNode, ScanNode
 from actions.reports.cost_metrics import CostMetrics
 
 
@@ -105,7 +105,7 @@ class ChartGroup:
 class CostChartSpecs:
     def __init__(self, cm: CostMetrics):
         self.dist_specs = self.__make_dist_specs(cm)
-        self.column_and_value_metric_specs = self.__make_column_and_value_metric_specs(cm)
+        self.primitive_metric_specs = self.__make_primitive_metric_specs(cm)
         self.simple_index_scan_specs = self.__make_simple_index_scan_specs(cm)
         self.literal_in_list_specs = self.__make_literal_in_list_specs(cm)
         self.bnl_in_list_specs = self.__make_bnl_in_list_specs(cm)
@@ -120,50 +120,57 @@ class CostChartSpecs:
             ),
         ]
 
-        self.xtc_chart_groups = [
-            ChartGroup(
-                "Column/Value Position and Column Count",
-                ("1,000,000 row table with all unique columns\n\n"),
-                self.column_and_value_metric_specs,
-            ),
-            ChartGroup(
-                "Simple Index Access Conditions",
-                'Index scans with simple index access conditions and corresponding seq scans',
-                self.simple_index_scan_specs,
-            ),
-            ChartGroup(
-                "Index scan nodes with literal IN-list",
-                '',
-                self.literal_in_list_specs,
-            ),
-            ChartGroup(
-                "Index scan nodes with parameterized IN-list created by BNL",
-                '',
-                self.bnl_in_list_specs,
-            ),
-        ]
+        if cm.model == 'cost-validation-primitive-metrics':
+            self.xtc_chart_groups = [
+                ChartGroup(
+                    "Column/Value Position and Column Count",
+                    ("t1000000cN: 1,000,000 row table with N unique integer columns\n\n"
+                     "t100000wX:  100,000 row table with a X character varchar column\n\n"),
+                    self.primitive_metric_specs,
+                ),
+            ]
+            self.exp_chart_groups = list()
+            self.more_exp_chart_groups = list()
+        else:
+            self.xtc_chart_groups = [
+                ChartGroup(
+                    "Simple Index Access Conditions",
+                    'Index scans with simple index access conditions and corresponding seq scans',
+                    self.simple_index_scan_specs,
+                ),
+                ChartGroup(
+                    "Index scan nodes with literal IN-list",
+                    '',
+                    self.literal_in_list_specs,
+                ),
+                ChartGroup(
+                    "Index scan nodes with parameterized IN-list created by BNL",
+                    '',
+                    self.bnl_in_list_specs,
+                ),
+            ]
 
-        self.exp_chart_groups = [
-            ChartGroup(
-                "Experimental Charts",
-                '',
-                self.composite_key_access_specs,
-            ),
-        ]
+            self.exp_chart_groups = [
+                ChartGroup(
+                    "Experimental Charts",
+                    '',
+                    self.composite_key_access_specs,
+                ),
+            ]
 
-        self.more_exp_chart_groups = [
-            ChartGroup(
-                "More Experimental Charts",
-                '',
-                self.more_exp_specs,
-            ),
-        ]
+            self.more_exp_chart_groups = [
+                ChartGroup(
+                    "More Experimental Charts",
+                    '',
+                    self.more_exp_specs,
+                ),
+            ]
 
     def get_dist_chart_specs(self):
         return self.dist_specs
 
     def get_xtc_chart_specs(self):
-        return (self.column_and_value_metric_specs
+        return (self.primitive_metric_specs
                 + self.simple_index_scan_specs
                 + self.literal_in_list_specs
                 + self.bnl_in_list_specs)
@@ -228,91 +235,134 @@ class CostChartSpecs:
         ]
 
     @staticmethod
-    def __make_column_and_value_metric_specs(cm: CostMetrics) -> Iterable[ChartSpec]:
-        column_and_value_metric_chart = ChartSpec(
+    def __make_primitive_metric_specs(cm: CostMetrics) -> Iterable[ChartSpec]:
+        single_table_query_basic_scans = ChartSpec(
             PlotType.X_TIME_COST_PLOT,
-            'Column/value num/position metric test queries', '',
-            '', 'Estimated cost', 'Execution time [ms]',
+            'Basic scan node from single table queries', '',
+            'X', 'Estimated cost', 'Execution time [ms]',
             lambda query: (
                 cm.is_single_table_query(query)
                 and not cm.has_aggregate(query)
             ),
             lambda node: (
-                node.table_name == 't1000000c10'
+                isinstance(node, ScanNode)
                 and not cm.has_partial_aggregate(node)
             ),
             x_getter=lambda node: 0,
-            options=ChartOptions(adjust_cost_by_actual_rows=False),
         )
 
-        column_and_value_metric_single_column_chart = (
-            column_and_value_metric_chart.make_variant(
-                'Column/value num/position metric test queries (single column)', '',
-                xtra_query_filter=lambda query: (
-                    len(cm.get_columns_in_query(query)) == 1
-                ),
-            )
-        )
+        value_type_map = {
+            "t1000000d10": "decimal",
+            "t1000000d20": "decimal",
+            "t1000000d30": "decimal",
+            "t1000000d40": "decimal",
+            "t1000000d50": "decimal",
+            "t1000000d60": "decimal",
+            "t1000000d70": "decimal",
+            "t1000000d80": "decimal",
+            "t1000000d90": "decimal",
+            "t1000000d100": "decimal",
+            "t1000000i": "int",
+            "t1000000bi": "int",
+            "t1000000flt": "float",
+            "t1000000dbl": "float",
+        }
 
         return [
-            column_and_value_metric_chart.make_variant(
-                'Column count (select-list, no condition)', True,
+            single_table_query_basic_scans.make_variant(
+                ('Varying column width, select 0 or select v from single column table'
+                 ' (character type in 100000 row tables'),
                 xtra_node_filter=lambda node: (
-                    cm.has_no_condition(node)
-                    and (len(cm.get_columns_in_query(cm.get_node_query_str(node))) > 1
-                         or (cm.get_columns_in_query(cm.get_node_query_str(node))
-                             in (['c4'], ['c5'])))
+                    re.match(r't100000w\d+k*', node.table_name)
+                    and cm.has_no_condition(node)
+                ),
+                xlabel='Column width',
+                x_getter=lambda node: cm.get_table_row_width(node.table_name),
+                series_suffix=lambda node: cm.get_node_query(node).query[0:len('select X')],
+            ),
+            single_table_query_basic_scans.make_variant(
+                ('Varying column width, select v from single column table'
+                 ' (numeric type variants in 1000000 row tables)'),
+                xtra_query_filter=lambda query: (
+                    query.startswith('select v from')
+                ),
+                xtra_node_filter=lambda node: (
+                    re.match(r't1000000(([d]\d+)|i|bi|flt|dbl)', node.table_name)
+                    and cm.has_no_condition(node)
+                ),
+                xlabel='Column width',
+                x_getter=lambda node: cm.get_table_row_width(node.table_name),
+                series_suffix=lambda node: value_type_map[node.table_name],
+            ),
+            single_table_query_basic_scans.make_variant(
+                'Varying column count in table, select 0, no condition',
+                xtra_query_filter=lambda query: query.startswith('select 0 from'),
+                xtra_node_filter=lambda node: (
+                    re.match(r't1000000c\d+', node.table_name)
+                    and cm.has_no_condition(node)
                 ),
                 xlabel='Column count',
-                x_getter=lambda node: (
-                    len(cm.get_columns_in_query(cm.get_node_query_str(node)))
-                ),
+                x_getter=lambda node: cm.get_table_column_count(node.table_name),
             ),
-            column_and_value_metric_chart.make_variant(
-                'Column count (columns in condition)', True,
+            single_table_query_basic_scans.make_variant(
+                'Varying column count in remote filter, select 0',
                 xtra_query_filter=lambda query: (
                     re.match(r'select 0 from t1000000c10 where [c0-9+ ]+ = +500000', query)
                 ),
                 xlabel='Column count',
                 x_getter=lambda node: (
-                    len(cm.get_columns_in_query(cm.get_node_query_str(node)))
+                    cm.has_only_scan_filter_condition(node)
+                    and len(cm.get_columns_in_query(cm.get_node_query_str(node)))
                 ),
                 series_suffix=lambda node: (
                     ''.join([
                         '(remote filter)' if cm.has_only_scan_filter_condition(node) else ''
                     ])),
             ),
-            column_and_value_metric_single_column_chart.make_variant(
-                'Column position (select-list, no condition)', True,
+            single_table_query_basic_scans.make_variant(
+                'Varying column count in select-list',
                 xtra_node_filter=lambda node: (
-                    cm.has_no_condition(node)
+                    node.table_name == 't1000000c10'
+                    and cm.has_no_condition(node)
+                    and (len(cm.get_columns_in_query(cm.get_node_query_str(node))) > 1
+                         or (cm.get_columns_in_query(cm.get_node_query_str(node))
+                             in (['c4'], ['c5'])))  # a column in the middle only
+                ),
+                xlabel='Column count',
+                x_getter=lambda node: len(cm.get_columns_in_query(cm.get_node_query_str(node))),
+            ),
+
+            single_table_query_basic_scans.make_variant(
+                'Varying position of column in select-list only, no condition)', True,
+                xtra_node_filter=lambda node: (
+                    node.table_name == 't1000000c10'
                     and cm.get_node_width(node) == 4
+                    and cm.has_no_condition(node)
                 ),
                 xlabel='Column position',
                 x_getter=lambda node: cm.get_single_column_query_column_position(node),
             ),
-            column_and_value_metric_single_column_chart.make_variant(
-                'Column position (select-list and condition)', True,
-                xtra_node_filter=lambda node: (
-                    not cm.has_no_condition(node)
-                    and cm.has_only_simple_condition(node,
-                                                     index_cond_only=False,
-                                                     index_key_prefix_only=True)
-                    and abs(0.5 - cm.get_single_column_node_normalized_eq_cond_value(node)) < 0.01
-                    and cm.get_node_width(node) == 4
+            single_table_query_basic_scans.make_variant(
+                'Varying position of column in select-list and condition', True,
+                xtra_query_filter=lambda query: (
+                    re.match(r'select c\d+ from t1000000c10 where c\d+ = +1000000 / 2', query)
                 ),
                 xlabel='Column position',
                 x_getter=lambda node: cm.get_single_column_query_column_position(node),
             ),
-            column_and_value_metric_single_column_chart.make_variant(
-                'Normalizd value (value position) in condition', True,
+            single_table_query_basic_scans.make_variant(
+                'Varying value position in index lookup via normalizd value', True,
+                xtra_query_filter=lambda query: (
+                    True
+                ),
                 xtra_node_filter=lambda node: (
-                    not cm.has_no_condition(node)
+                    node.table_name == 't1000000c10'
+                    and cm.get_node_width(node) == 4
+                    and not cm.has_no_condition(node)
                     and cm.has_only_simple_condition(node,
                                                      index_cond_only=True,
                                                      index_key_prefix_only=True)
                     and cm.get_single_column_node_normalized_eq_cond_value(node) is not None
-                    and cm.get_node_width(node) == 4
                 ),
                 xlabel='Normalized value',
                 x_getter=lambda node: cm.get_single_column_node_normalized_eq_cond_value(node),

@@ -1,12 +1,18 @@
 from collections.abc import Mapping
 
 
+class TableStats:
+    def __init__(self, ncols, width):
+        self.ncols = ncols
+        self.width = width
+
+
 class ColumnStats:
-    def __init__(self, ndv, vmin, vmax, nulls):
+    def __init__(self, ndv, vmin, vmax, null_frac):
         self.ndv = ndv
         self.vmin = vmin
         self.vmax = vmax
-        self.nulls = nulls
+        self.null_frac = null_frac
 
     def get_avg_value_distance(self):
         return (self.vmax - self.vmin) / (self.ndv - 1)
@@ -16,7 +22,81 @@ class ColumnStats:
         return (value - self.vmin + d) / (self.vmax - self.vmin + d)
 
 
-# TODO: move this to data collection and save into .json
+# TODO: move these to data collection and save into .json and combine them with
+# CostMetrics.table_row_map and CostMetrics.column_position_map.
+# e.g.:
+#  select
+#    '   "'||tablename||'": TableStats('||count(0)||', '||sum(avg_width)||'),'
+#  from pg_stats
+#  where tablename in (
+#    't1000000c01', 't1000000c02', 't1000000c03', 't1000000c04', 't1000000c05',
+#    't1000000c06', 't1000000c07', 't1000000c08', 't1000000c09', 't1000000c10',
+#    't100000w125', 't100000w250', 't100000w500', 't100000w1k', 't100000w2k',
+#    't100000w3k', 't100000w4k', 't100000w5k', 't100000w6k', 't100000w7k',
+#    't100000w8k',
+#    't1000000d10','t1000000d20','t1000000d30','t1000000d40','t1000000d50',
+#    't1000000d60','t1000000d70','t1000000d80','t1000000d90','t1000000d100',
+#    't1000000i','t1000000bi','t1000000flt','t1000000dbl'
+#  )
+#  group by tablename
+#  order by 1;
+table_stats_map: Mapping[str: TableStats] = dict({
+    "t1000000bi": TableStats(1, 8),
+    "t1000000c01": TableStats(1, 4),
+    "t1000000c02": TableStats(2, 8),
+    "t1000000c03": TableStats(3, 12),
+    "t1000000c04": TableStats(4, 16),
+    "t1000000c05": TableStats(5, 20),
+    "t1000000c06": TableStats(6, 24),
+    "t1000000c07": TableStats(7, 28),
+    "t1000000c08": TableStats(8, 32),
+    "t1000000c09": TableStats(9, 36),
+    "t1000000c10": TableStats(10, 40),
+    "t1000000d10": TableStats(1, 8),
+    "t1000000d100": TableStats(1, 54),
+    "t1000000d20": TableStats(1, 14),
+    "t1000000d30": TableStats(1, 18),
+    "t1000000d40": TableStats(1, 24),
+    "t1000000d50": TableStats(1, 28),
+    "t1000000d60": TableStats(1, 34),
+    "t1000000d70": TableStats(1, 38),
+    "t1000000d80": TableStats(1, 44),
+    "t1000000d90": TableStats(1, 48),
+    "t1000000dbl": TableStats(1, 8),
+    "t1000000flt": TableStats(1, 4),
+    "t1000000i": TableStats(1, 4),
+    "t100000w125": TableStats(1, 126),
+    "t100000w1k": TableStats(1, 1004),
+    "t100000w250": TableStats(1, 254),
+    "t100000w2k": TableStats(1, 2004),
+    "t100000w3k": TableStats(1, 3004),
+    "t100000w4k": TableStats(1, 4004),
+    "t100000w500": TableStats(1, 504),
+    "t100000w5k": TableStats(1, 5004),
+    "t100000w6k": TableStats(1, 6004),
+    "t100000w7k": TableStats(1, 7004),
+    "t100000w8k": TableStats(1, 8004),
+})
+
+#
+# select
+#   'select'
+#   ||'  ''   "'||relname||'.'||attname||'": ColumnStats(''||count(distinct v)||'', '''
+#   ||'  ||min(v)||'', ''||max(v)||'', ''||(count(*) - count(v))/count(*)||''),'''
+#   ||'from (select '||attname||' as v from '||relname||') vv;'
+# from
+#     pg_namespace nc
+#     join pg_class c on nc.oid = relnamespace
+#     join pg_attribute a on attrelid = c.oid
+# where
+#     relkind = 'r'
+#     and attnum >= 0
+#     and nspname in ('public')
+# order by
+#     nspname,
+#     relname,
+#     attnum;
+#
 column_stats_map: Mapping[str: ColumnStats] = dict({
     "t1000000m.c0": ColumnStats(1000000, 1, 1000000, 0),
     "t1000000m.c1": ColumnStats(2, 50, 100, 0),

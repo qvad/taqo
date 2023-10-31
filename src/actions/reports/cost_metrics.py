@@ -8,7 +8,8 @@ from itertools import pairwise
 from objects import PlanNodeVisitor, PlanPrinter, Query
 from objects import AggregateNode, JoinNode, SortNode, PlanNode, ScanNode
 
-from actions.reports.cost_metric_metadata import column_stats_map, index_prefix_gap_map
+from actions.reports.cost_metric_metadata import (table_stats_map, column_stats_map,
+                                                  index_prefix_gap_map)
 
 
 expr_classifier_pattern = re.compile(
@@ -316,7 +317,7 @@ class PlanNodeCollector(PlanNodeVisitor):
                     or node.node_type in ['Bitmap Index Scan', 'Bitmap Heap Scan']):
                 self.ctx.table_node_map.setdefault(table, list()).append(node)
             else:
-                self.logger.warn(f'Unknown ScanNode: node_type={node.node_type}')
+                self.warn_once(f'Unknown ScanNode: node_type={node.node_type}')
 
         super().generic_visit(node)
 
@@ -338,7 +339,8 @@ class PlanNodeCollector(PlanNodeVisitor):
 
 
 class CostMetrics:
-    def __init__(self):
+    def __init__(self, model):
+        self.model = model
         self.logger = Config().logger
         self.table_row_map: Mapping[str: float] = dict()
         self.column_position_map: Mapping[str: int] = dict()
@@ -351,6 +353,12 @@ class CostMetrics:
         self.num_invalid_cost_plans: int = 0
         self.num_invalid_cost_plans_fixed: int = 0
         self.num_no_opt_queries: int = 0
+        self.warned = set()
+
+    def warn_once(self, msg):
+        if msg not in self.warned:
+            self.logger.warn(msg)
+            self.warned.add(msg)
 
     def add_table_metadata(self, tables):
         for t in tables:
@@ -359,7 +367,7 @@ class CostMetrics:
                 self.column_position_map[f'{t.name}:{f.name}'] = f.position
 
     def process_plan(self, ctx, parent_query, index):
-        query = parent_query.optimizations[index] if index else parent_query
+        query = parent_query if index is None else parent_query.optimizations[index]
         if not (plan := query.execution_plan):
             self.logger.warn(f"=== Query ({index or 'default'}): [{query.query}]"
                              " does not have any valid plan\n")
@@ -391,7 +399,6 @@ class CostMetrics:
         self.add_table_metadata(query.tables)
 
         pc = PlanClassifiers()
-
         ctx = PlanNodeCollectorContext()
         self.process_plan(ctx, query, index=None)
         pc.merge(ctx.pc)
@@ -489,13 +496,27 @@ class CostMetrics:
 
     def get_table_row_count(self, table_name):
         if (nrows := self.table_row_map.get(table_name, -1)) < 0:
-            self.logger.warn(f'{table_name}: table row count unavailable')
+            self.warn_once(f'{table_name}: table row count unavailable')
         return float(nrows)
+
+    def get_table_column_count(self, table_name):
+        # TODO: get it from the catalog and save into the .json
+        if ts := table_stats_map.get(table_name):
+            return ts.ncols
+        self.warn_once(f'{table_name}: table column count unavailable')
+        return 1
+
+    def get_table_row_width(self, table_name):
+        # TODO: get it from the catalog and save into the .json
+        if ts := table_stats_map.get(table_name):
+            return ts.width
+        self.warn_once(f'{table_name}: table row width unavailable')
+        return 4
 
     def get_table_column_position(self, table_name, column_name):
         cname = f'{table_name}:{column_name}'
         if (pos := self.column_position_map.get(cname, -1)) < 0:
-            self.logger.warn(f'{cname}: table column position unavailable')
+            self.warn_once(f'{cname}: table column position unavailable')
         return float(pos)
 
     @staticmethod
@@ -503,7 +524,7 @@ class CostMetrics:
         # TODO: load the index key columns and save them into the .json
         key_cols = list()
         inc_cols = list()
-        if index_name in ('t1000000m_pkey', 't1000000c10_pkey'):
+        if index_name == 't1000000m_pkey' or re.match(r't1000000c\d+_pkey', index_name):
             key_cols = list(['c0'])
         elif index_name.endswith('_pkey'):
             key_cols = list(['c1'])
