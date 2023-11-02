@@ -22,13 +22,14 @@ class PgUnitGenerator:
     @staticmethod
     def wrap_query_plan(plan: str):
         num_rows = len(plan.split("\n"))
+        num_rows_unit = "row" if num_rows == 1 else "rows"
         max_length = max(len(line) for line in plan.split("\n")) + 2
         plan = "\n".join([f" {row}" for row in plan.split("\n")])
 
         return f"""{' ' * int(max_length / 2 - 5)}QUERY PLAN
 {('-' * max_length)}
 {plan}
-({num_rows} rows)
+({num_rows} {num_rows_unit})
 
 """
 
@@ -50,8 +51,8 @@ class PgUnitGenerator:
 
     def generate_output_file(self, create_queries, queries, result_file, teardown_queries, with_output=False):
         result_file.write(f"CREATE DATABASE {self.config.connection.database} with colocation = true;\n")
-        result_file.write(f"\c {self.config.connection.database}\n\n")
-        result_file.write(f"SET statement_timeout = '{self.config.ddl_query_timeout}s';\n\n")
+        result_file.write(f"\c {self.config.connection.database}\n")
+        result_file.write(f"SET statement_timeout = '{self.config.ddl_query_timeout}s';\n")
 
         for model_query in create_queries:
             if model_query.startswith("--"):
@@ -68,20 +69,15 @@ class PgUnitGenerator:
             result_file.write(self.add_semicolon(session_prop))
             result_file.write("\n")
 
-        result_file.write("\n")
-        result_file.write("\n")
-
         # cbo query?
         if self.config.enable_statistics:
             result_file.write(self.add_semicolon(ENABLE_STATISTICS_HINT))
             result_file.write("\n")
 
-        result_file.write("\n")
-
         for query in queries:
-            best_found = ", !BETTER_PLAN_FOUND" if not query.compare_plans(query.get_best_optimization(self.config).execution_plan) else ""
+            best_found = " , !BEST_PLAN_FOUND" if not query.compare_plans(query.get_best_optimization(self.config).execution_plan) else ""
 
-            result_file.write(f"-- Query Hash: {query.query_hash} {best_found}\n")
+            result_file.write(f"-- Query Hash: {query.query_hash}{best_found}\n")
             _, _, clean_query = parse_clear_and_parametrized_sql(query.get_explain(EXPLAIN, options=[ExplainFlags.COSTS_OFF]))
             result_file.write(cleandoc(self.add_semicolon(clean_query)))
 
@@ -90,8 +86,8 @@ class PgUnitGenerator:
             if with_output:
                 result_file.write(self.wrap_query_plan(query.cost_off_explain.full_str))
 
-        result_file.write("\n")
-
         for model_query in teardown_queries:
             result_file.write(self.add_semicolon(model_query))
             result_file.write("\n")
+            
+        result_file.write("\n")
