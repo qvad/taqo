@@ -160,6 +160,10 @@ if __name__ == "__main__":
                         action=argparse.BooleanOptionalAction,
                         default=True,
                         help='Keep database after test')
+    parser.add_argument('--colocated',
+                        action=argparse.BooleanOptionalAction,
+                        default=True,
+                        help='Do create database with compaction flag (Yugabyte only, default true)')
     parser.add_argument('--allow-destroy-db',
                         action=argparse.BooleanOptionalAction,
                         default=True,
@@ -274,6 +278,7 @@ if __name__ == "__main__":
         clean_db=args.clean_db,
         allow_destroy_db=args.allow_destroy_db,
         clean_build=args.clean_build,
+        colocated_database=args.colocated,
         yugabyte_bin_path=args.yugabyte_bin_path or configuration.get("yugabyte-bin-path", None),
         yugabyte_master_addresses=args.yugabyte_master_addresses if args.yugabyte_master_addresses else args.host,
 

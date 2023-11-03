@@ -91,6 +91,7 @@ class Config(metaclass=Singleton):
     clean_db: bool = None
     allow_destroy_db: bool = None
     clean_build: bool = None
+    colocated_database: bool = None
     skip_percentage_delta: float = None
     look_near_best_plan: bool = None
 

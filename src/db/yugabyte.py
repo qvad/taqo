@@ -8,7 +8,7 @@ from typing import List
 from psycopg2._psycopg import cursor
 
 from collect import CollectResult, ResultsLoader
-from config import ConnectionConfig
+from config import ConnectionConfig, DDLStep
 from db.postgres import Postgres, PostgresExecutionPlan, PLAN_TREE_CLEANUP, PostgresQuery
 from objects import ExecutionPlan, QueryStats, Query
 from utils import evaluate_sql
@@ -48,13 +48,15 @@ def yb_db_factory(config):
 
 class Yugabyte(Postgres):
     def run_compaction(self, tables: list[str]):
-        self.logger.info(f"Evaluating flush on tables {[table.name for table in tables]}")
-        for table in tables:
+        tables_to_optimize = [tables[0], ] if self.config.colocated_database else tables
+
+        self.logger.info(f"Evaluating flush on tables {[table.name for table in tables_to_optimize]}")
+        for table in tables_to_optimize:
             subprocess.call(f'./yb-admin -init_master_addrs {self.config.connection.host}:7100 '
                             f'flush_table ysql.{self.config.connection.database} {table.name}',
                             shell=True,
                             cwd=self.config.yugabyte_bin_path)
-            
+
         # Flush sys catalog tables
         subprocess.call(f'./yb-admin -init_master_addrs {self.config.connection.host}:7100 '
                         f'flush_sys_catalog',
@@ -64,14 +66,15 @@ class Yugabyte(Postgres):
         self.logger.info("Waiting for 2 minutes to operations to complete")
         sleep(self.config.compaction_timeout)
 
-        self.logger.info(f"Evaluating compaction on tables {[table.name for table in tables]}")
+        self.logger.info(f"Evaluating compaction on system tables")
         # Compact sys catalog tables
         subprocess.call(f'./yb-admin -init_master_addrs {self.config.connection.host}:7100 '
                         f'compact_sys_catalog',
                         shell=True,
                         cwd=self.config.yugabyte_bin_path)
 
-        for table in tables:
+        self.logger.info(f"Evaluating compaction on tables {[table.name for table in tables_to_optimize]}")
+        for table in tables_to_optimize:
             retries = 1
             while retries < 5:
                 try:
@@ -99,6 +102,18 @@ class Yugabyte(Postgres):
                                                            parsing[5], )
 
         self.logger.info(f"Connection - {self.config.connection}")
+
+    def create_test_database(self):
+        if DDLStep.DATABASE in self.config.ddls:
+            self.establish_connection("postgres")
+            conn = self.connection.conn
+            try:
+                with conn.cursor() as cur:
+                    colocated = "" if self.config.colocated_database else " WITH COLOCATED = true"
+                    evaluate_sql(cur, f'CREATE DATABASE {self.config.connection.database}{colocated};')
+            except Exception as e:
+                self.logger.exception(f"Failed to create testing database {e}")
+
 
     def prepare_query_execution(self, cur):
         super().prepare_query_execution(cur)
