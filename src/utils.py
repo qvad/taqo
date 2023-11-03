@@ -107,6 +107,7 @@ def calculate_avg_execution_time(cur,
                     start_time = current_milli_time()
 
                     evaluate_sql(cur, query_str)
+                    config.logger.debug("SQL >> Getting results")
                     _, result = get_result(cur, is_dml)
 
                     if with_analyze:
@@ -240,6 +241,11 @@ def get_fields(object, tables_in_query):
                     else:
                         if value[0].get("String"):
                             fields.add(FieldInTableHelper("UNKNOWN", value[0]["String"]["sval"]))
+                        elif 'A_Star' in value[0]:
+                            # TODO If star used then add all fields for all tables
+                            for table in tables:
+                                for table_field in table.fields:
+                                    fields.add(FieldInTableHelper(table.name, table_field.name))
 
                 _parse_fields(fields, value, tables)
 
@@ -303,8 +309,8 @@ def evaluate_sql(cur: cursor, sql: str):
 
     if config.parametrized and parameters:
         try:
-            cur.execute(sql, parameters)
             config.logger.debug(f"SQL >> {sql}[{parameters}]")
+            cur.execute(sql, parameters)
         except psycopg2.errors.QueryCanceled as e:
             cur.connection.rollback()
             raise e
@@ -320,8 +326,8 @@ def evaluate_sql(cur: cursor, sql: str):
             raise e
     else:
         try:
-            cur.execute(sql_wo_parameters)
             config.logger.debug(f"SQL >> {sql_wo_parameters}")
+            cur.execute(sql_wo_parameters)
         except psycopg2.errors.QueryCanceled as e:
             cur.connection.rollback()
             raise e

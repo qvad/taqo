@@ -19,21 +19,21 @@ from utils import get_alias_table_names, evaluate_sql, get_md5, get_model_path
 class SQLModel(QTFModel):
 
     def create_tables(self, conn, skip_analyze=False, db_prefix=None):
-        _, _, teardown_queries = self.evaluate_ddl_queries(conn, DDLStep.DROP, DDLStep.DROP in self.config.ddls, db_prefix)
+        _, _, teardown_queries = self.evaluate_ddl_queries(conn, DDLStep.DROP, DDLStep.DROP in self.config.ddls,
+                                                           db_prefix)
         teardown_queries.insert(0, "-- DROP QUERIES")
 
         created_tables, non_catalog_tables, create_queries = self.evaluate_ddl_queries(conn,
-                                                                   DDLStep.CREATE,
-                                                                   DDLStep.CREATE in self.config.ddls,
-                                                                   db_prefix)
+                                                                                       DDLStep.CREATE,
+                                                                                       DDLStep.CREATE in self.config.ddls,
+                                                                                       db_prefix)
         create_queries.insert(0, "-- CREATE QUERIES")
 
         _, _, import_queries = self.evaluate_ddl_queries(conn,
-                                                      DDLStep.IMPORT,
-                                                      DDLStep.IMPORT in self.config.ddls,
-                                                      db_prefix)
+                                                         DDLStep.IMPORT,
+                                                         DDLStep.IMPORT in self.config.ddls,
+                                                         db_prefix)
         import_queries.insert(0, "-- IMPORT QUERIES")
-
 
         _, _, analyze_queries = self.evaluate_ddl_queries(conn,
                                                           DDLStep.ANALYZE,
@@ -53,7 +53,7 @@ class SQLModel(QTFModel):
     def evaluate_ddl_queries(self, conn,
                              step_prefix: DDLStep,
                              do_execute: bool,
-                             db_prefix=None,):
+                             db_prefix=None, ):
         self.logger.info(f"Evaluating DDL {step_prefix.name} step")
 
         created_tables: List[Table] = []
@@ -211,11 +211,10 @@ class SQLModel(QTFModel):
                 and ns.nspname in ('public'{catalog_schema})
                 and c.relname =any(array{list(tmap)});
                  """
-             )
+        )
 
         for tname, rows in cur.fetchall():
             tmap[tname].rows = rows
-
 
         self.logger.info("Loading column statistics...")
         evaluate_sql(
@@ -238,15 +237,15 @@ class SQLModel(QTFModel):
                 and ns.nspname in ('public'{catalog_schema})
                 and c.relname =any(array{list(tmap)});
                  """
-             )
+        )
 
         for tname, cname, cpos, cwidth in cur.fetchall():
             if cwidth:
-                field = tmap[tname].fields[cpos-1]
+                field = tmap[tname].fields[cpos - 1]
                 if field.name != cname or field.position != cpos:
                     raise AssertionError(''.join([
                         f"Field position mismatch in table {tname}:",
-                        f" the fields[{cpos-1}] should be {cname}",
+                        f" the fields[{cpos - 1}] should be {cname}",
                         f" but {field.name} and its position={field.position}"]))
                 field.avg_width = cwidth
 
