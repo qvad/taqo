@@ -90,8 +90,7 @@ class Postgres(Database):
             conn = self.connection.conn
             try:
                 with conn.cursor() as cur:
-                    colocated = "" if self.config.ddl_prefix else " WITH COLOCATED = true"
-                    evaluate_sql(cur, f'CREATE DATABASE {self.config.connection.database}{colocated};')
+                    evaluate_sql(cur, f'CREATE DATABASE {self.config.connection.database};')
             except Exception as e:
                 self.logger.exception(f"Failed to create testing database {e}")
 
