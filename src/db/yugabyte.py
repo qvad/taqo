@@ -109,7 +109,7 @@ class Yugabyte(Postgres):
             conn = self.connection.conn
             try:
                 with conn.cursor() as cur:
-                    colocated = "" if self.config.colocated_database else " WITH COLOCATED = true"
+                    colocated = " WITH COLOCATED = true" if self.config.colocated_database else ""
                     evaluate_sql(cur, f'CREATE DATABASE {self.config.connection.database}{colocated};')
             except Exception as e:
                 self.logger.exception(f"Failed to create testing database {e}")
