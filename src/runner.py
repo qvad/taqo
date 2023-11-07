@@ -45,6 +45,16 @@ def parse_model_config(model):
         configuration['compaction-timeout'] = parsed_model_config.get("compaction-timeout", global_compaction_timeout)
 
 
+def define_database_name(args):
+    if args.database:
+        return args.database
+    else:
+        if args.colocated:
+            return f"taqo_{model.replace('-', '_')}"
+        else:
+            return f"taqo_{model.replace('-', '_')}_non_colocated"
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Query Optimizer Testing framework for PostgreSQL compatible DBs')
@@ -264,7 +274,6 @@ if __name__ == "__main__":
 
     configuration = configuration | options_config
     loader = PostgresResultsLoader()
-    database = args.database if args.database else f"taqo_{model.replace('-', '_')}"
 
     config = Config(
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
@@ -286,7 +295,7 @@ if __name__ == "__main__":
                                     port=args.port,
                                     username=args.username,
                                     password=args.password,
-                                    database=database),
+                                    database=define_database_name(args)),
 
         model=model,
         all_index_check=configuration.get("all-index-check", True),
