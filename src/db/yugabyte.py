@@ -115,8 +115,8 @@ class Yugabyte(Postgres):
                 self.logger.exception(f"Failed to create testing database {e}")
 
 
-    def prepare_query_execution(self, cur):
-        super().prepare_query_execution(cur)
+    def prepare_query_execution(self, cur, query_object):
+        super().prepare_query_execution(cur, query_object)
 
         if self.config.enable_statistics:
             self.logger.debug("Enable yb_enable_optimizer_statistics flag")

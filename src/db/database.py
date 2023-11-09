@@ -22,7 +22,7 @@ class Database:
     def create_test_database(self):
         pass
 
-    def prepare_query_execution(self, cur):
+    def prepare_query_execution(self, cur, query):
         pass
 
     def set_query_timeout(self, cur, timeout):

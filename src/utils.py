@@ -81,7 +81,7 @@ def calculate_avg_execution_time(cur,
                 sut_database.reset_query_statics(cur)
                 stats_reset = True
 
-            sut_database.prepare_query_execution(cur)
+            sut_database.prepare_query_execution(cur, query)
 
             if iteration == 0:
                 # evaluate test query without analyze and collect result hash
@@ -102,7 +102,7 @@ def calculate_avg_execution_time(cur,
                         execution_plan_collected = True
 
                         # prepare execution again
-                        sut_database.prepare_query_execution(cur)
+                        sut_database.prepare_query_execution(cur, query)
 
                     start_time = current_milli_time()
 
