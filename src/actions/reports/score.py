@@ -151,9 +151,12 @@ class ScoreReport(AbstractReportAction):
         # Linear Regression Line
         yb_x_np = np.array(data['yb_cost'])
         yb_y_np = np.array(data['yb_time'])
-        res = linregress(yb_x_np, yb_y_np)
-        yb_y_data_regress = res.slope * yb_x_np + res.intercept
-        yb_plot.line(x=yb_x_np, y=yb_y_data_regress)
+        try:
+            res = linregress(yb_x_np, yb_y_np)
+            yb_y_data_regress = res.slope * yb_x_np + res.intercept
+            yb_plot.line(x=yb_x_np, y=yb_y_data_regress)
+        except ValueError:
+            self.config.logger.warn(f"All x values are same. Linear regression not calculated.")
 
         # Tap event to jump to query
         yb_url = 'tags/@query_tag.html#@query_hash'
@@ -186,10 +189,12 @@ class ScoreReport(AbstractReportAction):
         # Linear Regression Line
         pg_x_np = np.array(data['pg_cost'])
         pg_y_np = np.array(data['pg_time'])
-        res = linregress(pg_x_np, pg_y_np)
-        pg_y_data_regress = res.slope * pg_x_np + res.intercept
-        pg_plot.line(x=pg_x_np, y=pg_y_data_regress)
-
+        try:
+            res = linregress(pg_x_np, pg_y_np)
+            pg_y_data_regress = res.slope * pg_x_np + res.intercept
+            pg_plot.line(x=pg_x_np, y=pg_y_data_regress)
+        except ValueError:
+            self.config.logger.warn(f"All x values are same. Linear regression not calculated.")
         # Tap event to jump to query
         pg_url = 'tags/@query_tag.html#@query_hash'
         pg_taptool = pg_plot.select(type=TapTool)
