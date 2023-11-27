@@ -80,8 +80,11 @@ class Postgres(Database):
 
         self.connection.connect()
 
-    def prepare_query_execution(self, cur):
+    def prepare_query_execution(self, cur, query_object):
         for query in self.config.session_props:
+            evaluate_sql(cur, query)
+
+        for query in query_object.optimizer_tips.debug_queries:
             evaluate_sql(cur, query)
 
     def create_test_database(self):

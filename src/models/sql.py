@@ -289,15 +289,23 @@ class SQLModel(QTFModel):
             with open(query, "r") as query_file:
                 full_queries = self.apply_variables(''.join(query_file.readlines()))
                 query_tips = self.get_query_hint_tips(full_queries)
+                query_debug_queries = []
                 for file_query in full_queries.split(";"):
                     if cleaned := sqlparse.format(file_query.lstrip(), strip_comments=True).strip():
-                        tables_in_query = get_alias_table_names(cleaned, tables)
-                        queries.append(PostgresQuery(
-                            tag=os.path.basename(query).replace(".sql", ""),
-                            query=cleaned,
-                            query_hash=get_md5(cleaned),
-                            tables=tables_in_query,
-                            optimizer_tips=query_tips))
+                        if cleaned.lower().startswith("set "):
+                            query_debug_queries.append(cleaned)
+                        else:
+                            current_tips = query_tips.copy()
+                            current_debug_queries = query_debug_queries.copy()
+                            current_tips.debug_queries = current_debug_queries
+
+                            tables_in_query = get_alias_table_names(cleaned, tables)
+                            queries.append(PostgresQuery(
+                                tag=os.path.basename(query).replace(".sql", ""),
+                                query=cleaned,
+                                query_hash=get_md5(cleaned),
+                                tables=tables_in_query,
+                                optimizer_tips=current_tips))
 
         if self.config.num_queries > 0:
             queries = queries[:int(self.config.num_queries)]

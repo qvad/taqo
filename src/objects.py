@@ -69,6 +69,15 @@ class QueryTips:
     tags: List[str] = dataclasses.field(default_factory=list)
     max_timeout: str = dataclasses.field(default_factory=str)
     debug_hints: str = dataclasses.field(default_factory=str)
+    debug_queries: List[str] = dataclasses.field(default_factory=list)
+
+    def copy(self) :
+        return QueryTips(self.accept.copy(),
+                         self.reject.copy(),
+                         self.tags.copy(),
+                         self.max_timeout,
+                         self.debug_hints,
+                         self.debug_queries.copy())
 
 
 @dataclasses.dataclass

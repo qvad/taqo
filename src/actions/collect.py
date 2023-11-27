@@ -104,7 +104,7 @@ class CollectAction:
                     self.sut_database.set_query_timeout(cur, self.config.test_query_timeout)
 
                     # get default execution plan
-                    self.sut_database.prepare_query_execution(cur)
+                    self.sut_database.prepare_query_execution(cur, original_query)
                     evaluate_sql(cur, original_query.get_explain(EXPLAIN))
                     default_execution_plan = self.config.database.get_execution_plan(
                         '\n'.join(str(item[0]) for item in cur.fetchall()))
@@ -114,7 +114,7 @@ class CollectAction:
                     original_query.execution_plan = default_execution_plan
 
                     # get costs off execution plan
-                    self.sut_database.prepare_query_execution(cur)
+                    self.sut_database.prepare_query_execution(cur, original_query)
                     evaluate_sql(cur, original_query.get_explain(EXPLAIN, [ExplainFlags.COSTS_OFF]))
                     original_query.cost_off_explain = self.config.database.get_execution_plan(
                         '\n'.join(str(item[0]) for item in cur.fetchall()))
@@ -210,7 +210,7 @@ class CollectAction:
                 duplicates += 1
             else:
                 try:
-                    self.sut_database.prepare_query_execution(cur)
+                    self.sut_database.prepare_query_execution(cur, optimization)
                     evaluate_sql(cur, optimization.get_explain(EXPLAIN))
                     default_execution_plan = database.get_execution_plan(
                         '\n'.join(str(item[0]) for item in cur.fetchall())
