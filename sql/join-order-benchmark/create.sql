@@ -1,16 +1,17 @@
 CREATE TABLE aka_name (
-                          id integer NOT NULL PRIMARY KEY ASC,
+                          id integer NOT NULL,
                           person_id integer NOT NULL,
                           name text NOT NULL,
                           imdb_index character varying(12),
                           name_pcode_cf character varying(5),
                           name_pcode_nf character varying(5),
                           surname_pcode character varying(5),
-                          md5sum character varying(32)
+                          md5sum character varying(32),
+                          PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE aka_title (
-                           id integer NOT NULL PRIMARY KEY ASC,
+                           id integer NOT NULL,
                            movie_id integer NOT NULL,
                            title text NOT NULL,
                            imdb_index character varying(12),
@@ -21,116 +22,132 @@ CREATE TABLE aka_title (
                            season_nr integer,
                            episode_nr integer,
                            note text,
-                           md5sum character varying(32)
+                           md5sum character varying(32),
+                           PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE cast_info (
-                           id integer NOT NULL PRIMARY KEY ASC,
+                           id integer NOT NULL,
                            person_id integer NOT NULL,
                            movie_id integer NOT NULL,
                            person_role_id integer,
                            note text,
                            nr_order integer,
-                           role_id integer NOT NULL
+                           role_id integer NOT NULL,
+                           PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE char_name (
-                           id integer NOT NULL PRIMARY KEY ASC,
+                           id integer NOT NULL,
                            name text NOT NULL,
                            imdb_index character varying(12),
                            imdb_id integer,
                            name_pcode_nf character varying(5),
                            surname_pcode character varying(5),
-                           md5sum character varying(32)
+                           md5sum character varying(32),
+                           PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE comp_cast_type (
-                                id integer NOT NULL PRIMARY KEY ASC,
-                                kind character varying(32) NOT NULL
+                                id integer NOT NULL,
+                                kind character varying(32) NOT NULL,
+                                PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE company_name (
-                              id integer NOT NULL PRIMARY KEY ASC,
+                              id integer NOT NULL,
                               name text NOT NULL,
                               country_code character varying(255),
                               imdb_id integer,
                               name_pcode_nf character varying(5),
                               name_pcode_sf character varying(5),
-                              md5sum character varying(32)
+                              md5sum character varying(32),
+                              PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE company_type (
-                              id integer NOT NULL PRIMARY KEY ASC,
-                              kind character varying(32) NOT NULL
+                              id integer NOT NULL,
+                              kind character varying(32) NOT NULL,
+                              PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE complete_cast (
-                               id integer NOT NULL PRIMARY KEY ASC,
+                               id integer NOT NULL,
                                movie_id integer,
                                subject_id integer NOT NULL,
-                               status_id integer NOT NULL
+                               status_id integer NOT NULL,
+                               PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE info_type (
-                           id integer NOT NULL PRIMARY KEY ASC,
-                           info character varying(32) NOT NULL
+                           id integer NOT NULL,
+                           info character varying(32) NOT NULL,
+                           PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE keyword (
-                         id integer NOT NULL PRIMARY KEY ASC,
+                         id integer NOT NULL,
                          keyword text NOT NULL,
-                         phonetic_code character varying(5)
+                         phonetic_code character varying(5),
+                         PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE kind_type (
-                           id integer NOT NULL PRIMARY KEY ASC,
-                           kind character varying(15) NOT NULL
+                           id integer NOT NULL,
+                           kind character varying(15) NOT NULL,
+                           PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE link_type (
-                           id integer NOT NULL PRIMARY KEY ASC,
-                           link character varying(32) NOT NULL
+                           id integer NOT NULL,
+                           link character varying(32) NOT NULL,
+                           PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE movie_companies (
-                                 id integer NOT NULL PRIMARY KEY ASC,
+                                 id integer NOT NULL,
                                  movie_id integer NOT NULL,
                                  company_id integer NOT NULL,
                                  company_type_id integer NOT NULL,
-                                 note text
+                                 note text,
+                                 PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE movie_info (
-                            id integer NOT NULL PRIMARY KEY ASC,
+                            id integer NOT NULL,
                             movie_id integer NOT NULL,
                             info_type_id integer NOT NULL,
                             info text NOT NULL,
-                            note text
+                            note text,
+                            PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE movie_info_idx (
-                                id integer NOT NULL PRIMARY KEY ASC,
+                                id integer NOT NULL,
                                 movie_id integer NOT NULL,
                                 info_type_id integer NOT NULL,
                                 info text NOT NULL,
-                                note text
+                                note text,
+                                PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE movie_keyword (
-                               id integer NOT NULL PRIMARY KEY ASC,
+                               id integer NOT NULL,
                                movie_id integer NOT NULL,
-                               keyword_id integer NOT NULL
+                               keyword_id integer NOT NULL,
+                               PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE movie_link (
-                            id integer NOT NULL PRIMARY KEY ASC,
+                            id integer NOT NULL,
                             movie_id integer NOT NULL,
                             linked_movie_id integer NOT NULL,
-                            link_type_id integer NOT NULL
+                            link_type_id integer NOT NULL,
+                            PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE name (
-                      id integer NOT NULL PRIMARY KEY ASC,
+                      id integer NOT NULL,
                       name text NOT NULL,
                       imdb_index character varying(12),
                       imdb_id integer,
@@ -138,24 +155,27 @@ CREATE TABLE name (
                       name_pcode_cf character varying(5),
                       name_pcode_nf character varying(5),
                       surname_pcode character varying(5),
-                      md5sum character varying(32)
+                      md5sum character varying(32),
+                      PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE person_info (
-                             id integer NOT NULL PRIMARY KEY ASC,
+                             id integer NOT NULL,
                              person_id integer NOT NULL,
                              info_type_id integer NOT NULL,
                              info text NOT NULL,
-                             note text
+                             note text,
+                             PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE role_type (
-                           id integer NOT NULL PRIMARY KEY ASC,
-                           role character varying(32) NOT NULL
+                           id integer NOT NULL,
+                           role character varying(32) NOT NULL,
+                           PRIMARY KEY (id ASC)
 );
 
 CREATE TABLE title (
-                       id integer NOT NULL PRIMARY KEY ASC,
+                       id integer NOT NULL,
                        title text NOT NULL,
                        imdb_index character varying(12),
                        kind_id integer NOT NULL,
@@ -166,7 +186,8 @@ CREATE TABLE title (
                        season_nr integer,
                        episode_nr integer,
                        series_years character varying(49),
-                       md5sum character varying(32)
+                       md5sum character varying(32),
+                       PRIMARY KEY (id ASC)
 );
 
 create index company_id_movie_companies on movie_companies(company_id ASC);
