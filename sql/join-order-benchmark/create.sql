@@ -212,4 +212,4 @@ create index person_id_aka_name on aka_name(person_id ASC);
 create index person_id_cast_info on cast_info(person_id ASC);
 create index person_id_person_info on person_info(person_id ASC);
 create index person_role_id_cast_info on cast_info(person_role_id ASC);
-create index role_id_cast_info on cast_info(role_id) ASC;
+create index role_id_cast_info on cast_info(role_id ASC);
