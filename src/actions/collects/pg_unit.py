@@ -2,7 +2,6 @@ import os
 from inspect import cleandoc
 
 from config import Config
-from db.yugabyte import ENABLE_STATISTICS_HINT
 from objects import ExplainFlags, EXPLAIN
 from utils import parse_clear_and_parametrized_sql
 
@@ -67,11 +66,6 @@ class PgUnitGenerator:
 
         for session_prop in self.config.session_props:
             result_file.write(self.add_semicolon(session_prop))
-            result_file.write("\n")
-
-        # cbo query?
-        if self.config.enable_statistics:
-            result_file.write(self.add_semicolon(ENABLE_STATISTICS_HINT))
             result_file.write("\n")
 
         for query in queries:
