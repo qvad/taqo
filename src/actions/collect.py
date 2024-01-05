@@ -249,7 +249,7 @@ class CollectAction:
 
     def try_to_get_default_explain_hints(self, cur, optimization, original_query):
         if not original_query.explain_hints:
-            if self.config.enable_statistics or optimization.execution_plan is None:
+            if optimization.execution_plan is None:
                 evaluate_sql(cur, optimization.get_explain(EXPLAIN))
 
                 execution_plan = self.config.database.get_execution_plan('\n'.join(

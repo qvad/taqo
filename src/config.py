@@ -74,7 +74,6 @@ class Config(metaclass=Singleton):
     connection: ConnectionConfig = None
 
     compare_with_pg: bool = False
-    enable_statistics: bool = False
     explain_clause: str = ""
     server_side_execution: bool = False
     session_props: List[str] = None
