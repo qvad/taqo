@@ -209,10 +209,6 @@ if __name__ == "__main__":
     parser.add_argument('--database',
                         help='Target database in postgres compatible database')
 
-    parser.add_argument('--enable-statistics',
-                        action=argparse.BooleanOptionalAction,
-                        default=False,
-                        help='Evaluate yb_enable_optimizer_statistics before running queries')
     parser.add_argument('--explain-clause',
                         default=None,
                         help='Explain clause that will be placed before query. Default "EXPLAIN"')

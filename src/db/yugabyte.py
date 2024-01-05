@@ -18,8 +18,6 @@ DEFAULT_PASSWORD = 'yugabyte'
 
 JDBC_STRING_PARSE = r'\/\/(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)):(\d+)\/([a-z]+)(\?user=([a-z]+)&password=([a-z]+))?'
 
-ENABLE_STATISTICS_HINT = "SET yb_enable_optimizer_statistics = true;"
-
 PLAN_CLEANUP_REGEX = r"\s\(actual time.*\)|\s\(never executed\)|\s\(cost.*\)|" \
                      r"\sMemory:.*|Planning Time.*|Execution Time.*|Peak Memory Usage.*|" \
                      r"Storage Read Requests:.*|Storage Read Execution Time:.*|Storage Write Requests:.*|" \
@@ -117,11 +115,6 @@ class Yugabyte(Postgres):
 
     def prepare_query_execution(self, cur, query_object):
         super().prepare_query_execution(cur, query_object)
-
-        if self.config.enable_statistics:
-            self.logger.debug("Enable yb_enable_optimizer_statistics flag")
-
-            evaluate_sql(cur, ENABLE_STATISTICS_HINT)
 
     def change_version_and_compile(self, revision_or_path=None):
         pass

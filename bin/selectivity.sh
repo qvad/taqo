@@ -35,10 +35,10 @@ python3 src/runner.py collect --model=$model --config=$config --output=ta_$model
 echo "Evaluating table stats test against $rev with table analyze"
 python3 src/runner.py collect --model=$model --config=$config --output=taa_$model$rev --ddls=none --explain-clause="explain analyze" --yes
 
-echo "Evaluating selectivity test against $rev"
-python3 src/runner.py collect --model=$model --config=$config --output=tsa_$model$rev --ddls=none --enable-statistics --explain-clause="explain" --yes
-echo "Evaluating selectivity test against $rev with table analyze"
-python3 src/runner.py collect --model=$model --config=$config --output=tsaa_$model$rev --ddls=none --explain-clause="explain analyze" --enable-statistics --yes
+echo "Evaluating CBO test against $rev"
+python3 src/runner.py collect --model=$model --config=$config --output=tsa_$model$rev --ddls=none --session-props="SET yb_enable_optimizer_statistics = true;" --explain-clause="explain" --yes
+echo "Evaluating CBO test against $rev with table analyze"
+python3 src/runner.py collect --model=$model --config=$config --output=tsaa_$model$rev --ddls=none --explain-clause="explain analyze" --session-props="SET yb_enable_optimizer_statistics = true;" --yes
 
 echo "Generating report"
 python3 src/runner.py report --type=selectivity --config=$config \

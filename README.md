@@ -334,8 +334,6 @@ options:
   --username USERNAME   Username for connection
   --password PASSWORD   Password for user for connection
   --database DATABASE   Target database in postgres compatible database
-  --enable-statistics, --no-enable-statistics
-                        Evaluate yb_enable_optimizer_statistics before running queries (default: False)
   --explain-clause EXPLAIN_CLAUSE
                         Explain clause that will be placed before query. Default "EXPLAIN"
   --num-queries NUM_QUERIES
