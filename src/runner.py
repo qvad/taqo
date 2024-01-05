@@ -306,7 +306,6 @@ if __name__ == "__main__":
         plans_only=args.plans_only,
         server_side_execution=get_bool_from_object(args.server_side_execution),
 
-        enable_statistics=args.enable_statistics or get_bool_from_object(configuration.get("enable-statistics", False)),
         explain_clause=args.explain_clause or configuration.get("explain-clause", "EXPLAIN"),
         session_props=configuration.get("session-props") +
                       (args.session_props.split(",") if args.session_props else []),
