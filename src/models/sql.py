@@ -50,80 +50,92 @@ class SQLModel(QTFModel):
 
         return created_tables, non_catalog_tables, teardown_queries, create_queries, analyze_queries, import_queries
 
-    def evaluate_ddl_queries(self, conn,
-                             step_prefix: DDLStep,
-                             do_execute: bool,
-                             db_prefix=None, ):
+    def get_valid_file_path(self, file_name: str, ddl_prefix: str):
+        complete_file_name = \
+            f"{ddl_prefix}.{file_name}" \
+                if (ddl_prefix and
+                    exists(f"{get_model_path(self.config.model)}/{ddl_prefix}.{file_name}.sql")) \
+                else file_name
+
+        return f"{get_model_path(self.config.model)}/{complete_file_name}.sql"
+
+    def evaluate_ddl_queries(self, conn, step_prefix: DDLStep, do_execute: bool, db_prefix: str = None, ):
         self.logger.info(f"Evaluating DDL {step_prefix.name} step")
 
         created_tables: List[Table] = []
         non_catalog_tables: List[Table] = []
-        file_name = step_prefix.name.lower()
-
         db_prefix = self.config.ddl_prefix or db_prefix
-        if db_prefix and exists(f"{get_model_path(self.config.model)}/{db_prefix}.{file_name}.sql"):
-            file_name = f"{db_prefix}.{file_name}"
 
+        path_to_file = self.get_valid_file_path(step_prefix.name.lower(), db_prefix)
         model_queries = []
+
         try:
             with conn.cursor() as cur:
                 if do_execute:
                     evaluate_sql(cur, f"SET statement_timeout = '{self.config.ddl_query_timeout}s'")
 
-                path_to_file = f"{get_model_path(self.config.model)}/{file_name}.sql"
-
                 if not exists(path_to_file):
                     self.logger.warn(f"Unable to locate file {path_to_file}")
                 else:
-                    with open(f"{get_model_path(self.config.model)}/{file_name}.sql", "r") as sql_file:
+                    with open(path_to_file, "r") as sql_file:
                         full_queries = self.apply_variables('\n'.join(sql_file.readlines()))
                         for query in tqdm(full_queries.split(";")):
-                            try:
-                                if cleaned := query.lstrip():
-                                    model_queries.append(cleaned)
-                                    if do_execute:
-                                        if step_prefix == DDLStep.IMPORT:
-                                            self.import_from_local(cur, cleaned)
-                                        else:
-                                            evaluate_sql(cur, cleaned)
-                            except psycopg2.Error as e:
-                                self.logger.exception(e)
-                                raise e
-                if step_prefix == DDLStep.CREATE:
-                    if do_execute:
-                        created_tables, non_catalog_tables = self.load_tables_from_public(cur)
+                            model_queries = self.process_query(cur, query, model_queries, do_execute=do_execute)
+
+                if step_prefix == DDLStep.CREATE and do_execute:
+                    created_tables, non_catalog_tables = self.load_tables_from_public(cur)
 
             return created_tables, non_catalog_tables, model_queries
         except Exception as e:
             self.logger.exception(e)
             raise e
 
-    def import_from_local(self, cur, cleaned):
+    def process_query(self, cur,
+                      query: str,
+                      model_queries: List[str],
+                      do_execute: bool):
+        query = query.lstrip()
+        if not query:
+            return model_queries
+
+        model_queries.append(query)
+        if do_execute:
+            if not self.try_to_handle_copy(cur, query):
+                evaluate_sql(cur, query)
+
+        return model_queries
+
+    @staticmethod
+    def parse_with_param(param_name, params):
+        pattern = rf"(?i){param_name}\s\'?(.+?)\'?"
+        matches = re.findall(pattern, params)
+        return matches[0] if matches else None
+
+    def try_to_handle_copy(self, cur, query: str):
         copy_re = r"(?i)\bCOPY\b\s(.+)\s\bFROM\b\s\'(.*)\'\s\bWITH\b\s\((.*\,?)\)"
-        parse_re = re.findall(copy_re, cleaned, re.MULTILINE)[0]
-        table_name = parse_re[0]
-        local_path = parse_re[1]
-        params = parse_re[2]
+        parse_command = re.findall(copy_re, query, re.MULTILINE)
 
-        delimiter = ","
-        file_format = None
-        null_format = ''
-        if 'delimiter' in params.lower():
-            delimiter = re.findall(r"(?i)delimiter\s\'(.{1,3})\'", params)[0]
-            if delimiter == "\\t":
-                delimiter = "\t"
-        if 'format' in params.lower():
-            file_format = re.findall(r"(?i)format\s([a-zA-Z]+)", params)[0]
-        if 'null' in params.lower():
-            null_format = re.findall(r"(?i)null\s\'([a-zA-Z]+)\'", params)[0]
+        if not parse_command:
+            return False
 
-        if 'csv' not in file_format.lower():
-            raise AttributeError("Can't import from non CSV files")
+        table_name, local_path, params = parse_command[0]
+        delimiter = self.parse_with_param('delimiter', params) or ","
+        file_format = self.parse_with_param('format', params)
+        null_format = self.parse_with_param('null', params) or ''
+
+        if delimiter == "\\t":
+            delimiter = "\t"
+
+        if file_format is None or 'csv' not in file_format.lower():
+            raise AttributeError("Can only import from CSV files")
+
+        if not os.path.isfile(local_path):
+            raise FileNotFoundError(f"The file {local_path} does not exist")
 
         with open(local_path, "r") as csv_file:
-            cur.copy_from(csv_file, table_name,
-                          sep=delimiter,
-                          null=null_format)
+            cur.copy_from(csv_file, table_name, sep=delimiter, null=null_format)
+
+        return True
 
     def load_tables_from_public(self, cur):
         catalog_schema = ", 'pg_catalog'" if self.config.load_catalog_tables else ""
