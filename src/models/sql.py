@@ -106,9 +106,9 @@ class SQLModel(QTFModel):
         return model_queries
 
     @staticmethod
-    def parse_with_param(param_name, params):
-        pattern = rf"(?i){param_name}\s\'?(.+?)\'?"
-        matches = re.findall(pattern, params)
+    def parse_with_param(param_name, params_str, value):
+        pattern = rf"(?i){param_name}\s{value}"
+        matches = re.findall(pattern, params_str, re.IGNORECASE)
         return matches[0] if matches else None
 
     def try_to_handle_copy(self, cur, query: str):
@@ -118,10 +118,10 @@ class SQLModel(QTFModel):
         if not parse_command:
             return False
 
-        table_name, local_path, params = parse_command[0]
-        delimiter = self.parse_with_param('delimiter', params) or ","
-        file_format = self.parse_with_param('format', params)
-        null_format = self.parse_with_param('null', params) or ''
+        table_name, local_path, params_str = parse_command[0]
+        delimiter = self.parse_with_param('delimiter', params_str, "\'(.{1,3})\'") or ","
+        file_format = self.parse_with_param('format', params_str, '[a-zA-Z]+')
+        null_format = self.parse_with_param('null', params_str, '\'([a-zA-Z]+)\'') or ''
 
         if delimiter == "\\t":
             delimiter = "\t"
