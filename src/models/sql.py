@@ -108,7 +108,7 @@ class SQLModel(QTFModel):
     @staticmethod
     def parse_with_param(param_name, params):
         pattern = rf"(?i){param_name}\s\'?(.+?)\'?"
-        matches = re.findall(pattern, params)
+        matches = re.findall(pattern, params, re.IGNORECASE)
         return matches[0] if matches else None
 
     def try_to_handle_copy(self, cur, query: str):
