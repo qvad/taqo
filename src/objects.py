@@ -150,6 +150,9 @@ class Query:
     def get_reportable_query(self):
         pass
 
+    def get_inconsistent_results(self):
+        pass
+
     def __eq__(self, other):
         return self.query_hash == other.query_hash
 

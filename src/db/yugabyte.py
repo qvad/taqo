@@ -11,7 +11,7 @@ from collect import CollectResult, ResultsLoader
 from config import ConnectionConfig, DDLStep
 from db.postgres import Postgres, PostgresExecutionPlan, PLAN_TREE_CLEANUP, PostgresQuery
 from objects import ExecutionPlan, QueryStats, Query
-from utils import evaluate_sql
+from utils import evaluate_sql, seconds_to_readable_minutes
 
 DEFAULT_USERNAME = 'yugabyte'
 DEFAULT_PASSWORD = 'yugabyte'
@@ -86,7 +86,8 @@ class Yugabyte(Postgres):
                 except Exception as e:
                     retries += 1
 
-                    self.logger.info(f"Waiting for 10 minutes to operations to complete for {table.name}")
+                    self.logger.info(f"Waiting for {seconds_to_readable_minutes(self.config.compaction_timeout)} "
+                                     f"minutes to operations to complete for {table.name}")
                     sleep(self.config.compaction_timeout)
 
     def establish_connection_from_output(self, out: str):

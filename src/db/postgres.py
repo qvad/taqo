@@ -341,6 +341,12 @@ class PostgresQuery(Query):
 
         return best_optimization
 
+    def get_inconsistent_results(self):
+        if not self.result_hash:
+            return []
+
+        return [optimization.explain_hints for optimization in self.optimizations
+                if optimization.result_hash and self.result_hash != optimization.result_hash]
 
 @dataclasses.dataclass
 class PostgresOptimization(PostgresQuery, Optimization):

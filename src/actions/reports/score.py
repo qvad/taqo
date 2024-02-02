@@ -283,7 +283,9 @@ class ScoreReport(AbstractReportAction):
         timed_out = 0
         slower_then_10x = 0
         best_slower_then_10x = 0
+        inconsistent_results = 0
         total = 0
+
         for queries in self.queries.values():
             for query in queries:
                 yb_query = query[0]
@@ -291,6 +293,8 @@ class ScoreReport(AbstractReportAction):
 
                 yb_best = yb_query.get_best_optimization(self.config)
                 pg_best = pg_query.get_best_optimization(self.config)
+
+                inconsistent_results += 1 if yb_query.get_inconsistent_results() else 0
 
                 pg_success = pg_query.execution_time_ms > 0
 
@@ -574,16 +578,16 @@ class ScoreReport(AbstractReportAction):
     @staticmethod
     def fix_last_newline_in_result(result, rows):
         if result:
-            splitted_result = result.split("\n")
-            result = "\n".join(splitted_result[:-1])
-            last_newline = splitted_result[-1]
+            result, last_newline = result.rsplit("\n", 1)
             rows[0] = f"{last_newline}{rows[0]}"
             result += "\n"
+
         return result
 
     # noinspection InsecureHash
     def __report_query(self, report, yb_query: Type[Query], pg_query: Type[Query], show_best: bool):
         yb_best = yb_query.get_best_optimization(self.config)
+        inconsistencies = yb_query.get_inconsistent_results()
 
         self.reported_queries_counter += 1
 
@@ -597,6 +601,11 @@ class ScoreReport(AbstractReportAction):
         report.start_source(["sql"])
         report.content += format_sql(yb_query.get_reportable_query())
         report.end_source()
+
+        if inconsistencies:
+            report.add_double_newline()
+            report.content += f"YB Inconsistent hints - `{inconsistencies}`"
+            report.add_double_newline()
 
         report.add_double_newline()
         report.content += f"YB Default explain hints - `{yb_query.explain_hints}`"

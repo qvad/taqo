@@ -35,20 +35,23 @@ def remove_with_ordinality(sql_str):
     return sql_str
 
 
-def get_result(cur, is_dml):
+def get_result(cur, is_dml: bool, has_order_by: bool):
     if is_dml:
         return cur.rowcount, f"{cur.rowcount} updates"
 
     result = cur.fetchall()
 
-    str_result = ""
+    str_result = []
     cardinality = 0
     for row in result:
         cardinality += 1
         for column_value in row:
-            str_result += f"{str(column_value)}"
+            str_result.append(f"{str(column_value)}")
 
-    return cardinality, str_result
+    if not has_order_by:
+        str_result.sort()
+
+    return cardinality, ''.join(str_result)
 
 
 def calculate_avg_execution_time(cur,
@@ -61,6 +64,7 @@ def calculate_avg_execution_time(cur,
 
     query_str = query_str or query.get_query()
     query_str_lower = query_str.lower() if query_str is not None else None
+    has_order_by = True if "order by" in query_str_lower else False
 
     with_analyze = query_with_analyze(query_str_lower)
     is_dml = query_is_dml(query_str_lower)
@@ -89,7 +93,7 @@ def calculate_avg_execution_time(cur,
                 # even if EXPLAIN ANALYZE is explain query
                 query.parameters = evaluate_sql(cur, query.get_query())
 
-                cardinality, result = get_result(cur, is_dml)
+                cardinality, result = get_result(cur, is_dml, has_order_by)
 
                 query.result_cardinality = cardinality
                 query.result_hash = get_md5(result)
@@ -108,7 +112,7 @@ def calculate_avg_execution_time(cur,
 
                     evaluate_sql(cur, query_str)
                     config.logger.debug("SQL >> Getting results")
-                    _, result = get_result(cur, is_dml)
+                    _, result = get_result(cur, is_dml, has_order_by)
 
                     if with_analyze:
                         execution_times.append(extract_execution_time_from_analyze(result))
@@ -314,15 +318,28 @@ def evaluate_sql(cur: cursor, sql: str):
         except psycopg2.errors.QueryCanceled as e:
             cur.connection.rollback()
             raise e
+        except psycopg2.errors.DuplicateDatabase as ddb:
+            cur.connection.rollback()
+            config.logger.exception(sql, ddb)
         except psycopg2.errors.ConfigurationLimitExceeded as cle:
             cur.connection.rollback()
             config.logger.exception(sql, cle)
+
+            if config.exit_on_fail:
+                exit(1)
         except psycopg2.OperationalError as oe:
             cur.connection.rollback()
             config.logger.exception(sql, oe)
+
+            if config.exit_on_fail:
+                exit(1)
         except Exception as e:
             cur.connection.rollback()
             config.logger.exception(sql_wo_parameters, e)
+
+            if config.exit_on_fail:
+                exit(1)
+
             raise e
     else:
         try:
@@ -331,15 +348,28 @@ def evaluate_sql(cur: cursor, sql: str):
         except psycopg2.errors.QueryCanceled as e:
             cur.connection.rollback()
             raise e
+        except psycopg2.errors.DuplicateDatabase as ddb:
+            cur.connection.rollback()
+            config.logger.exception(sql, ddb)
         except psycopg2.errors.ConfigurationLimitExceeded as cle:
             cur.connection.rollback()
             config.logger.exception(sql, cle)
+
+            if config.exit_on_fail:
+                exit(1)
         except psycopg2.OperationalError as oe:
             cur.connection.rollback()
             config.logger.exception(sql, oe)
+
+            if config.exit_on_fail:
+                exit(1)
         except Exception as e:
             cur.connection.rollback()
             config.logger.exception(sql_wo_parameters, e)
+
+            if config.exit_on_fail:
+                exit(1)
+
             raise e
 
     return parameters
@@ -406,3 +436,9 @@ def get_plan_diff(baseline, changed):
     return "\n".join(
         text for text in difflib.unified_diff(baseline.split("\n"), changed.split("\n")) if
         text[:3] not in ('+++', '---', '@@ '))
+
+
+def seconds_to_readable_minutes(seconds):
+    minutes = seconds // 60
+    remaining_seconds = seconds % 60
+    return f"{minutes} minute{'s' if minutes != 1 else ''} and {remaining_seconds:.2f} second{'s' if remaining_seconds != 1 else ''}"

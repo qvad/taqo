@@ -236,6 +236,10 @@ if __name__ == "__main__":
                         action=argparse.BooleanOptionalAction,
                         default=False,
                         help='Clear logs directory')
+    parser.add_argument('--exit-on-fail',
+                        action=argparse.BooleanOptionalAction,
+                        default=True,
+                        help='Exit on query failures (DDL failure is not configurable)')
 
     parser.add_argument('--yes',
                         action=argparse.BooleanOptionalAction,
@@ -273,6 +277,7 @@ if __name__ == "__main__":
 
     config = Config(
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
+        exit_on_fail=args.exit_on_fail,
 
         source_path=args.source_path or configuration.get("source-path", None),
         num_nodes=int(args.num_nodes) or configuration.get("num-nodes", 3),
@@ -392,3 +397,7 @@ if __name__ == "__main__":
             CostReport.generate_report(yb_queries, args.interactive)
         else:
             raise AttributeError(f"Unknown test type defined {config.test}")
+
+        if config.has_failures:
+            config.logger.exception("Found issues during TAQO collect execution")
+            exit(1)
