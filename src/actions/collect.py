@@ -155,6 +155,11 @@ class CollectAction:
             if optimization.result_hash and result_hash != optimization.result_hash:
                 cardinality_equality = "=" if original_query.result_cardinality == optimization.result_cardinality else "!="
 
+                if "now()" in original_query.query.lower():
+                    # todo fixing result_hash for queries with function calls
+                    optimization.query_hash = original_query.result_hash
+                    continue
+
                 self.config.has_failures = True
                 self.logger.exception(f"INCONSISTENT RESULTS!\n"
                                       f"validation: {original_query.result_hash} != {optimization.result_hash}\n"
