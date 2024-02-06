@@ -57,7 +57,7 @@ class ConnectionConfig:
 class Config(metaclass=Singleton):
     logger: logging.Logger = None
 
-    exit_on_fail: bool = True
+    exit_on_fail: bool = False
     has_failures: bool = False
 
     database: Database = None
