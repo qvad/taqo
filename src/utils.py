@@ -92,7 +92,6 @@ def calculate_avg_execution_time(cur,
                 # using first iteration as a result collecting step
                 # even if EXPLAIN ANALYZE is explain query
                 query.parameters = evaluate_sql(cur, query.get_query())
-
                 cardinality, result = get_result(cur, is_dml, has_order_by)
 
                 query.result_cardinality = cardinality
@@ -100,6 +99,7 @@ def calculate_avg_execution_time(cur,
             else:
                 if iteration < num_warmup:
                     query.parameters = evaluate_sql(cur, query_str)
+                    _, result = get_result(cur, is_dml, has_order_by)
                 else:
                     if not execution_plan_collected:
                         collect_execution_plan(cur, connection, query, sut_database)

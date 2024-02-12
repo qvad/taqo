@@ -63,6 +63,18 @@ class Table:
 
 
 @dataclasses.dataclass
+class ExecutionPlan:
+    full_str: str = ""
+
+    def get_estimated_cost(self):
+        pass
+
+    def get_clean_plan(self, execution_plan=None):
+        # todo get plan tree instead here to support plan comparison between DBs
+        pass
+
+
+@dataclasses.dataclass
 class QueryTips:
     accept: List[str] = dataclasses.field(default_factory=list)
     reject: List[str] = dataclasses.field(default_factory=list)
@@ -71,7 +83,7 @@ class QueryTips:
     debug_hints: str = dataclasses.field(default_factory=str)
     debug_queries: List[str] = dataclasses.field(default_factory=list)
 
-    def copy(self) :
+    def copy(self):
         return QueryTips(self.accept.copy(),
                          self.reject.copy(),
                          self.tags.copy(),
@@ -113,9 +125,9 @@ class Query:
     explain_hints: str = ""
 
     # internal field to detect duplicates
-    cost_off_explain: 'ExecutionPlan' = None
+    cost_off_explain: 'ExecutionPlan' = dataclasses.field(default_factory=ExecutionPlan)
 
-    execution_plan: 'ExecutionPlan' = None
+    execution_plan: 'ExecutionPlan' = dataclasses.field(default_factory=ExecutionPlan)
     execution_time_ms: float = 0
     result_cardinality: int = 0
     result_hash: str = None
@@ -321,7 +333,7 @@ class PlanPrinter(PlanNodeVisitor):
         self.level = level
 
     def generic_visit(self, node):
-        self.plan_tree_str += f"{'':>{node.level*2}s}->  " if node.level else ''
+        self.plan_tree_str += f"{'':>{node.level * 2}s}->  " if node.level else ''
         self.plan_tree_str += node.get_full_str(self.estimate, self.actual,
                                                 properties=False, level=self.level)
         if self.properties:
@@ -336,18 +348,6 @@ class PlanPrinter(PlanNodeVisitor):
         printer = PlanPrinter(estimate, actual, properties, level)
         printer.visit(node)
         return printer.plan_tree_str
-
-
-@dataclasses.dataclass
-class ExecutionPlan:
-    full_str: str
-
-    def get_estimated_cost(self):
-        pass
-
-    def get_clean_plan(self, execution_plan=None):
-        # todo get plan tree instead here to support plan comparison between DBs
-        pass
 
 
 @dataclasses.dataclass

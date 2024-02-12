@@ -602,9 +602,18 @@ class ScoreReport(AbstractReportAction):
         report.content += format_sql(yb_query.get_reportable_query())
         report.end_source()
 
+        warmup_execution_time = yb_query.execution_time_warmup
+        avg_execution_time = yb_query.execution_time_ms
+
+        if (avg_execution_time > warmup_execution_time and
+                not allowed_diff(self.config, avg_execution_time, warmup_execution_time)):
+            report.add_double_newline()
+            report.content += f"WARN! Difference in default and analyze executions - `{avg_execution_time}` > `{warmup_execution_time}`"
+            report.add_double_newline()
+
         if inconsistencies:
             report.add_double_newline()
-            report.content += f"YB Inconsistent hints - `{inconsistencies}`"
+            report.content += f"ERROR! YB Inconsistent hints - `{inconsistencies}`"
             report.add_double_newline()
 
         report.add_double_newline()

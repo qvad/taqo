@@ -59,6 +59,7 @@ class Config(metaclass=Singleton):
 
     exit_on_fail: bool = False
     has_failures: bool = False
+    has_warnings: bool = False
 
     database: Database = None
 
