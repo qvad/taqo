@@ -16,7 +16,7 @@ from actions.report import AbstractReportAction
 from collect import CollectResult
 from db.postgres import PostgresQuery
 from objects import Query
-from utils import allowed_diff, get_plan_diff
+from utils import allowed_diff, get_plan_diff, extract_execution_time_from_analyze
 
 
 class ScoreReport(AbstractReportAction):
@@ -602,7 +602,7 @@ class ScoreReport(AbstractReportAction):
         report.content += format_sql(yb_query.get_reportable_query())
         report.end_source()
 
-        warmup_execution_time = yb_query.execution_time_warmup
+        warmup_execution_time = extract_execution_time_from_analyze(yb_query.execution_plan.full_str)
         avg_execution_time = yb_query.execution_time_ms
 
         if (avg_execution_time > warmup_execution_time and
