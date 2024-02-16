@@ -182,7 +182,7 @@ def query_is_dml(query_str_lower):
 
 def extract_execution_time_from_analyze(result):
     extracted = -1
-    matches = re.finditer(r"Execution\sTime:\s(\d+\.\d+)\sms", result, re.MULTILINE)
+    matches = re.finditer(r"^Execution\sTime:\s(\d+\.\d+)\sms", result, re.MULTILINE)
     for matchNum, match in enumerate(matches, start=1):
         extracted = float(match.groups()[0])
         break
