@@ -608,7 +608,7 @@ class ScoreReport(AbstractReportAction):
         if (analyze_execution_time > avg_execution_time and
                 not allowed_diff(self.config, avg_execution_time, analyze_execution_time)):
             report.add_double_newline()
-            report.content += f"WARN! Difference in avg and analyze executions - `{avg_execution_time}` > `{analyze_execution_time}`"
+            report.content += f"WARN! Analyze time is bigger than avg - `{analyze_execution_time}` > `{avg_execution_time}`"
             report.add_double_newline()
 
         if inconsistencies:
