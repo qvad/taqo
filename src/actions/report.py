@@ -44,7 +44,7 @@ class ObjectsMixin:
 
 
 class AbstractReportAction(ObjectsMixin):
-    def __init__(self):
+    def __init__(self, create_folders: bool = True):
         super().__init__()
 
         self.config = Config()
@@ -66,21 +66,22 @@ class AbstractReportAction(ObjectsMixin):
 
         self.start_date = time.strftime("%Y%m%d-%H%M%S")
 
-        self.report_folder = f"report/{self.start_date}"
-        self.report_folder_imgs = f"report/{self.start_date}/imgs"
-        self.report_folder_tags = f"report/{self.start_date}/tags"
+        if create_folders:
+            self.report_folder = f"report/{self.start_date}"
+            self.report_folder_imgs = f"report/{self.start_date}/imgs"
+            self.report_folder_tags = f"report/{self.start_date}/tags"
 
-        if self.config.clear:
-            self.logger.info("Clearing report directory")
-            shutil.rmtree("report", ignore_errors=True)
+            if self.config.clear:
+                self.logger.info("Clearing report directory")
+                shutil.rmtree("report", ignore_errors=True)
 
-        if not os.path.isdir("report"):
-            os.mkdir("report")
+            if not os.path.isdir("report"):
+                os.mkdir("report")
 
-        if not os.path.isdir(self.report_folder):
-            os.mkdir(self.report_folder)
-            os.mkdir(self.report_folder_imgs)
-            os.mkdir(self.report_folder_tags)
+            if not os.path.isdir(self.report_folder):
+                os.mkdir(self.report_folder)
+                os.mkdir(self.report_folder_imgs)
+                os.mkdir(self.report_folder_tags)
 
     def get_report_name(self):
         return ""

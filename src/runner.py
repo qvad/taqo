@@ -3,6 +3,7 @@ from os.path import exists
 
 from pyhocon import ConfigFactory
 
+from actions.reports.score_stats import ScoreStatsReport
 from config import Config, init_logger, ConnectionConfig, DDLStep
 from db.factory import create_database
 from db.postgres import DEFAULT_USERNAME, DEFAULT_PASSWORD, PostgresResultsLoader
@@ -375,6 +376,12 @@ if __name__ == "__main__":
                 args.pg_results) if args.pg_results else None
 
             ScoreReport.generate_report(yb_queries, pg_queries)
+        elif args.type == "score_stats":
+            yb_queries = loader.get_queries_from_previous_result(args.results)
+            pg_queries = loader.get_queries_from_previous_result(
+                args.pg_results) if args.pg_results else None
+
+            ScoreStatsReport.generate_report(yb_queries, pg_queries)
         elif args.type == "regression":
             v1_queries = loader.get_queries_from_previous_result(args.v1_results)
             v2_queries = loader.get_queries_from_previous_result(args.v2_results)
@@ -396,7 +403,7 @@ if __name__ == "__main__":
             yb_queries = loader.get_queries_from_previous_result(args.results)
             CostReport.generate_report(yb_queries, args.interactive)
         else:
-            raise AttributeError(f"Unknown test type defined {config.test}")
+            raise AttributeError(f"Unknown report type defined {args.type}")
 
     if config.has_failures:
         config.logger.exception("Found issues during TAQO collect execution")
