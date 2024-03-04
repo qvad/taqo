@@ -1,5 +1,6 @@
 import dataclasses
 import itertools
+import requests
 import re
 from difflib import SequenceMatcher
 from enum import Enum
@@ -7,6 +8,7 @@ from typing import List, Type
 
 import psycopg2
 from allpairspy import AllPairs
+from psycopg2._psycopg import cursor
 
 from collect import CollectResult, ResultsLoader
 from config import Config, ConnectionConfig, DDLStep
@@ -66,6 +68,8 @@ hash_property_decomposition_pattern = re.compile(''.join([
 
 PG_DISABLE_COST = 10000000000.00
 
+VERSION = r"PostgreSQL\s+(\d+\.\d+)"
+
 
 class Postgres(Database):
 
@@ -114,6 +118,15 @@ class Postgres(Database):
     def get_list_queries(self):
         return PostgresCollectResult()
 
+    def get_revision_version(self, cur: cursor):
+        evaluate_sql(cur, 'SELECT VERSION();')
+        version = re.findall(VERSION, cur.fetchone()[0], re.MULTILINE)
+
+        if version:
+            return "PG", version[1]
+        else:
+            return "UNKNOWN_VERSION"
+
 
 class Connection:
     conn = None
@@ -129,11 +142,6 @@ class Connection:
             user=self.connection_config.username,
             password=self.connection_config.password)
         self.conn.autocommit = True
-
-    def get_version(self):
-        with self.conn.cursor() as cur:
-            evaluate_sql(cur, 'SELECT VERSION();')
-            return cur.fetchone()[0]
 
 
 class Scans(Enum):
@@ -347,6 +355,7 @@ class PostgresQuery(Query):
 
         return [optimization.explain_hints for optimization in self.optimizations
                 if optimization.result_hash and self.result_hash != optimization.result_hash]
+
 
 @dataclasses.dataclass
 class PostgresOptimization(PostgresQuery, Optimization):

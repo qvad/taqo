@@ -5,6 +5,7 @@ import subprocess
 from time import sleep
 from typing import List
 
+import requests
 from psycopg2._psycopg import cursor
 
 from collect import CollectResult, ResultsLoader
@@ -33,6 +34,8 @@ PLAN_RPC_CALLS = r"\nRead RPC Count:\s(\d+)"
 PLAN_RPC_WAIT_TIMES = r"\nRead RPC Wait Time:\s([+-]?([0-9]*[.])?[0-9]+)"
 PLAN_DOCDB_SCANNED_ROWS = r"\nDocDB Scanned Rows:\s(\d+)"
 PLAN_PEAK_MEMORY = r"\nPeak memory:\s(\d+)"
+
+VERSION = r"version\s((\d+\.\d+\.\d+\.\d+)\s+build\s+(\d+)\s+revision\s+([0-9a-z]+))"
 
 
 def yb_db_factory(config):
@@ -113,7 +116,6 @@ class Yugabyte(Postgres):
             except Exception as e:
                 self.logger.exception(f"Failed to create testing database {e}")
 
-
     def prepare_query_execution(self, cur, query_object):
         super().prepare_query_execution(cur, query_object)
 
@@ -137,6 +139,23 @@ class Yugabyte(Postgres):
 
     def reset_query_statics(self, cur: cursor):
         evaluate_sql(cur, "SELECT pg_stat_statements_reset()")
+
+    def get_revision_version(self, cur: cursor):
+        model_result = ""
+        try:
+            model_result = re.findall(VERSION,
+                                      requests.get(f'http://{self.config.connection.host}:7000/tablet-servers').text,
+                                      re.MULTILINE)
+
+            if model_result:
+                version = f"{model_result[0][1]}-b{model_result[0][2]}"
+                revision = model_result[0][3]
+
+                return revision, version
+        except Exception:
+            self.logger.error(model_result)
+
+        return 'UNKNOWN', 'UNKNOWN'
 
     def collect_query_statistics(self, cur: cursor, query: Query, query_str: str):
         try:

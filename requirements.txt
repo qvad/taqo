@@ -12,3 +12,4 @@ xlsxwriter
 numpy~=1.24.2
 scipy
 bokeh
+requests

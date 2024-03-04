@@ -41,17 +41,19 @@ class CollectAction:
     def evaluate(self):
         loader = self.config.database.get_results_loader()
 
-        commit_message = self.start_db()
+        self.start_db()
         try:
             self.sut_database.create_test_database()
 
             self.sut_database.establish_connection(self.config.connection.database)
 
             loq = self.config.database.get_list_queries()
-            loq.db_version = self.sut_database.connection.get_version()
+            with self.sut_database.connection.conn.cursor() as cur:
+                loq.db_version, loq.git_message = self.sut_database.get_revision_version(cur)
+
             loq.model_queries, loq.queries = self.run_ddl_and_testing_queries(
                 self.sut_database.connection.conn, self.config.with_optimizations)
-            loq.git_message = commit_message
+
             loq.config = str(self.config)
 
             self.logger.info(f"Storing results to report/{self.config.output}")

@@ -54,3 +54,6 @@ class Database:
 
     def collect_query_statistics(self, cur: cursor, query, query_str: str):
         pass
+
+    def get_revision_version(self, cur: cursor):
+        pass
