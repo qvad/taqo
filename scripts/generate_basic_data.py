@@ -2,7 +2,7 @@ import argparse
 import os
 import string
 from os.path import exists
-from random import random, choices
+from random import choices, seed
 
 from tqdm import tqdm
 
@@ -10,7 +10,7 @@ from tqdm import tqdm
 def generate_data(multiplier):
     print("Generating data files for simplified model")
 
-    random.seed = 2023
+    seed(2023)
 
     # create dir if not there yet
     if not exists(f"{os.path.abspath(os.getcwd())}/sql/basic/data"):
