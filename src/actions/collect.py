@@ -165,7 +165,7 @@ class CollectAction:
                     continue
 
                 self.config.has_failures = True
-                self.logger.exception(f"INCONSISTENT RESULTS!\n"
+                self.logger.exception(f"UNSTABLE: INCONSISTENT RESULTS\n"
                                       f"Validation: {original_query.result_hash} != {optimization.result_hash}\n"
                                       f"Cardinality: {original_query.result_cardinality} {cardinality_equality} {optimization.result_cardinality}\n"
                                       f"Reproducer original: {original_query.query}\n"
@@ -181,7 +181,7 @@ class CollectAction:
         if explain_execution_time and (explain_execution_time > avg_execution_time and
                 not allowed_diff(self.config, avg_execution_time, explain_execution_time)):
             self.config.has_warnings = True
-            self.logger.warning(f"WARNING!\n"
+            self.logger.warning(f"UNSTABLE: WARNING\n"
                                 f"ANALYZE query execution time is too large:\n"
                                 f"Execution times (explain vs avg): {explain_execution_time} < {avg_execution_time}\n"
                                 f"Query: {original_query.query}\n")
