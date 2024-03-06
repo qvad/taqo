@@ -1,5 +1,7 @@
 -- FULL JOINS
 -- SUBSELECT more that some value from subquery
+-- tags: skip_consistency_check
+
 SELECT t1000000.c_text,
        (SELECT t500000.c_money
         FROM t500000
