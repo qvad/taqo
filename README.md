@@ -164,7 +164,7 @@ substrings of `pg_hints`can be mentioned there:
 -- accept: a b c
 -- reject: NestLoop
 -- max_timeout: 5s
--- tags: muted_nlj, 5s_max
+-- tags: muted_nlj, 5s_max, skip_consistency_check
 -- debug_hints: set (yb_enable_optimizer_statistics false)
 
 select a.c1,
@@ -177,6 +177,12 @@ joins. Max query timeout will be limited by 5 seconds.
 After optimizations are generated, the framework evaluates all of them with maximum query timeout
 equal to current minimum execution time (starts with original optimization timeout) so do not spend
 time on worst cases.
+
+#### Result validation
+
+TAQO implements consistency checks, which are reflected in the collect and report logs.
+In the event that certain optimizations yield varying results, these discrepancies will be brought to attention.
+To disable this feature, you can add the skip_consistency_check tag.
 
 ----
 

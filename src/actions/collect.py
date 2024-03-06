@@ -154,6 +154,9 @@ class CollectAction:
             conn.rollback()
 
     def validate_result_hash(self, original_query):
+        if "skip_consistency_check" in original_query.optimizer_tips.tags:
+            return
+
         result_hash = original_query.result_hash
         for optimization in original_query.optimizations:
             if optimization.result_hash and result_hash != optimization.result_hash:
