@@ -49,7 +49,7 @@ class CollectAction:
 
             loq = self.config.database.get_list_queries()
             with self.sut_database.connection.conn.cursor() as cur:
-                loq.db_version, loq.git_message = self.sut_database.get_revision_version(cur)
+                loq.git_message, loq.db_version = self.sut_database.get_revision_version(cur)
 
             loq.model_queries, loq.queries = self.run_ddl_and_testing_queries(
                 self.sut_database.connection.conn, self.config.with_optimizations)
