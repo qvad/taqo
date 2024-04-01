@@ -277,7 +277,10 @@ class RegressionReport(AbstractReportAction):
                                 f"{b2_best_col}" \
                                 f"a|{ratio_color}#*{ratio_x3_str}*#\n" \
                                 f"a|{ratio_best_color}#*{best_yb_pg_equality}{ratio_best_x3_str}*#\n"
+
+                self.content += f"a|[#{yb_v1_query.query_hash}_top]"
                 self.append_tag_page_link(tag, yb_v1_query.query_hash, f"Query {yb_v1_query.query_hash}")
+
                 self.start_source(["sql"])
                 self.content += format_sql(yb_v2_query.get_reportable_query())
                 self.end_source()
