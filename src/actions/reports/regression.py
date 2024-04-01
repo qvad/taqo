@@ -384,30 +384,30 @@ class RegressionReport(AbstractReportAction):
 
         self.reported_queries_counter += 1
 
-        report += f"\n[#{v1_query.query_hash}]\n"
-        report += f"=== Query {v1_query.query_hash}"
-        report += f"\n{v1_query.tag}\n"
+        report.content += f"\n[#{v1_query.query_hash}]\n"
+        report.content += f"=== Query {v1_query.query_hash}"
+        report.content += f"\n{v1_query.tag}\n"
         report.append_index_page_hashtag_link("top", "Go to index")
         report.append_index_page_hashtag_link(f"{v1_query.query_hash}_top", "Show in summary")
         self.add_double_newline()
 
         self.start_source(["sql"])
-        report += format_sql(v1_query.get_reportable_query())
+        report.content += format_sql(v1_query.get_reportable_query())
         self.end_source()
 
         if v2_has_optimizations:
             self.start_table("2")
-            report += f"|{self.v1_name}|{self.v2_name}\n"
+            report.content += f"|{self.v1_name}|{self.v2_name}\n"
             v1_query_plot = self.create_query_plot(v1_best, v1_query.optimizations, v1_query, "v1")
             v2_query_plot = self.create_query_plot(v2_best, v2_query.optimizations, v2_query, "v2")
-            report += f"a|image::{v1_query_plot}[{self.v1_name},align=\"center\"]\n"
-            report += f"a|image::{v2_query_plot}[{self.v2_name},align=\"center\"]\n"
+            report.content += f"a|image::{v1_query_plot}[{self.v1_name},align=\"center\"]\n"
+            report.content += f"a|image::{v2_query_plot}[{self.v2_name},align=\"center\"]\n"
             self.end_table()
         else:
             self.start_table("1")
-            report += f"|{self.v1_name}\n"
+            report.content += f"|{self.v1_name}\n"
             v1_query_plot = self.create_query_plot(v1_best, v1_query.optimizations, v1_query, "v1")
-            report += f"a|image::{v1_query_plot}[{self.v1_name},align=\"center\",width=640,height=480]\n"
+            report.content += f"a|image::{v1_query_plot}[{self.v1_name},align=\"center\",width=640,height=480]\n"
             self.end_table()
 
         self.add_double_newline()
@@ -416,7 +416,7 @@ class RegressionReport(AbstractReportAction):
         default_v1_equality = "(eq) " if v1_query.compare_plans(v1_best.execution_plan) else ""
 
         self.start_table("5")
-        report += f"|Metric|{self.v1_name}|{self.v1_name} Best|{self.v2_name}|{self.v2_name} Best\n"
+        report.content += f"|Metric|{self.v1_name}|{self.v1_name} Best|{self.v2_name}|{self.v2_name} Best\n"
 
         default_v2_equality = "(eq) " if v2_query.compare_plans(v2_best.execution_plan) else ""
         best_yb_pg_equality = "(eq) " if v1_best.compare_plans(v2_best.execution_plan) else ""
@@ -424,7 +424,7 @@ class RegressionReport(AbstractReportAction):
 
         if 'order by' in v1_query.query:
             self.start_table_row()
-            report += f"!! Result hash" \
+            report.content += f"!! Result hash" \
                       f"|{v1_query.result_hash}" \
                       f"|{v1_best.result_hash}" \
                       f"|{v2_query.result_hash}" \
@@ -438,21 +438,21 @@ class RegressionReport(AbstractReportAction):
             self.end_table_row()
 
         self.start_table_row()
-        report += f"Cardinality" \
+        report.content += f"Cardinality" \
                   f"|{v1_query.result_cardinality}" \
                   f"|{v1_best.result_cardinality}" \
                   f"|{v2_query.result_cardinality}" \
                   f"|{v2_best.result_cardinality}"
         self.end_table_row()
         self.start_table_row()
-        report += f"Estimated cost" \
+        report.content += f"Estimated cost" \
                   f"|{v1_query.execution_plan.get_estimated_cost()}" \
                   f"|{default_v1_equality}{v1_best.execution_plan.get_estimated_cost()}" \
                   f"|{default_v1_v2_equality}{v2_query.execution_plan.get_estimated_cost()}" \
                   f"|{default_v2_equality}{v2_best.execution_plan.get_estimated_cost()}"
         self.end_table_row()
         self.start_table_row()
-        report += f"Execution time" \
+        report.content += f"Execution time" \
                   f"|{'{:.2f}'.format(v1_query.execution_time_ms)}" \
                   f"|{default_v1_equality}{'{:.2f}'.format(v1_best.execution_time_ms)}" \
                   f"|{'{:.2f}'.format(v2_query.execution_time_ms)}" \
@@ -466,19 +466,19 @@ class RegressionReport(AbstractReportAction):
 
         self.start_collapsible(f"{self.v1_name} default plan")
         self.start_source(["diff"])
-        report += v1_query.execution_plan.full_str
+        report.content += v1_query.execution_plan.full_str
         self.end_source()
         self.end_collapsible()
 
         self.start_collapsible(f"{default_v1_equality}{self.v1_name} best plan")
         self.start_source(["diff"])
-        report += v1_best.execution_plan.full_str
+        report.content += v1_best.execution_plan.full_str
         self.end_source()
         self.end_collapsible()
 
         self.start_collapsible(f"{self.v2_name} default plan")
         self.start_source(["diff"])
-        report += v2_query.execution_plan.full_str
+        report.content += v2_query.execution_plan.full_str
         self.end_source()
         self.end_collapsible()
 
@@ -486,21 +486,21 @@ class RegressionReport(AbstractReportAction):
             v2_best = v2_query.get_best_optimization(self.config)
             self.start_collapsible(f"{default_v2_equality}{self.v2_name} best plan")
             self.start_source(["diff"])
-            report += v2_best.execution_plan.full_str
+            report.content += v2_best.execution_plan.full_str
             self.end_source()
             self.end_collapsible()
 
         v2_prefix = "best" if v2_has_optimizations else "default"
         self.start_collapsible(f"{best_yb_pg_equality}{self.v1_name} best vs {self.v2_name} {v2_prefix}")
         self.start_source(["diff"])
-        report += get_plan_diff(
+        report.content += get_plan_diff(
             v1_best.execution_plan.full_str,
             v2_best.execution_plan.full_str if v2_has_optimizations else v2_query.execution_plan.full_str,
         )
         self.end_source()
         self.end_collapsible()
 
-        report += f"{default_v1_equality}{self.v1_name} vs {self.v2_name}\n"
+        report.content += f"{default_v1_equality}{self.v1_name} vs {self.v2_name}\n"
         self.start_source(["diff"])
         diff = get_plan_diff(
             v1_query.execution_plan.full_str,
@@ -509,11 +509,11 @@ class RegressionReport(AbstractReportAction):
         if not diff:
             diff = v1_query.execution_plan.full_str
 
-        report += diff
+        report.content += diff
         self.end_source()
         self.end_table_row()
 
-        report += "\n"
+        report.content += "\n"
 
         self.end_table()
 
