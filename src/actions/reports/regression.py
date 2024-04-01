@@ -403,14 +403,14 @@ class RegressionReport(AbstractReportAction):
             report.content += f"|{self.v1_name}|{self.v2_name}\n"
             v1_query_plot = self.create_query_plot(v1_best, v1_query.optimizations, v1_query, "v1")
             v2_query_plot = self.create_query_plot(v2_best, v2_query.optimizations, v2_query, "v2")
-            report.content += f"a|image::{v1_query_plot}[{self.v1_name},align=\"center\"]\n"
-            report.content += f"a|image::{v2_query_plot}[{self.v2_name},align=\"center\"]\n"
+            report.content += f"a|image::../{v1_query_plot}[{self.v1_name},align=\"center\"]\n"
+            report.content += f"a|image::../{v2_query_plot}[{self.v2_name},align=\"center\"]\n"
             report.end_table()
         else:
             report.start_table("1")
             report.content += f"|{self.v1_name}\n"
             v1_query_plot = self.create_query_plot(v1_best, v1_query.optimizations, v1_query, "v1")
-            report.content += f"a|image::{v1_query_plot}[{self.v1_name},align=\"center\",width=640,height=480]\n"
+            report.content += f"a|image::../{v1_query_plot}[{self.v1_name},align=\"center\",width=640,height=480]\n"
             report.end_table()
 
         report.add_double_newline()
