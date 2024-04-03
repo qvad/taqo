@@ -123,7 +123,7 @@ class Postgres(Database):
         version = re.findall(VERSION, cur.fetchone()[0], re.MULTILINE)
 
         if version:
-            return "PG", version[1]
+            return "PG", version[0]
         else:
             return "UNKNOWN_VERSION"
 
