@@ -350,7 +350,7 @@ class PostgresQuery(Query):
         return best_optimization
 
     def get_inconsistent_results(self):
-        if not self.result_hash or "skip_consistency_check" in self.optimizer_tips.tags:
+        if not self.result_hash or "skip_consistency_check" in self.optimizer_tips.tags or not self.optimizations:
             return []
 
         return [optimization.explain_hints for optimization in self.optimizations
