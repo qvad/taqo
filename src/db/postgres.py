@@ -101,6 +101,15 @@ class Postgres(Database):
             except Exception as e:
                 self.logger.exception(f"Failed to create testing database {e}")
 
+    def drop_test_database(self):
+        self.establish_connection("postgres")
+        conn = self.connection.conn
+        try:
+            with conn.cursor() as cur:
+                evaluate_sql(cur, f'DROP DATABASE {self.config.connection.database};')
+        except Exception as e:
+            self.logger.exception(f"Failed to drop testing database {e}")
+
     def set_query_timeout(self, cur, timeout):
         self.logger.debug(f"Setting statement timeout to {timeout} seconds")
         evaluate_sql(cur, f"SET statement_timeout = '{timeout}s'")

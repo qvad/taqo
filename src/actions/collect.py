@@ -63,6 +63,7 @@ class CollectAction:
             raise e
         finally:
             if self.config.clean_db:
+                self.sut_database.drop_test_database()
                 self.sut_database.stop_database()
 
     def run_ddl_and_testing_queries(self,

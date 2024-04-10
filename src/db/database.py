@@ -22,6 +22,9 @@ class Database:
     def create_test_database(self):
         pass
 
+    def drop_test_database(self):
+        pass
+
     def prepare_query_execution(self, cur, query):
         pass
 
