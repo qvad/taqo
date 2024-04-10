@@ -102,6 +102,11 @@ class Postgres(Database):
                 self.logger.exception(f"Failed to create testing database {e}")
 
     def drop_test_database(self):
+        try:
+            self.connection.conn.close()
+        except Exception as e:
+            self.logger.exception(f"Failed to close testing database connection {e}")
+
         self.establish_connection("postgres")
         conn = self.connection.conn
         try:
