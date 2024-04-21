@@ -182,10 +182,9 @@ def query_is_dml(query_str_lower):
 
 def extract_execution_time_from_analyze(result):
     extracted = -1
-    matches = re.finditer(r"^Execution\sTime:\s(\d+\.\d+)\sms", result, re.MULTILINE)
-    for matchNum, match in enumerate(matches, start=1):
-        extracted = float(match.groups()[0])
-        break
+    matches = re.findall(r"(?<!\s)Execution\sTime:\s(\d+\.\d+)\sms", result, re.MULTILINE)
+    if matches:
+        return float(matches[0])
 
     return extracted
 
@@ -321,6 +320,7 @@ def evaluate_sql(cur: cursor, sql: str):
             config.logger.debug(f"SQL >> {sql}[{parameters}]")
             cur.execute(sql, parameters)
         except psycopg2.errors.QueryCanceled as e:
+            config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", sql)
             cur.connection.rollback()
             raise e
         except psycopg2.errors.DuplicateDatabase as ddb:
@@ -352,6 +352,7 @@ def evaluate_sql(cur: cursor, sql: str):
             cur.execute(sql_wo_parameters)
         except psycopg2.errors.QueryCanceled as e:
             cur.connection.rollback()
+            config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", sql_wo_parameters)
             raise e
         except psycopg2.errors.DuplicateDatabase as ddb:
             cur.connection.rollback()
