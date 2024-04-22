@@ -13,6 +13,8 @@ from objects import Query
 class CollectResult:
     db_version: str = ""
     git_message: str = ""
+    ddl_execution_time: int = 0
+    model_execution_time: int = 0
     config: str = ""
     model_queries: List[str] = None
     queries: List[Type[Query]] = None

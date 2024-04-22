@@ -21,7 +21,7 @@ class ScoreStatsReport(AbstractReportAction):
         for query in loq.queries:
             report.add_query(query, pg_loq.find_query_by_hash(query.query_hash) if pg_loq else None)
 
-        report.build_report(loq.db_version, loq.git_message)
+        report.build_report(loq)
         report.dump_json()
 
     def add_query(self, query: Type[Query], pg: Type[Query] | None):
@@ -30,7 +30,7 @@ class ScoreStatsReport(AbstractReportAction):
         else:
             self.queries[query.tag].append([query, pg])
 
-    def build_report(self, version, git_hash):
+    def build_report(self, loq):
         yb_bests = 0
         pg_bests = 0
         qe_default_geo = 1
@@ -87,8 +87,10 @@ class ScoreStatsReport(AbstractReportAction):
             "more_10x_default_vs_default": slower_then_10x,
             "more_10x_best_vs_default": best_slower_then_10x,
 
-            "version": version,
-            "commit": git_hash,
+            "version": loq.db_version,
+            "commit": loq.git_message,
+            "ddl_time": loq.ddl_execution_time,
+            "model_time": loq.model_execution_time,
         }
 
     def dump_json(self):

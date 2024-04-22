@@ -7,7 +7,8 @@ from actions.collects.pg_unit import PgUnitGenerator
 from config import Config, DDLStep
 from models.factory import get_test_model
 from objects import EXPLAIN, ExplainFlags
-from utils import evaluate_sql, calculate_avg_execution_time, get_md5, allowed_diff, extract_execution_time_from_analyze
+from utils import evaluate_sql, calculate_avg_execution_time, get_md5, allowed_diff, \
+    extract_execution_time_from_analyze, current_milli_time
 
 
 class CollectAction:
@@ -51,8 +52,8 @@ class CollectAction:
             with self.sut_database.connection.conn.cursor() as cur:
                 loq.git_message, loq.db_version = self.sut_database.get_revision_version(cur)
 
-            loq.model_queries, loq.queries = self.run_ddl_and_testing_queries(
-                self.sut_database.connection.conn, self.config.with_optimizations)
+            loq.ddl_execution_time, loq.model_execution_time, loq.model_queries, loq.queries = (
+                self.run_ddl_and_testing_queries(self.sut_database.connection.conn, self.config.with_optimizations))
 
             loq.config = str(self.config)
 
@@ -72,12 +73,14 @@ class CollectAction:
         try:
             model = get_test_model()
 
+            ddl_start_time = current_milli_time()
             created_tables, \
                 non_catalog_tables, \
                 teardown_queries, \
                 create_queries, \
                 analyze_queries, \
                 import_queries = model.create_tables(connection)
+            ddl_execution_time = int((current_milli_time() - ddl_start_time) / 1000)
 
             model_queries = teardown_queries + create_queries + analyze_queries + import_queries
             queries = model.get_queries(created_tables)
@@ -89,13 +92,15 @@ class CollectAction:
             exit(1)
 
         connection.autocommit = False
+        model_start_time = current_milli_time()
         self.evaluate_testing_queries(connection, queries, evaluate_optimizations)
+        model_execution_time = int((current_milli_time() - model_start_time) / 1000)
 
         PgUnitGenerator().generate_postgres_unit_tests(teardown_queries,
                                                        create_queries,
                                                        queries)
 
-        return model_queries, queries
+        return ddl_execution_time, model_execution_time, model_queries, queries
 
     def evaluate_testing_queries(self, conn, queries, evaluate_optimizations):
         counter = 1
