@@ -86,7 +86,7 @@ def calculate_avg_execution_time(cur,
     for iteration in range(num_retries + num_warmup):
         # noinspection PyUnresolvedReferences
         try:
-            if iteration >= num_warmup and not stats_reset:
+            if config.yugabyte_collect_stats and iteration >= num_warmup and not stats_reset:
                 sut_database.reset_query_statics(cur)
                 stats_reset = True
 
