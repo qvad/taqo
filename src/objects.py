@@ -67,7 +67,7 @@ class ExecutionPlan:
     full_str: str = ""
 
     def get_estimated_cost(self):
-        pass
+        return -1
 
     def get_clean_plan(self, execution_plan=None):
         # todo get plan tree instead here to support plan comparison between DBs
@@ -139,6 +139,12 @@ class Query:
 
     execution_plan_heatmap: Dict[int, Dict[str, str]] = None
 
+    def create_copy(self):
+        return Query(self.tag, self.query, self.query_hash, self.tables,
+                     execution_time_ms=-1,
+                     execution_plan=ExecutionPlan("NOT FOUND"),
+                     optimizations=[])
+
     def get_query(self):
         return self.query
 
@@ -157,10 +163,10 @@ class Query:
         pass
 
     def get_best_optimization(self, config):
-        pass
+        return self
 
     def get_reportable_query(self):
-        pass
+        return self.query.replace("|", "\|")
 
     def get_inconsistent_results(self):
         pass

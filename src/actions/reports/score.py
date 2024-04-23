@@ -41,7 +41,12 @@ class ScoreReport(AbstractReportAction):
         report.report_model(loq.model_queries)
 
         for query in loq.queries:
-            report.add_query(query, pg_loq.find_query_by_hash(query.query_hash) if pg_loq else None)
+            pg_query = pg_loq.find_query_by_hash(query.query_hash) if pg_loq else None
+            if pg_query:
+                report.add_query(query, pg_query)
+            else:
+                report.logger.exception("No PG query found for hash %s", query.query_hash)
+                report.add_query(query, query.create_copy())
 
         report.build_report()
         report.build_xls_report()
