@@ -276,10 +276,10 @@ class ScoreReport(AbstractReportAction):
 
         yb_bests = 0
         pg_bests = 0
-        qe_default_geo = 1
-        qe_bests_geo = 1
-        qo_yb_bests_geo = 1
-        qo_pg_bests_geo = 1
+        qe_default_geo = []
+        qe_bests_geo = []
+        qo_yb_bests_geo = []
+        qo_pg_bests_geo = []
         timed_out = 0
         slower_then_10x = 0
         best_slower_then_10x = 0
@@ -298,13 +298,13 @@ class ScoreReport(AbstractReportAction):
 
                 pg_success = pg_query.execution_time_ms > 0
 
-                qe_default_geo *= yb_query.execution_time_ms / pg_query.execution_time_ms if pg_success else 1
-                qe_bests_geo *= yb_best.execution_time_ms / pg_best.execution_time_ms if pg_success else 1
+                qe_default_geo.append(yb_query.execution_time_ms / pg_query.execution_time_ms if pg_success else 1)
+                qe_bests_geo.append(yb_best.execution_time_ms / pg_best.execution_time_ms if pg_success else 1)
 
                 if yb_query.execution_time_ms > 0 and yb_best.execution_time_ms > 0:
-                    qo_yb_bests_geo *= yb_query.execution_time_ms / yb_best.execution_time_ms
+                    qo_yb_bests_geo.append(yb_query.execution_time_ms / yb_best.execution_time_ms)
                 if pg_query.execution_time_ms > 0 and pg_best.execution_time_ms > 0:
-                    qo_pg_bests_geo *= pg_query.execution_time_ms / pg_best.execution_time_ms
+                    qo_pg_bests_geo.append(pg_query.execution_time_ms / pg_best.execution_time_ms)
 
                 yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
                 pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best.execution_plan) else 0
@@ -320,10 +320,10 @@ class ScoreReport(AbstractReportAction):
         self.content += "|Statistic|YB|PG\n"
         self.content += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_bests) * 100 / total)}%" \
                         f"|{'{:.2f}'.format(float(pg_bests) * 100 / total)}%\n"
-        self.content += f"|Geometric mean QE default\n2+m|{'{:.2f}'.format(qe_default_geo ** (1 / total))}\n"
-        self.content += f"|Geometric mean QE best\n2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
-        self.content += f"|Geometric mean QO default vs best|{'{:.2f}'.format(qo_yb_bests_geo ** (1 / total))}" \
-                        f"|{'{:.2f}'.format(qo_pg_bests_geo ** (1 / total))}\n"
+        self.content += f"|Geometric mean QE default\n2+m|{'{:.2f}'.format(self.geo_mean(qe_default_geo))}\n"
+        self.content += f"|Geometric mean QE best\n2+m|{'{:.2f}'.format(self.geo_mean(qe_bests_geo))}\n"
+        self.content += f"|Geometric mean QO default vs best|{'{:.2f}'.format(self.geo_mean(qo_yb_bests_geo))}" \
+                        f"|{'{:.2f}'.format(self.geo_mean(qo_pg_bests_geo))}\n"
         self.content += f"|% Queries > 10x: YB default vs PG default\n" \
                         f"2+m|{slower_then_10x}/{total} (+{timed_out} timed out)\n"
         self.content += f"|% Queries > 10x: YB best vs PG default\n2+m|{best_slower_then_10x}/{total}\n"

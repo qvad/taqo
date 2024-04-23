@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import time
+import numpy as np
 from pathlib import Path
 
 from config import Config
@@ -85,6 +86,10 @@ class AbstractReportAction(ObjectsMixin):
 
     def get_report_name(self):
         return ""
+
+    def geo_mean(self, iterable):
+        a = np.array(iterable)
+        return a.prod() ** (1.0 / len(a))
 
     def report_model(self, model_queries):
         if model_queries:

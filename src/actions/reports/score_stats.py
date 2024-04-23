@@ -33,10 +33,10 @@ class ScoreStatsReport(AbstractReportAction):
     def build_report(self, loq):
         yb_bests = 0
         pg_bests = 0
-        qe_default_geo = 1
-        qe_bests_geo = 1
-        qo_yb_bests_geo = 1
-        qo_pg_bests_geo = 1
+        qe_default_geo = []
+        qe_bests_geo = []
+        qo_yb_bests_geo = []
+        qo_pg_bests_geo = []
         timed_out = 0
         slower_then_10x = 0
         best_slower_then_10x = 0
@@ -56,13 +56,13 @@ class ScoreStatsReport(AbstractReportAction):
 
                     pg_success = pg_query.execution_time_ms > 0
 
-                    qe_default_geo *= yb_query.execution_time_ms / pg_query.execution_time_ms if pg_success else 1
-                    qe_bests_geo *= yb_best.execution_time_ms / pg_best.execution_time_ms if pg_success else 1
+                    qe_default_geo.append(yb_query.execution_time_ms / pg_query.execution_time_ms if pg_success else 1)
+                    qe_bests_geo.append(yb_best.execution_time_ms / pg_best.execution_time_ms if pg_success else 1)
 
                     if yb_query.execution_time_ms > 0 and yb_best.execution_time_ms > 0:
-                        qo_yb_bests_geo *= yb_query.execution_time_ms / yb_best.execution_time_ms
+                        qo_yb_bests_geo.append(yb_query.execution_time_ms / yb_best.execution_time_ms)
                     if pg_query.execution_time_ms > 0 and pg_best.execution_time_ms > 0:
-                        qo_pg_bests_geo *= pg_query.execution_time_ms / pg_best.execution_time_ms
+                        qo_pg_bests_geo.append(pg_query.execution_time_ms / pg_best.execution_time_ms)
 
                     yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
                     pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best.execution_plan) else 0
@@ -78,9 +78,9 @@ class ScoreStatsReport(AbstractReportAction):
 
         self.json = {
             "best_picked": '{:.2f}'.format(float(yb_bests) * 100 / total),
-            "qe_default": '{:.2f}'.format(qe_default_geo ** (1 / total)),
-            "qe_best": '{:.2f}'.format(qe_bests_geo ** (1 / total)),
-            "qo_default_vs_best": '{:.2f}'.format(qo_yb_bests_geo ** (1 / total)),
+            "qe_default": '{:.2f}'.format(self.geo_mean(qe_default_geo)),
+            "qe_best": '{:.2f}'.format(self.geo_mean(qe_bests_geo)),
+            "qo_default_vs_best": '{:.2f}'.format(self.geo_mean(qo_yb_bests_geo)),
 
             "total": total,
             "timeout": timed_out,
