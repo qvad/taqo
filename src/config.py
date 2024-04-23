@@ -109,7 +109,9 @@ class Config(metaclass=Singleton):
     all_pairs_threshold: int = None
 
     yugabyte_bin_path: str = None
+    yugabyte_collect_stats: bool = True
     yugabyte_master_addresses: str = None
+
     asciidoctor_path: str = None
     clear: bool = False
 

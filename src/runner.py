@@ -82,6 +82,10 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--yugabyte-master-addresses',
                         default="",
                         help='List of Yugabyte master nodes to use yb-admin command')
+    parser.add_argument('--yugabyte-stats',
+                        action=argparse.BooleanOptionalAction,
+                        default=True,
+                        help='Do collect stats from pg_stat_statements_reset')
 
     parser.add_argument('--type',
                         help='Report type - taqo, score, regression, comparison, selectivity or cost')
@@ -292,6 +296,7 @@ if __name__ == "__main__":
         colocated_database=args.colocated,
         yugabyte_bin_path=args.yugabyte_bin_path or configuration.get("yugabyte-bin-path", None),
         yugabyte_master_addresses=args.yugabyte_master_addresses if args.yugabyte_master_addresses else args.host,
+        yugabyte_collect_stats=args.yugabyte_stats,
 
         connection=ConnectionConfig(host=args.host,
                                     port=args.port,

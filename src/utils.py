@@ -144,7 +144,8 @@ def calculate_avg_execution_time(cur,
     # TODO convert execution_time_ms into a property
     query.execution_time_ms = sum(execution_times) / len(execution_times)
 
-    sut_database.collect_query_statistics(cur, query, query_str)
+    if config.yugabyte_collect_stats:
+        sut_database.collect_query_statistics(cur, query, query_str)
 
     return True
 
