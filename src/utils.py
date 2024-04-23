@@ -320,7 +320,7 @@ def evaluate_sql(cur: cursor, sql: str):
             config.logger.debug(f"SQL >> {sql}[{parameters}]")
             cur.execute(sql, parameters)
         except psycopg2.errors.QueryCanceled as e:
-            config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", sql)
+            config.logger.debug(f"UNSTABLE: {sql_wo_parameters}", sql)
             cur.connection.rollback()
             raise e
         except psycopg2.errors.DuplicateDatabase as ddb:
@@ -352,7 +352,7 @@ def evaluate_sql(cur: cursor, sql: str):
             cur.execute(sql_wo_parameters)
         except psycopg2.errors.QueryCanceled as e:
             cur.connection.rollback()
-            config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", sql_wo_parameters)
+            config.logger.debug(f"UNSTABLE: {sql_wo_parameters}", sql_wo_parameters)
             raise e
         except psycopg2.errors.DuplicateDatabase as ddb:
             cur.connection.rollback()
