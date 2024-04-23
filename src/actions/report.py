@@ -88,8 +88,7 @@ class AbstractReportAction(ObjectsMixin):
         return ""
 
     def geo_mean(self, iterable):
-        a = np.array(iterable)
-        return a.prod() ** (1.0 / len(a))
+        return np.exp(np.log(iterable).mean())
 
     def report_model(self, model_queries):
         if model_queries:
