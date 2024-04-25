@@ -69,6 +69,9 @@ class ExecutionPlan:
     def get_estimated_cost(self):
         return -1
 
+    def is_present(self):
+        return self.full_str != "" and self.full_str is not None
+
     def get_clean_plan(self, execution_plan=None):
         # todo get plan tree instead here to support plan comparison between DBs
         pass
