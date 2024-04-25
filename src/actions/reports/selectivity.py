@@ -51,12 +51,12 @@ class SelectivityReport(AbstractReportAction):
                   stats_analyze: Query
                   ):
         queries_tuple = [default, default_analyze, ta, ta_analyze, stats, stats_analyze]
-        if not default.compare_plans(default_analyze.execution_plan) or \
-                not ta.compare_plans(ta_analyze.execution_plan) or \
-                not stats.compare_plans(stats_analyze.execution_plan):
+        if not default.compare_plans(default_analyze) or \
+                not ta.compare_plans(ta_analyze) or \
+                not stats.compare_plans(stats_analyze):
             self.different_explain_plans.append(queries_tuple)
 
-        if default.compare_plans(stats_analyze.execution_plan):
+        if default.compare_plans(stats_analyze):
             self.same_execution_plan.append(queries_tuple)
         elif allowed_diff(self.config, default.execution_time_ms, stats_analyze.execution_time_ms):
             self.almost_same_execution_time.append(queries_tuple)

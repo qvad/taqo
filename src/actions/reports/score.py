@@ -105,12 +105,12 @@ class ScoreReport(AbstractReportAction):
                     data["pg_cost"].append(pg_query.execution_plan.get_estimated_cost())
                     data["pg_time"].append(pg_query.execution_time_ms)
                     yb_best = yb_query.get_best_optimization(self.config)
-                    if (not yb_query.compare_plans(yb_best.execution_plan)):
+                    if not yb_query.compare_plans(yb_best):
                         data_yb_bad_plans["yb_cost"].append(yb_query.execution_plan.get_estimated_cost())
                         data_yb_bad_plans["yb_time"].append(yb_query.execution_time_ms)
                         data_yb_bad_plans["query_tag"].append(tag)
                     pg_best = pg_query.get_best_optimization(self.config)
-                    if (not pg_query.compare_plans(pg_best.execution_plan)):
+                    if not pg_query.compare_plans(pg_best):
                         data_pg_bad_plans["pg_cost"].append(pg_query.execution_plan.get_estimated_cost())
                         data_pg_bad_plans["pg_time"].append(pg_query.execution_time_ms)
                         data_pg_bad_plans["query_tag"].append(tag)
@@ -311,8 +311,8 @@ class ScoreReport(AbstractReportAction):
                 if pg_query.execution_time_ms > 0 and pg_best.execution_time_ms > 0:
                     qo_pg_bests_geo.append(pg_query.execution_time_ms / pg_best.execution_time_ms)
 
-                yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
-                pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best.execution_plan) else 0
+                yb_bests += 1 if yb_query.compare_plans(yb_best) else 0
+                pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best) else 0
                 timed_out += 1 if yb_query.execution_time_ms == -1 else 0
                 slower_then_10x += 1 if pg_query.execution_time_ms and \
                                         (yb_query.execution_time_ms / pg_query.execution_time_ms) >= 10 else 0
@@ -350,11 +350,11 @@ class ScoreReport(AbstractReportAction):
 
                 pg_success = pg_query.execution_time_ms > 0
 
-                default_yb_equality = "[green]" if yb_query.compare_plans(yb_best.execution_plan) else "[red]"
+                default_yb_equality = "[green]" if yb_query.compare_plans(yb_best) else "[red]"
                 default_pg_equality = "[green]" \
-                    if pg_success and pg_query.compare_plans(pg_best.execution_plan) else "[red]"
+                    if pg_success and pg_query.compare_plans(pg_best) else "[red]"
 
-                best_yb_pg_equality = "(eq) " if yb_best.compare_plans(pg_best.execution_plan) else ""
+                best_yb_pg_equality = "(eq) " if yb_best.compare_plans(pg_best) else ""
 
                 ratio_x3 = yb_query.execution_time_ms / (3 * pg_query.execution_time_ms) \
                     if yb_best.execution_time_ms > 0 and pg_success else 99999999
@@ -453,8 +453,8 @@ class ScoreReport(AbstractReportAction):
                 yb_best = yb_query.get_best_optimization(self.config, )
                 pg_best = pg_query.get_best_optimization(self.config, )
 
-                yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
-                pg_bests += 1 if pg_query.compare_plans(pg_best.execution_plan) else 0
+                yb_bests += 1 if yb_query.compare_plans(yb_best) else 0
+                pg_bests += 1 if pg_query.compare_plans(pg_best) else 0
 
                 total += 1
 
@@ -481,11 +481,11 @@ class ScoreReport(AbstractReportAction):
                 yb_best = yb_query.get_best_optimization(self.config, )
                 pg_best = pg_query.get_best_optimization(self.config, )
 
-                default_yb_equality = yb_query.compare_plans(yb_best.execution_plan)
-                default_pg_equality = pg_query.compare_plans(pg_best.execution_plan)
+                default_yb_equality = yb_query.compare_plans(yb_best)
+                default_pg_equality = pg_query.compare_plans(pg_best)
 
-                default_yb_pg_equality = yb_query.compare_plans(pg_query.execution_plan)
-                best_yb_pg_equality = yb_best.compare_plans(pg_best.execution_plan)
+                default_yb_pg_equality = yb_query.compare_plans(pg_query)
+                best_yb_pg_equality = yb_best.compare_plans(pg_best)
 
                 ratio_x3 = yb_query.execution_time_ms / (3 * pg_query.execution_time_ms) \
                     if pg_query.execution_time_ms > 0 else 99999999
@@ -643,7 +643,7 @@ class ScoreReport(AbstractReportAction):
         report.add_double_newline()
 
         report.add_double_newline()
-        default_yb_equality = "(eq) " if yb_query.compare_plans(yb_best.execution_plan) else ""
+        default_yb_equality = "(eq) " if yb_query.compare_plans(yb_best) else ""
         default_pg_equality = ""
         default_yb_pg_equality = ""
 
@@ -653,9 +653,9 @@ class ScoreReport(AbstractReportAction):
             report.content += "|Metric|YB|YB Best|PG|PG Best\n"
 
             pg_best = pg_query.get_best_optimization(self.config)
-            default_pg_equality = "(eq) " if pg_query.compare_plans(pg_best.execution_plan) else ""
-            best_yb_pg_equality = "(eq) " if yb_best.compare_plans(pg_best.execution_plan) else ""
-            default_yb_pg_equality = "(eq) " if yb_query.compare_plans(pg_query.execution_plan) else ""
+            default_pg_equality = "(eq) " if pg_query.compare_plans(pg_best) else ""
+            best_yb_pg_equality = "(eq) " if yb_best.compare_plans(pg_best) else ""
+            default_yb_pg_equality = "(eq) " if yb_query.compare_plans(pg_query) else ""
 
             if 'order by' in yb_query.query:
                 report.start_table_row()
@@ -730,7 +730,7 @@ class ScoreReport(AbstractReportAction):
             report.end_source()
             report.end_collapsible()
 
-        if yb_best.query_stats and not yb_query.compare_plans(yb_best.execution_plan):
+        if yb_best.query_stats and not yb_query.compare_plans(yb_best):
             report.start_collapsible("YB stats best")
             report.start_source()
             report.content += str(yb_best.query_stats)

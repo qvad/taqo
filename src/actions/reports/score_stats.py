@@ -64,8 +64,8 @@ class ScoreStatsReport(AbstractReportAction):
                     if pg_query.execution_time_ms > 0 and pg_best.execution_time_ms > 0:
                         qo_pg_bests_geo.append(pg_query.execution_time_ms / pg_best.execution_time_ms)
 
-                    yb_bests += 1 if yb_query.compare_plans(yb_best.execution_plan) else 0
-                    pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best.execution_plan) else 0
+                    yb_bests += 1 if yb_query.compare_plans(yb_best) else 0
+                    pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best) else 0
                     timed_out += 1 if yb_query.execution_time_ms == -1 else 0
                     slower_then_10x += 1 if pg_query.execution_time_ms and \
                                             (yb_query.execution_time_ms / pg_query.execution_time_ms) >= 10 else 0

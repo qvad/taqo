@@ -301,9 +301,11 @@ class PostgresQuery(Query):
     def get_query(self):
         return f"{self.get_debug_hints()}{self.query}"
 
-    def compare_plans(self, execution_plan: Type['ExecutionPlan']):
+    def compare_plans(self, query: Type['Query']):
         if self.cost_off_explain:
-            return self.cost_off_explain.get_clean_plan() == self.cost_off_explain.get_clean_plan(execution_plan)
+            return self.cost_off_explain == query.cost_off_explain
+        elif self.execution_plan:
+            return self.execution_plan.get_clean_plan() == self.execution_plan.get_clean_plan(query.execution_plan)
         else:
             return False
 
@@ -626,7 +628,7 @@ class PostgresExecutionPlan(ExecutionPlan):
     def get_no_tree_plan_str(plan_str):
         return re.sub(PLAN_TREE_CLEANUP, '\n', plan_str).strip()
 
-    def get_clean_plan(self, execution_plan: Type['ExecutionPlan'] = None):
+    def get_clean_plan(self, execution_plan: ExecutionPlan = None):
         no_tree_plan = re.sub(PLAN_TREE_CLEANUP, '\n',
                               execution_plan.full_str if execution_plan else self.full_str).strip()
         return re.sub(PLAN_CLEANUP_REGEX, '', no_tree_plan).strip()

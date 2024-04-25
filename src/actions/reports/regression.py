@@ -190,8 +190,8 @@ class RegressionReport(AbstractReportAction):
                                    if yb_v1_best.execution_time_ms > 0 else 1)
                 qo_yb_v2_bests *= yb_v2_query.execution_time_ms / yb_v2_best.execution_time_ms \
                     if yb_v2_best.execution_time_ms > 0 else 9999999
-                yb_v1_bests += 1 if yb_v1_query.compare_plans(yb_v1_best.execution_plan) else 0
-                yb_v2_bests += 1 if yb_v2_query.compare_plans(yb_v2_best.execution_plan) else 0
+                yb_v1_bests += 1 if yb_v1_query.compare_plans(yb_v1_best) else 0
+                yb_v2_bests += 1 if yb_v2_query.compare_plans(yb_v2_best) else 0
 
                 total += 1
 
@@ -237,14 +237,14 @@ class RegressionReport(AbstractReportAction):
                 success = yb_v2_query.execution_time_ms > 0
 
                 default_v1_equality = "[green]" \
-                    if yb_v1_query.compare_plans(yb_v1_best.execution_plan) else "[red]"
+                    if yb_v1_query.compare_plans(yb_v1_best) else "[red]"
                 default_v2_equality = "[green]" \
-                    if success and yb_v2_query.compare_plans(yb_v2_best.execution_plan) else "[red]"
+                    if success and yb_v2_query.compare_plans(yb_v2_best) else "[red]"
 
                 if v2_has_optimizations:
-                    best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_best.execution_plan) else ""
+                    best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_best) else ""
                 else:
-                    best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_query.execution_plan) else ""
+                    best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_query) else ""
 
                 ratio_x3 = yb_v2_query.execution_time_ms / yb_v1_query.execution_time_ms \
                     if yb_v1_query.execution_time_ms > 0 else 99999999
@@ -305,7 +305,7 @@ class RegressionReport(AbstractReportAction):
         self.start_table("2")
         for tag, queries in self.queries.items():
             num_same_plans = sum(1 for query in queries
-                                 if query[0].compare_plans(query[1].execution_plan))
+                                 if query[0].compare_plans(query[1]))
             self.content += f"a|<<{tag}>>\n"
             self.short_summary.diff_plans = len(queries) - num_same_plans
             color = "[green]" if self.short_summary.diff_plans == 0 else "[orange]"
@@ -416,14 +416,14 @@ class RegressionReport(AbstractReportAction):
         report.add_double_newline()
 
         report.add_double_newline()
-        default_v1_equality = "(eq) " if v1_query.compare_plans(v1_best.execution_plan) else ""
+        default_v1_equality = "(eq) " if v1_query.compare_plans(v1_best) else ""
 
         report.start_table("5")
         report.content += f"|Metric|{self.v1_name}|{self.v1_name} Best|{self.v2_name}|{self.v2_name} Best\n"
 
-        default_v2_equality = "(eq) " if v2_query.compare_plans(v2_best.execution_plan) else ""
-        best_yb_pg_equality = "(eq) " if v1_best.compare_plans(v2_best.execution_plan) else ""
-        default_v1_v2_equality = "(eq) " if v1_query.compare_plans(v2_query.execution_plan) else ""
+        default_v2_equality = "(eq) " if v2_query.compare_plans(v2_best) else ""
+        best_yb_pg_equality = "(eq) " if v1_best.compare_plans(v2_best) else ""
+        default_v1_v2_equality = "(eq) " if v1_query.compare_plans(v2_query) else ""
 
         if 'order by' in v1_query.query:
             report.start_table_row()
