@@ -301,15 +301,9 @@ class PostgresQuery(Query):
     def get_query(self):
         return f"{self.get_debug_hints()}{self.query}"
 
-    def tips_looks_fair(self, optimization):
-        clean_plan = self.execution_plan.get_clean_plan()
-
-        return not any(
-            join.value[0] in optimization.explain_hints and join.value[1] not in clean_plan for join in Joins)
-
     def compare_plans(self, execution_plan: Type['ExecutionPlan']):
-        if self.execution_plan:
-            return self.execution_plan.get_clean_plan() == self.execution_plan.get_clean_plan(execution_plan)
+        if self.cost_off_explain:
+            return self.cost_off_explain.get_clean_plan() == self.cost_off_explain.get_clean_plan(execution_plan)
         else:
             return False
 
