@@ -110,15 +110,14 @@ final execution time will be AVG from later 5 tries)
 ### Collecting optimizations (Based on TAQO paper)
 
 This algorithm is inspired
-by [TAQO](https://www.researchgate.net/publication/241623318_Testing_the_accuracy_of_query_optimizers)
-page. Idea is to evaluate query and all possible optimisations for it. After that we compare
+by [Testing the Accuracy of Query Optimizers](https://www.researchgate.net/publication/241623318_Testing_the_accuracy_of_query_optimizers)
+page, [Using pg_hint_plan in Yugabyte](https://docs.yugabyte.com/preview/explore/query-1-performance/pg-hint-plan/) and [Predictable plans with pg_hint_plan full hinting](https://dev.to/yugabyte/predictable-plans-with-pghintplan-full-hinting-1do3). Idea of "Testing Accuracy of Query Optimizers" page is to get insights of QO by executing different query plans for same query, using this and common knowledge how `pg_hint_plan` utility works we can generate possible hints using table combinations. After that we compare
 execution time and other parameters to tell if optimiser works well. Query evaluated few times (
 see `--num-retries`) to avoid inaccurate results.
 
-Tool detects all tables that are used in query, generates all possible permutations (basically
-framework tries to generate all possible `Leading` hints) and then tries to generate possible
-optimizations using pg_hint by combining current table permutation with different types of Joins (
-Nested Loop Join, Merge, Hash) and scans (Index if available, Sequential).
+This script detects all tables that are used in query, generates all possible permutations (framework tries to generate all possible `Leading` hints) and then tries to generate possible
+optimizations using pg_hint by combining current table permutation with different types of joins (
+Nested Loop Join, Merge, Hash) and scans (Index if available, Sequential, IndexOnly and BitMap).
 
 For example for 3 tables `‘a’, ‘b’, ‘c’` there will be following permutations generated:
 `[('a', 'b', 'c'), ('a', 'c', 'b'), ('b', 'a', 'c'), ('b', 'c', 'a'), ('c', 'a', 'b'), ('c', 'b', 'a')]]`
