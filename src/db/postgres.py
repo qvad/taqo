@@ -302,7 +302,8 @@ class PostgresQuery(Query):
         return f"{self.get_debug_hints()}{self.query}"
 
     def compare_plans(self, query: Type['Query']):
-        if self.cost_off_explain.is_present() and query.cost_off_explain and query.cost_off_explain.is_present():
+        if (self.cost_off_explain and self.cost_off_explain.is_present() and
+                query.cost_off_explain and query.cost_off_explain.is_present()):
             return self.cost_off_explain == query.cost_off_explain
         elif self.execution_plan and self.execution_plan.is_present():
             return self.execution_plan.get_clean_plan() == self.execution_plan.get_clean_plan(query.execution_plan)
