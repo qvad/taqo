@@ -162,13 +162,14 @@ class Scans(Enum):
     SEQ = "SeqScan"
     INDEX = "IndexScan"
     INDEX_ONLY = "IndexOnlyScan"
-    # BITMAP = "BitmapScan"
+    BITMAP = "BitmapScan"
 
 
 class Joins(Enum):
     HASH = "HashJoin", "Hash"
     MERGE = "MergeJoin", "Merge"
     NESTED_LOOP = "NestLoop", "Nested Loop"
+    YB_NESTED_LOOP = "YbBatchedNL", "YB Nested Loop"
 
     def construct(self, tables: List[str]):
         return f"{self.value[0]}({' '.join(tables)})"
