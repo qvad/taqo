@@ -60,3 +60,6 @@ class Database:
 
     def get_revision_version(self, cur: cursor):
         pass
+
+    def get_database_config(self, cur: cursor):
+        return ""

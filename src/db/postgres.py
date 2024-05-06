@@ -257,6 +257,7 @@ class Leading:
         table_scan_hints = []
         for table in self.tables:
             tables_and_idxs = {f"{Scans.SEQ.value}({table.alias})",
+                               f"{Scans.BITMAP.value}({table.alias})",
                                f"{Scans.INDEX.value}({table.alias})",
                                f"{Scans.INDEX_ONLY.value}({table.alias})"}
 

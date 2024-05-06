@@ -41,7 +41,9 @@ class RegressionReport(AbstractReportAction):
         report.define_version_names(v1_name, v2_name)
         report.define_version(loq_v1.db_version, loq_v2.db_version)
 
+        report.report_config(loq_v1.database_config, f"{v1_name} Flags")
         report.report_config(loq_v1.config, v1_name)
+        report.report_config(loq_v2.database_config, f"{v2_name} Flags")
         report.report_config(loq_v2.config, v2_name)
 
         report.report_model(loq_v1.model_queries)

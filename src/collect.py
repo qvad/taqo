@@ -16,6 +16,7 @@ class CollectResult:
     ddl_execution_time: int = 0
     model_execution_time: int = 0
     config: str = ""
+    database_config: str = ""
     model_queries: List[str] = None
     queries: List[Type[Query]] = None
 

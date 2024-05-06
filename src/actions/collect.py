@@ -51,6 +51,7 @@ class CollectAction:
             loq = self.config.database.get_list_queries()
             with self.sut_database.connection.conn.cursor() as cur:
                 loq.git_message, loq.db_version = self.sut_database.get_revision_version(cur)
+                loq.database_config = self.sut_database.get_database_config(cur)
 
             loq.ddl_execution_time, loq.model_execution_time, loq.model_queries, loq.queries = (
                 self.run_ddl_and_testing_queries(self.sut_database.connection.conn, self.config.with_optimizations))

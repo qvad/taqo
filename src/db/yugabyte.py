@@ -157,6 +157,31 @@ class Yugabyte(Postgres):
 
         return 'UNKNOWN', 'UNKNOWN'
 
+    def get_flags(self, port, prefix):
+        response = requests.get(f'http://{self.config.connection.host}:{port}/varz?raw')
+
+        if response.status_code == 200:
+            lines = response.text.splitlines()
+
+            processed_lines = []
+            for line in lines:
+                if '--' in line:
+                    line = line.replace('Command-line Flags', '')
+                    line = line.replace('--', f'{prefix}=', 1)
+                    processed_lines.append(line)
+
+            processed_lines.sort()
+
+            return processed_lines
+
+    def get_database_config(self, cur: cursor):
+        try:
+            return '\n'.join(self.get_flags(7000, 'MASTER') + self.get_flags(9000, 'TSERVER'))
+        except Exception as e:
+            self.logger.error(e)
+
+        return ''
+
     def collect_query_statistics(self, cur: cursor, query: Query, query_str: str):
         try:
             tuned_query = query_str.replace("'", "''")

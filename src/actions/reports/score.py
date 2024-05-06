@@ -35,6 +35,7 @@ class ScoreReport(AbstractReportAction):
         report = ScoreReport()
 
         report.define_version(loq.db_version)
+        report.report_config(loq.database_config, "Flags")
         report.report_config(loq.config, "YB")
         report.report_config(pg_loq.config, "PG")
 
