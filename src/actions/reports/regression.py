@@ -49,7 +49,10 @@ class RegressionReport(AbstractReportAction):
         report.report_model(loq_v1.model_queries)
 
         for query in loq_v1.queries:
-            report.add_query(query, loq_v2.find_query_by_hash(query.query_hash) if loq_v2 else None)
+            if v2_query := loq_v2.find_query_by_hash(query.query_hash):
+                report.add_query(query, v2_query)
+            else:
+                report.logger.warn(f"{query.query_hash} is not found in v2!")
 
         report.build_report()
         report.build_xls_report()
