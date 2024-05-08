@@ -332,18 +332,21 @@ def evaluate_sql(cur: cursor, sql: str):
             config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", cle)
 
             if config.exit_on_fail:
+                config.has_failures = True
                 exit(1)
         except psycopg2.OperationalError as oe:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", oe)
 
             if config.exit_on_fail:
+                config.has_failures = True
                 exit(1)
         except Exception as e:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", e)
 
             if config.exit_on_fail:
+                config.has_failures = True
                 exit(1)
 
             raise e
@@ -363,18 +366,21 @@ def evaluate_sql(cur: cursor, sql: str):
             config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", cle)
 
             if config.exit_on_fail:
+                config.has_failures = True
                 exit(1)
         except psycopg2.OperationalError as oe:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", oe)
 
             if config.exit_on_fail:
+                config.has_failures = True
                 exit(1)
         except Exception as e:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", e)
 
             if config.exit_on_fail:
+                config.has_failures = True
                 exit(1)
 
             raise e
