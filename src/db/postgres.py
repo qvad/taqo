@@ -670,6 +670,7 @@ class PGListOfOptimizations(ListOfOptimizations):
             optimizations.append(
                 PostgresOptimization(
                     query=self.query.query,
+                    has_order_by=self.query.has_order_by,
                     query_hash=self.query.query_hash,
                     optimizer_tips=self.query.optimizer_tips,
                     explain_hints=explain_hints
