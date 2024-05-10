@@ -134,6 +134,7 @@ class Query:
     execution_time_ms: float = 0
     result_cardinality: int = 0
     result_hash: str = None
+    has_order_by: bool = False
     query_stats: QueryStats = None
 
     parameters: List = None
@@ -145,6 +146,7 @@ class Query:
     def create_copy(self):
         return Query(self.tag, self.query, self.query_hash, self.tables,
                      execution_time_ms=-1,
+                     has_order_by=self.has_order_by,
                      execution_plan=ExecutionPlan("NOT FOUND"),
                      optimizations=[])
 

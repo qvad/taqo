@@ -13,7 +13,7 @@ from config import DDLStep
 from objects import QueryTips, Field
 from db.postgres import PostgresQuery, Table
 from models.abstract import QTFModel
-from utils import get_alias_table_names, evaluate_sql, get_md5, get_model_path
+from utils import get_alias_table_names, evaluate_sql, get_md5, get_model_path, find_order_by_in_query
 
 
 class SQLModel(QTFModel):
@@ -316,6 +316,7 @@ class SQLModel(QTFModel):
                                 tag=os.path.basename(query).replace(".sql", ""),
                                 query=cleaned,
                                 query_hash=get_md5(cleaned),
+                                has_order_by=find_order_by_in_query(cleaned),
                                 tables=tables_in_query,
                                 optimizer_tips=current_tips))
 

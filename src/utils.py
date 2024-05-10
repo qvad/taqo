@@ -68,7 +68,8 @@ def calculate_avg_execution_time(cur,
 
     query_str = query_str or query.get_query()
     query_str_lower = query_str.lower() if query_str is not None else None
-    has_order_by = True if "order by" in query_str_lower else False
+
+    has_order_by = query.has_order_by
     has_limit = True if "limit" in query_str_lower else False
 
     with_analyze = query_with_analyze(query_str_lower)
@@ -148,6 +149,17 @@ def calculate_avg_execution_time(cur,
         sut_database.collect_query_statistics(cur, query, query_str)
 
     return True
+
+
+def find_order_by_in_query(query_str_lower):
+    try:
+        statement_json = pglast.parser.parse_sql_json(query_str_lower)
+        statement_dict = json.loads(statement_json)
+        has_order_by = 'sortClause' in list(statement_dict["stmts"][0]['stmt'].values())[0]
+    except Exception:
+        has_order_by = False
+
+    return has_order_by
 
 
 def collect_execution_plan(cur,
