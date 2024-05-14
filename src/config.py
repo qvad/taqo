@@ -87,6 +87,7 @@ class Config(metaclass=Singleton):
     baseline_path: str = None
     baseline_results: any = None
     all_index_check: bool = None
+    bitmap_enabled: bool = None
     load_catalog_tables: bool = None
     basic_multiplier: int = None
 

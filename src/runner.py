@@ -152,6 +152,10 @@ if __name__ == "__main__":
                         action=argparse.BooleanOptionalAction,
                         default=False,
                         help='Collect only execution plans, execution time will be equal to cost')
+    parser.add_argument('--bitmap-enabled',
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help='Enable bitmap scan for PG and YB databases')
     parser.add_argument('--optimizations',
                         action=argparse.BooleanOptionalAction,
                         default=False,
@@ -294,6 +298,7 @@ if __name__ == "__main__":
         allow_destroy_db=args.allow_destroy_db,
         clean_build=args.clean_build,
         colocated_database=args.colocated,
+        bitmap_enabled=args.bitmap_enabled,
         yugabyte_bin_path=args.yugabyte_bin_path or configuration.get("yugabyte-bin-path", None),
         yugabyte_master_addresses=args.yugabyte_master_addresses if args.yugabyte_master_addresses else args.host,
         yugabyte_collect_stats=args.yugabyte_stats,

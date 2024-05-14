@@ -162,7 +162,7 @@ class Scans(Enum):
     SEQ = "SeqScan"
     INDEX = "IndexScan"
     INDEX_ONLY = "IndexOnlyScan"
-    # BITMAP = "BitmapScan"
+    BITMAP = "BitmapScan"
 
 
 class Joins(Enum):
@@ -257,9 +257,10 @@ class Leading:
         table_scan_hints = []
         for table in self.tables:
             tables_and_idxs = {f"{Scans.SEQ.value}({table.alias})",
-                               # f"{Scans.BITMAP.value}({table.alias})",
                                f"{Scans.INDEX.value}({table.alias})",
                                f"{Scans.INDEX_ONLY.value}({table.alias})"}
+            if self.config.bitmap_enabled:
+                tables_and_idxs |= {f"{Scans.BITMAP.value}({table.alias})", }
 
             if self.config.all_index_check:
                 indexes = []
@@ -275,6 +276,11 @@ class Leading:
                     f"{Scans.INDEX_ONLY.value}({table.alias} {index})"
                     for index in indexes
                 }
+                if self.config.bitmap_enabled:
+                    tables_and_idxs |= {
+                        f"{Scans.BITMAP.value}({table.alias} {index})"
+                        for index in indexes
+                    }
             else:
                 tables_and_idxs |= {
                     f"{Scans.INDEX.value}({table.alias})"
@@ -286,6 +292,12 @@ class Leading:
                     for field in table.fields
                     if field.is_index
                 }
+                if self.config.bitmap_enabled:
+                    tables_and_idxs |= {
+                        f"{Scans.BITMAP.value}({table.alias})"
+                        for field in table.fields
+                        if field.is_index
+                    }
 
             table_scan_hints.append(list(tables_and_idxs))
 
