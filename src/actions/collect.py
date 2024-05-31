@@ -166,17 +166,21 @@ class CollectAction:
 
         result_hash = original_query.result_hash
         for optimization in original_query.optimizations:
+            # get first result hash as a default value in case of original hash is missing
+            if not result_hash and optimization.result_hash:
+                result_hash = optimization.result_hash
+
             if optimization.result_hash and result_hash != optimization.result_hash:
                 cardinality_equality = "=" if original_query.result_cardinality == optimization.result_cardinality else "!="
 
                 if "now()" in original_query.query.lower():
                     # todo fixing result_hash for queries with function calls
-                    optimization.query_hash = original_query.result_hash
+                    optimization.query_hash = result_hash
                     continue
 
                 self.config.has_failures = True
                 self.logger.exception(f"UNSTABLE: INCONSISTENT RESULTS\n"
-                                      f"Validation: {original_query.result_hash} != {optimization.result_hash}\n"
+                                      f"Validation: {result_hash} != {optimization.result_hash}\n"
                                       f"Cardinality: {original_query.result_cardinality} {cardinality_equality} {optimization.result_cardinality}\n"
                                       f"Reproducer original: {original_query.query}\n"
                                       f"Reproducer optimization: /*+ {optimization.explain_hints} */ {optimization.query}\n")
@@ -189,7 +193,7 @@ class CollectAction:
         avg_execution_time = original_query.execution_time_ms
 
         if explain_execution_time and (explain_execution_time > avg_execution_time and
-                not allowed_diff(self.config, avg_execution_time, explain_execution_time)):
+                                       not allowed_diff(self.config, avg_execution_time, explain_execution_time)):
             self.config.has_warnings = True
             self.logger.warning(f"UNSTABLE: WARNING\n"
                                 f"ANALYZE query execution time is too large:\n"
