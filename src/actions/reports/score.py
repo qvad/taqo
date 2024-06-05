@@ -775,7 +775,8 @@ class ScoreReport(AbstractReportAction):
             report.end_collapsible()
 
         if show_best:
-            self.__report_heatmap(report, yb_query)
+            pass
+            # self.__report_heatmap(report, yb_query)
 
         report.start_collapsible("YB default plan")
         report.start_source(["diff"])

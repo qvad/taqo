@@ -137,7 +137,11 @@ def calculate_avg_execution_time(cur,
             traceback.print_exc(limit=None, file=None, chain=True)
             return False
         finally:
-            connection.rollback()
+            try:
+                connection.rollback()
+            except Exception as e:
+                # todo potential issue here, but triggers only in PG
+                config.logger.exception(e)
 
             if iteration >= num_warmup:
                 actual_evaluations += 1
