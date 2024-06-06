@@ -14,6 +14,6 @@ WHERE c_custkey = o_custkey
   AND n_regionkey = r_regionkey
   AND r_name = 'ASIA'
   AND o_orderdate >= DATE '1994-01-01'
-  AND o_orderdate < DATE '1994-01-01'
+  AND o_orderdate < DATE '1994-01-01' + interval '1' year
 GROUP BY n_name
 ORDER BY revenue DESC;

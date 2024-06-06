@@ -18,7 +18,7 @@ WHERE s_suppkey = l1.l_suppkey
                     AND l3.l_suppkey <> l1.l_suppkey
                     AND l3.l_receiptdate > l3.l_commitdate)
   AND s_nationkey = n_nationkey
-  AND n_name = ' SAUDI ARABIA'
+  AND n_name = 'SAUDI ARABIA'
 GROUP BY s_name
 ORDER BY numwait DESC,
          s_name
