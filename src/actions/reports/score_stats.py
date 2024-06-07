@@ -55,9 +55,12 @@ class ScoreStatsReport(AbstractReportAction):
                     inconsistent_results += 1 if yb_query.get_inconsistent_results() else 0
 
                     pg_success = pg_query.execution_time_ms > 0
+                    yb_success = yb_query.execution_time_ms > 0
 
-                    qe_default_geo.append(yb_query.execution_time_ms / pg_query.execution_time_ms if pg_success else 1)
-                    qe_bests_geo.append(yb_best.execution_time_ms / pg_best.execution_time_ms if pg_success else 1)
+                    qe_default_geo.append(yb_query.execution_time_ms / pg_query.execution_time_ms
+                                          if pg_success and yb_success else 1)
+                    qe_bests_geo.append(yb_best.execution_time_ms / pg_best.execution_time_ms
+                                        if pg_success and yb_success else 1)
 
                     if yb_query.execution_time_ms > 0 and yb_best.execution_time_ms > 0:
                         qo_yb_bests_geo.append(yb_query.execution_time_ms / yb_best.execution_time_ms)
