@@ -168,10 +168,10 @@ class RegressionReport(AbstractReportAction):
 
         yb_v1_bests = 0
         yb_v2_bests = 0
-        qe_bests_geo = 1
-        qe_default_geo = 1
-        qo_yb_v1_bests = 1
-        qo_yb_v2_bests = 1
+        qe_bests_geo = []
+        qe_default_geo = []
+        qo_yb_v1_bests = []
+        qo_yb_v2_bests = []
         total = 0
 
         v2_has_optimizations = True
@@ -187,14 +187,23 @@ class RegressionReport(AbstractReportAction):
                 yb_v1_best = yb_v1_query.get_best_optimization(self.config)
                 yb_v2_best = yb_v2_query.get_best_optimization(self.config) if v2_has_optimizations else yb_v1_best
 
-                qe_default_geo *= yb_v2_query.execution_time_ms / yb_v1_query.execution_time_ms
-                qe_bests_geo *= yb_v2_best.execution_time_ms / yb_v1_best.execution_time_ms
-                qo_yb_v1_bests *= (yb_v1_query.execution_time_ms
-                                   if yb_v1_query.execution_time_ms > 0 else 1.0) / \
-                                  (yb_v1_best.execution_time_ms
-                                   if yb_v1_best.execution_time_ms > 0 else 1)
-                qo_yb_v2_bests *= yb_v2_query.execution_time_ms / yb_v2_best.execution_time_ms \
-                    if yb_v2_best.execution_time_ms > 0 else 9999999
+                v1_success = yb_v1_query.execution_time_ms > 0
+                v2_success = yb_v2_query.execution_time_ms > 0
+
+                qe_default_geo.append(yb_v2_query.execution_time_ms / yb_v1_query.execution_time_ms
+                                      if v1_success and v2_success else 1)
+                qe_bests_geo.append(yb_v2_query.execution_time_ms / yb_v1_query.execution_time_ms
+                                    if v1_success and v2_success else 1)
+
+                if v1_success and v2_success:
+                    qo_yb_v1_bests.append((yb_v1_query.execution_time_ms
+                                           if yb_v1_query.execution_time_ms > 0 else 1.0) / \
+                                          (yb_v1_best.execution_time_ms
+                                           if yb_v1_best.execution_time_ms > 0 else 1))
+                if v1_success and v2_success:
+                    qo_yb_v2_bests.append(yb_v2_query.execution_time_ms / yb_v2_best.execution_time_ms \
+                                              if yb_v2_best.execution_time_ms > 0 else 9999999)
+
                 yb_v1_bests += 1 if yb_v1_query.compare_plans(yb_v1_best) else 0
                 yb_v2_bests += 1 if yb_v2_query.compare_plans(yb_v2_best) else 0
 
@@ -205,15 +214,15 @@ class RegressionReport(AbstractReportAction):
         self.content += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%" \
                         f"|{'{:.2f}'.format(float(yb_v2_bests) * 100 / total)}%\n"
         self.content += f"|Geomeric mean QE default\n" \
-                        f"2+m|{'{:.2f}'.format(qe_default_geo ** (1 / total))}\n"
+                        f"2+m|{'{:.2f}'.format(self.geo_mean(qe_default_geo))}\n"
 
         if v2_has_optimizations:
             self.content += f"|Geomeric mean QE best\n" \
-                            f"2+m|{'{:.2f}'.format(qe_bests_geo ** (1 / total))}\n"
+                            f"2+m|{'{:.2f}'.format(self.geo_mean(qe_bests_geo))}\n"
 
         self.content += f"|Geomeric mean QO default vs best" \
-                        f"|{'{:.2f}'.format(qo_yb_v1_bests ** (1 / total))}" \
-                        f"|{'{:.2f}'.format(qo_yb_v2_bests ** (1 / total))}\n"
+                        f"|{'{:.2f}'.format(self.geo_mean(qo_yb_v1_bests))}" \
+                        f"|{'{:.2f}'.format(self.geo_mean(qo_yb_v2_bests))}\n"
         self.end_table()
 
         self.content += "\n[#top]\n== QE score\n"
@@ -433,10 +442,10 @@ class RegressionReport(AbstractReportAction):
         if 'order by' in v1_query.query:
             report.start_table_row()
             report.content += f"!! Result hash" \
-                      f"|{v1_query.result_hash}" \
-                      f"|{v1_best.result_hash}" \
-                      f"|{v2_query.result_hash}" \
-                      f"|{v2_best.result_hash}" \
+                              f"|{v1_query.result_hash}" \
+                              f"|{v1_best.result_hash}" \
+                              f"|{v2_query.result_hash}" \
+                              f"|{v2_best.result_hash}" \
                 if v2_query.result_hash != v1_query.result_hash else \
                 f"Result hash" \
                 f"|`{v1_query.result_hash}" \
@@ -447,24 +456,24 @@ class RegressionReport(AbstractReportAction):
 
         report.start_table_row()
         report.content += f"Cardinality" \
-                  f"|{v1_query.result_cardinality}" \
-                  f"|{v1_best.result_cardinality}" \
-                  f"|{v2_query.result_cardinality}" \
-                  f"|{v2_best.result_cardinality}"
+                          f"|{v1_query.result_cardinality}" \
+                          f"|{v1_best.result_cardinality}" \
+                          f"|{v2_query.result_cardinality}" \
+                          f"|{v2_best.result_cardinality}"
         report.end_table_row()
         report.start_table_row()
         report.content += f"Estimated cost" \
-                  f"|{v1_query.execution_plan.get_estimated_cost()}" \
-                  f"|{default_v1_equality}{v1_best.execution_plan.get_estimated_cost()}" \
-                  f"|{default_v1_v2_equality}{v2_query.execution_plan.get_estimated_cost()}" \
-                  f"|{default_v2_equality}{v2_best.execution_plan.get_estimated_cost()}"
+                          f"|{v1_query.execution_plan.get_estimated_cost()}" \
+                          f"|{default_v1_equality}{v1_best.execution_plan.get_estimated_cost()}" \
+                          f"|{default_v1_v2_equality}{v2_query.execution_plan.get_estimated_cost()}" \
+                          f"|{default_v2_equality}{v2_best.execution_plan.get_estimated_cost()}"
         report.end_table_row()
         report.start_table_row()
         report.content += f"Execution time" \
-                  f"|{'{:.2f}'.format(v1_query.execution_time_ms)}" \
-                  f"|{default_v1_equality}{'{:.2f}'.format(v1_best.execution_time_ms)}" \
-                  f"|{'{:.2f}'.format(v2_query.execution_time_ms)}" \
-                  f"|{default_v2_equality}{'{:.2f}'.format(v2_best.execution_time_ms)}"
+                          f"|{'{:.2f}'.format(v1_query.execution_time_ms)}" \
+                          f"|{default_v1_equality}{'{:.2f}'.format(v1_best.execution_time_ms)}" \
+                          f"|{'{:.2f}'.format(v2_query.execution_time_ms)}" \
+                          f"|{default_v2_equality}{'{:.2f}'.format(v2_best.execution_time_ms)}"
         report.end_table_row()
 
         report.end_table()
