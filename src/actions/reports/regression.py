@@ -207,11 +207,11 @@ class RegressionReport(AbstractReportAction):
                         else 0
                     better_same_plans += 1 if (
                             yb_v1_query.execution_time_ms > yb_v2_query.execution_time_ms and
-                            not yb_v1_query.compare_plans(yb_v2_query)) \
+                            yb_v1_query.compare_plans(yb_v2_query)) \
                         else 0
                     worse_same_plans += 1 if (
                             yb_v1_query.execution_time_ms < yb_v2_query.execution_time_ms and
-                            not yb_v1_query.compare_plans(yb_v2_query)) \
+                            yb_v1_query.compare_plans(yb_v2_query)) \
                         else 0
                     same_plans += 1 if yb_v1_query.compare_plans(yb_v2_query) else 0
 
