@@ -174,6 +174,12 @@ class RegressionReport(AbstractReportAction):
         qo_yb_v2_bests = []
         total = 0
 
+        better_different_plans = 0
+        worse_different_plans = 0
+        better_same_plans = 0
+        worse_same_plans = 0
+        same_plans = 0
+
         v2_has_optimizations = True
 
         for queries in self.queries.values():
@@ -189,6 +195,25 @@ class RegressionReport(AbstractReportAction):
 
                 v1_success = yb_v1_query.execution_time_ms > 0
                 v2_success = yb_v2_query.execution_time_ms > 0
+
+                if v1_success and v2_success:
+                    better_different_plans += 1 if (
+                            yb_v1_query.execution_time_ms > yb_v2_query.execution_time_ms and
+                            not yb_v1_query.compare_plans(yb_v2_query)) \
+                        else 0
+                    worse_different_plans += 1 if (
+                            yb_v1_query.execution_time_ms < yb_v2_query.execution_time_ms and
+                            not yb_v1_query.compare_plans(yb_v2_query)) \
+                        else 0
+                    better_same_plans += 1 if (
+                            yb_v1_query.execution_time_ms > yb_v2_query.execution_time_ms and
+                            not yb_v1_query.compare_plans(yb_v2_query)) \
+                        else 0
+                    worse_same_plans += 1 if (
+                            yb_v1_query.execution_time_ms < yb_v2_query.execution_time_ms and
+                            not yb_v1_query.compare_plans(yb_v2_query)) \
+                        else 0
+                    same_plans += 1 if yb_v1_query.compare_plans(yb_v2_query) else 0
 
                 qe_default_geo.append(yb_v2_query.execution_time_ms / yb_v1_query.execution_time_ms
                                       if v1_success and v2_success else 1)
@@ -213,6 +238,16 @@ class RegressionReport(AbstractReportAction):
         self.content += f"|Statistic|{self.v1_name}|{self.v2_name}\n"
         self.content += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%" \
                         f"|{'{:.2f}'.format(float(yb_v2_bests) * 100 / total)}%\n"
+        self.content += f"|Different better plans (exec time v1 > v2)\n" \
+                        f"2+m|{better_different_plans}\n"
+        self.content += f"|Different worse plans (exec time v1 < v2)\n" \
+                        f"2+m|{worse_different_plans}\n"
+        self.content += f"|Same better plans (exec time v1 > v2)\n" \
+                        f"2+m|{better_same_plans}\n"
+        self.content += f"|Same worse plans (exec time v1 < v2)\n" \
+                        f"2+m|{worse_same_plans}\n"
+        self.content += f"|Total same plans\n" \
+                        f"2+m|{same_plans}\n"
         self.content += f"|Geomeric mean QE default\n" \
                         f"2+m|{'{:.2f}'.format(self.geo_mean(qe_default_geo))}\n"
 
