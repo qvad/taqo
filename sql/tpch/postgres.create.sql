@@ -44,7 +44,7 @@ create table partsupp
     ps_availqty   integer,
     ps_supplycost decimal(15, 2),
     ps_comment    varchar(199),
-    primary key (ps_partkey ASC, ps_suppkey ASC)
+    primary key (ps_partkey, ps_suppkey)
 );
 
 create table customer
@@ -90,16 +90,16 @@ create table lineitem
     l_shipinstruct  char(25),
     l_shipmode      char(10),
     l_comment       varchar(44),
-    primary key (l_orderkey ASC, l_suppkey ASC, l_partkey ASC, l_linenumber ASC)
+    primary key (l_orderkey, l_suppkey, l_partkey, l_linenumber)
 );
 
-create index idx_supplier_nation_key on supplier (s_nationkey ASC);
-create index idx_partsupp_partkey on partsupp (ps_partkey ASC);
-create index idx_partsupp_suppkey on partsupp (ps_suppkey ASC);
-create index idx_customer_nationkey on customer (c_nationkey ASC);
-create index idx_orders_custkey on orders (o_custkey ASC);
-create index idx_orders_orderdate on orders (o_orderdate ASC);
-create index idx_lineitem_orderkey on lineitem (l_orderkey ASC);
-create index idx_lineitem_part_supp on lineitem (l_partkey ASC, l_suppkey ASC);
-create index idx_lineitem_shipdate on lineitem (l_shipdate ASC, l_discount ASC, l_quantity ASC);
-create index idx_nation_regionkey on nation (n_regionkey ASC);
+create index idx_supplier_nation_key on supplier (s_nationkey);
+create index idx_partsupp_partkey on partsupp (ps_partkey);
+create index idx_partsupp_suppkey on partsupp (ps_suppkey);
+create index idx_customer_nationkey on customer (c_nationkey);
+create index idx_orders_custkey on orders (o_custkey);
+create index idx_orders_orderdate on orders (o_orderdate);
+create index idx_lineitem_orderkey on lineitem (l_orderkey);
+create index idx_lineitem_part_supp on lineitem (l_partkey, l_suppkey);
+create index idx_lineitem_shipdate on lineitem (l_shipdate, l_discount, l_quantity);
+create index idx_nation_regionkey on nation (n_regionkey);
