@@ -9,7 +9,7 @@ from matplotlib import rcParams
 from collect import CollectResult
 from objects import Query
 from actions.report import AbstractReportAction
-from utils import get_plan_diff
+from utils import allowed_diff, get_plan_diff
 
 
 @dataclass
@@ -199,21 +199,30 @@ class RegressionReport(AbstractReportAction):
                 if v1_success and v2_success:
                     better_different_plans += 1 if (
                             yb_v1_query.execution_time_ms > yb_v2_query.execution_time_ms and
+                            not allowed_diff(self.config, yb_v1_query.execution_time_ms,
+                                             yb_v2_query.execution_time_ms) and
                             not yb_v1_query.compare_plans(yb_v2_query)) \
                         else 0
                     worse_different_plans += 1 if (
                             yb_v1_query.execution_time_ms < yb_v2_query.execution_time_ms and
+                            not allowed_diff(self.config, yb_v1_query.execution_time_ms,
+                                             yb_v2_query.execution_time_ms) and
                             not yb_v1_query.compare_plans(yb_v2_query)) \
                         else 0
                     better_same_plans += 1 if (
                             yb_v1_query.execution_time_ms > yb_v2_query.execution_time_ms and
+                            allowed_diff(self.config, yb_v1_query.execution_time_ms, yb_v2_query.execution_time_ms) and
                             yb_v1_query.compare_plans(yb_v2_query)) \
                         else 0
                     worse_same_plans += 1 if (
                             yb_v1_query.execution_time_ms < yb_v2_query.execution_time_ms and
+                            allowed_diff(self.config, yb_v1_query.execution_time_ms, yb_v2_query.execution_time_ms) and
                             yb_v1_query.compare_plans(yb_v2_query)) \
                         else 0
-                    same_plans += 1 if yb_v1_query.compare_plans(yb_v2_query) else 0
+                    same_plans += 1 if (
+                            yb_v1_query.compare_plans(yb_v2_query) and
+                            allowed_diff(self.config, yb_v1_query.execution_time_ms, yb_v2_query.execution_time_ms)) \
+                        else 0
 
                 qe_default_geo.append(yb_v2_query.execution_time_ms / yb_v1_query.execution_time_ms
                                       if v1_success and v2_success else 1)
