@@ -125,7 +125,7 @@ class AbstractReportAction(ObjectsMixin):
         self.logger.info(f"Generating report file from {index_html} and compiling html")
         asciidoc_return_code = subprocess.run(
             f'{self.config.asciidoctor_path} '
-            f'-a stylesheet={os.path.abspath("css/adoc.css")} '
+            f'-a stylesheet={os.path.abspath("adoc/adoc.css")} '
             f'{index_html}',
             shell=True).returncode
 
@@ -134,7 +134,8 @@ class AbstractReportAction(ObjectsMixin):
             for sub_report in self.sub_reports:
                 subprocess.call(
                     f'{self.config.asciidoctor_path} '
-                    f'-a stylesheet={os.path.abspath("css/adoc.css")} '
+                    f'-a stylesheet={os.path.abspath("adoc/adoc.css")} '
+                    f'-r {os.path.abspath("adoc/copy-to-clipboard-docinfo-processor.rb")} '
                     f"{self.report_folder_tags}/{sub_report.name}.adoc",
                     shell=True)
 
