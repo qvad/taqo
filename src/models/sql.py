@@ -80,7 +80,16 @@ class SQLModel(QTFModel):
                     with open(path_to_file, "r") as sql_file:
                         full_queries = self.apply_variables('\n'.join(sql_file.readlines()))
                         for query in tqdm(full_queries.split(";")):
-                            model_queries = self.process_query(cur, query, model_queries, do_execute=do_execute)
+                            # Nasty fix for RPC timeout
+                            executed = False
+                            while not executed:
+                                try:
+                                    model_queries = self.process_query(cur, query, model_queries, do_execute=do_execute)
+                                    executed = True
+                                except Exception as e:
+                                    if "RPC" not in str(e):
+                                        raise e
+
 
                 if step_prefix == DDLStep.CREATE and do_execute:
                     created_tables, non_catalog_tables = self.load_tables_from_public(cur)
