@@ -346,23 +346,23 @@ def evaluate_sql(cur: cursor, sql: str):
         except psycopg2.errors.ConfigurationLimitExceeded as cle:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", cle)
+            config.has_failures = True
 
             if config.exit_on_fail:
-                config.has_failures = True
                 exit(1)
         except psycopg2.OperationalError as oe:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", oe)
+            config.has_failures = True
 
             if config.exit_on_fail:
-                config.has_failures = True
                 exit(1)
         except Exception as e:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", e)
+            config.has_failures = True
 
             if config.exit_on_fail:
-                config.has_failures = True
                 exit(1)
 
             raise e
@@ -380,23 +380,23 @@ def evaluate_sql(cur: cursor, sql: str):
         except psycopg2.errors.ConfigurationLimitExceeded as cle:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", cle)
+            config.has_failures = True
 
             if config.exit_on_fail:
-                config.has_failures = True
                 exit(1)
         except psycopg2.OperationalError as oe:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", oe)
+            config.has_failures = True
 
             if config.exit_on_fail:
-                config.has_failures = True
                 exit(1)
         except Exception as e:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", e)
+            config.has_failures = True
 
             if config.exit_on_fail:
-                config.has_failures = True
                 exit(1)
 
             raise e
