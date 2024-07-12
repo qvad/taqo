@@ -328,6 +328,9 @@ def get_alias_table_names(sql_str, tables_in_sut):
 
 
 def evaluate_sql(cur: cursor, sql: str):
+    # TODO https://github.com/yugabyte/yugabyte-db/issues/21041
+    force_warning = "analyze" in sql.lower()
+
     config = Config()
 
     parameters, sql, sql_wo_parameters = parse_clear_and_parametrized_sql(sql)
@@ -346,21 +349,30 @@ def evaluate_sql(cur: cursor, sql: str):
         except psycopg2.errors.ConfigurationLimitExceeded as cle:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", cle)
-            config.has_failures = True
+            if force_warning:
+                config.has_warnings = True
+            else:
+                config.has_failures = True
 
             if config.exit_on_fail:
                 exit(1)
         except psycopg2.OperationalError as oe:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", oe)
-            config.has_failures = True
+            if force_warning:
+                config.has_warnings = True
+            else:
+                config.has_failures = True
 
             if config.exit_on_fail:
                 exit(1)
         except Exception as e:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", e)
-            config.has_failures = True
+            if force_warning:
+                config.has_warnings = True
+            else:
+                config.has_failures = True
 
             if config.exit_on_fail:
                 exit(1)
@@ -380,21 +392,30 @@ def evaluate_sql(cur: cursor, sql: str):
         except psycopg2.errors.ConfigurationLimitExceeded as cle:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", cle)
-            config.has_failures = True
+            if force_warning:
+                config.has_warnings = True
+            else:
+                config.has_failures = True
 
             if config.exit_on_fail:
                 exit(1)
         except psycopg2.OperationalError as oe:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", oe)
-            config.has_failures = True
+            if force_warning:
+                config.has_warnings = True
+            else:
+                config.has_failures = True
 
             if config.exit_on_fail:
                 exit(1)
         except Exception as e:
             cur.connection.rollback()
             config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", e)
-            config.has_failures = True
+            if force_warning:
+                config.has_warnings = True
+            else:
+                config.has_failures = True
 
             if config.exit_on_fail:
                 exit(1)
