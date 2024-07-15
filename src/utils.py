@@ -329,7 +329,7 @@ def get_alias_table_names(sql_str, tables_in_sut):
 
 def evaluate_sql(cur: cursor, sql: str, force_warning: bool = False, mute_exceptions: bool = False):
     # TODO https://github.com/yugabyte/yugabyte-db/issues/21041
-    force_warning = force_warning or sql.lower().startswith("analyze")
+    force_warning = force_warning or ("analyze" in sql.lower() and "explain" not in sql.lower())
 
     config = Config()
 
