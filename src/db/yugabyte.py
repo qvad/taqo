@@ -187,7 +187,8 @@ class Yugabyte(Postgres):
             tuned_query = query_str.replace("'", "''")
             evaluate_sql(cur,
                          "select query, calls, total_time, min_time, max_time, mean_time, rows, yb_latency_histogram "
-                         f"from pg_stat_statements where query like '%{tuned_query}%';")
+                         f"from pg_stat_statements where query like '%{tuned_query}%';",
+                         force_warning=True)
             result = cur.fetchall()
 
             query.query_stats = QueryStats(

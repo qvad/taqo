@@ -327,9 +327,9 @@ def get_alias_table_names(sql_str, tables_in_sut):
     return table_objects_in_query
 
 
-def evaluate_sql(cur: cursor, sql: str):
+def evaluate_sql(cur: cursor, sql: str, force_warning: bool = False):
     # TODO https://github.com/yugabyte/yugabyte-db/issues/21041
-    force_warning = "analyze" in sql.lower()
+    force_warning = force_warning or "analyze" in sql.lower()
 
     config = Config()
 
