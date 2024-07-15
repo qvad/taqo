@@ -327,7 +327,7 @@ def get_alias_table_names(sql_str, tables_in_sut):
     return table_objects_in_query
 
 
-def evaluate_sql(cur: cursor, sql: str, force_warning: bool = False):
+def evaluate_sql(cur: cursor, sql: str, force_warning: bool = False, mute_exceptions: bool = False):
     # TODO https://github.com/yugabyte/yugabyte-db/issues/21041
     force_warning = force_warning or "analyze" in sql.lower()
 
@@ -340,15 +340,20 @@ def evaluate_sql(cur: cursor, sql: str, force_warning: bool = False):
             config.logger.debug(f"SQL >> {sql}[{parameters}]")
             cur.execute(sql, parameters)
         except psycopg2.errors.QueryCanceled as e:
-            config.logger.debug(f"UNSTABLE: {sql_wo_parameters}", sql)
+            if not mute_exceptions:
+                config.logger.debug(f"UNSTABLE: {sql_wo_parameters}", sql)
             cur.connection.rollback()
             raise e
         except psycopg2.errors.DuplicateDatabase as ddb:
             cur.connection.rollback()
-            config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", ddb)
+
+            if not mute_exceptions:
+                config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", ddb)
         except psycopg2.errors.ConfigurationLimitExceeded as cle:
             cur.connection.rollback()
-            config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", cle)
+
+            if not mute_exceptions:
+                config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", cle)
             if force_warning:
                 config.has_warnings = True
             else:
@@ -358,7 +363,9 @@ def evaluate_sql(cur: cursor, sql: str, force_warning: bool = False):
                 exit(1)
         except psycopg2.OperationalError as oe:
             cur.connection.rollback()
-            config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", oe)
+
+            if not mute_exceptions:
+                config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", oe)
             if force_warning:
                 config.has_warnings = True
             else:
@@ -368,7 +375,9 @@ def evaluate_sql(cur: cursor, sql: str, force_warning: bool = False):
                 exit(1)
         except Exception as e:
             cur.connection.rollback()
-            config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", e)
+
+            if not mute_exceptions:
+                config.logger.exception(f"UNSTABLE: {sql}[{parameters}]", e)
             if force_warning:
                 config.has_warnings = True
             else:
@@ -384,14 +393,20 @@ def evaluate_sql(cur: cursor, sql: str, force_warning: bool = False):
             cur.execute(sql_wo_parameters)
         except psycopg2.errors.QueryCanceled as e:
             cur.connection.rollback()
-            config.logger.debug(f"UNSTABLE: {sql_wo_parameters}", sql_wo_parameters)
+
+            if not mute_exceptions:
+                config.logger.debug(f"UNSTABLE: {sql_wo_parameters}", sql_wo_parameters)
             raise e
         except psycopg2.errors.DuplicateDatabase as ddb:
             cur.connection.rollback()
-            config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", ddb)
+
+            if not mute_exceptions:
+                config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", ddb)
         except psycopg2.errors.ConfigurationLimitExceeded as cle:
             cur.connection.rollback()
-            config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", cle)
+
+            if not mute_exceptions:
+                config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", cle)
             if force_warning:
                 config.has_warnings = True
             else:
@@ -401,7 +416,9 @@ def evaluate_sql(cur: cursor, sql: str, force_warning: bool = False):
                 exit(1)
         except psycopg2.OperationalError as oe:
             cur.connection.rollback()
-            config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", oe)
+
+            if not mute_exceptions:
+                config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", oe)
             if force_warning:
                 config.has_warnings = True
             else:
@@ -411,7 +428,9 @@ def evaluate_sql(cur: cursor, sql: str, force_warning: bool = False):
                 exit(1)
         except Exception as e:
             cur.connection.rollback()
-            config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", e)
+
+            if not mute_exceptions:
+                config.logger.exception(f"UNSTABLE: {sql_wo_parameters}", e)
             if force_warning:
                 config.has_warnings = True
             else:

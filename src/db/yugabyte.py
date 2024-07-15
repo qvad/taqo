@@ -188,7 +188,8 @@ class Yugabyte(Postgres):
             evaluate_sql(cur,
                          "select query, calls, total_time, min_time, max_time, mean_time, rows, yb_latency_histogram "
                          f"from pg_stat_statements where query like '%{tuned_query}%';",
-                         force_warning=True)
+                         force_warning=True,
+                         mute_exceptions=True)
             result = cur.fetchall()
 
             query.query_stats = QueryStats(
