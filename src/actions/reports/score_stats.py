@@ -46,34 +46,37 @@ class ScoreStatsReport(AbstractReportAction):
         try:
             for queries in self.queries.values():
                 for query in queries:
-                    yb_query = query[0]
-                    pg_query = query[1]
+                    try:
+                        yb_query = query[0]
+                        pg_query = query[1]
 
-                    yb_best = yb_query.get_best_optimization(self.config)
-                    pg_best = pg_query.get_best_optimization(self.config)
+                        yb_best = yb_query.get_best_optimization(self.config)
+                        pg_best = pg_query.get_best_optimization(self.config)
 
-                    inconsistent_results += 1 if yb_query.get_inconsistent_results() else 0
+                        inconsistent_results += 1 if yb_query.get_inconsistent_results() else 0
 
-                    pg_success = pg_query.execution_time_ms > 0
-                    yb_success = yb_query.execution_time_ms > 0
+                        pg_success = pg_query.execution_time_ms > 0
+                        yb_success = yb_query.execution_time_ms > 0
 
-                    qe_default_geo.append(yb_query.execution_time_ms / pg_query.execution_time_ms
-                                          if pg_success and yb_success else 1)
-                    qe_bests_geo.append(yb_best.execution_time_ms / pg_best.execution_time_ms
-                                        if pg_success and yb_success else 1)
+                        qe_default_geo.append(yb_query.execution_time_ms / pg_query.execution_time_ms
+                                              if pg_success and yb_success else 1)
+                        qe_bests_geo.append(yb_best.execution_time_ms / pg_best.execution_time_ms
+                                            if pg_success and yb_success else 1)
 
-                    if yb_query.execution_time_ms > 0 and yb_best.execution_time_ms > 0:
-                        qo_yb_bests_geo.append(yb_query.execution_time_ms / yb_best.execution_time_ms)
-                    if pg_query.execution_time_ms > 0 and pg_best.execution_time_ms > 0:
-                        qo_pg_bests_geo.append(pg_query.execution_time_ms / pg_best.execution_time_ms)
+                        if yb_query.execution_time_ms > 0 and yb_best.execution_time_ms > 0:
+                            qo_yb_bests_geo.append(yb_query.execution_time_ms / yb_best.execution_time_ms)
+                        if pg_query.execution_time_ms > 0 and pg_best.execution_time_ms > 0:
+                            qo_pg_bests_geo.append(pg_query.execution_time_ms / pg_best.execution_time_ms)
 
-                    yb_bests += 1 if yb_query.compare_plans(yb_best) else 0
-                    pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best) else 0
-                    timed_out += 1 if yb_query.execution_time_ms == -1 else 0
-                    slower_then_10x += 1 if pg_query.execution_time_ms and \
-                                            (yb_query.execution_time_ms / pg_query.execution_time_ms) >= 10 else 0
-                    best_slower_then_10x += 1 if pg_query.execution_time_ms and \
-                                                 (yb_best.execution_time_ms / pg_query.execution_time_ms) >= 10 else 0
+                        yb_bests += 1 if yb_query.compare_plans(yb_best) else 0
+                        pg_bests += 1 if pg_success and pg_query.compare_plans(pg_best) else 0
+                        timed_out += 1 if yb_query.execution_time_ms == -1 else 0
+                        slower_then_10x += 1 if pg_query.execution_time_ms and \
+                                                (yb_query.execution_time_ms / pg_query.execution_time_ms) >= 10 else 0
+                        best_slower_then_10x += 1 if pg_query.execution_time_ms and \
+                                                     (yb_best.execution_time_ms / pg_query.execution_time_ms) >= 10 else 0
+                    except Exception as e:
+                        pass
 
                     total += 1
         except Exception as e:
