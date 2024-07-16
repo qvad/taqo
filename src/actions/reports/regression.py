@@ -197,10 +197,10 @@ class RegressionReport(AbstractReportAction):
                 v2_success = yb_v2_query.execution_time_ms > 0
 
                 if v1_success and v2_success:
-                    better_different_plans += 1 if (
+                    better_different_plans += 1 if ((
                             yb_v1_query.execution_time_ms > yb_v2_query.execution_time_ms and
                             not allowed_diff(self.config, yb_v1_query.execution_time_ms,
-                                             yb_v2_query.execution_time_ms) and
+                                             yb_v2_query.execution_time_ms)) and
                             not yb_v1_query.compare_plans(yb_v2_query)) \
                         else 0
                     worse_different_plans += 1 if (
@@ -209,14 +209,14 @@ class RegressionReport(AbstractReportAction):
                                              yb_v2_query.execution_time_ms) and
                             not yb_v1_query.compare_plans(yb_v2_query)) \
                         else 0
-                    better_same_plans += 1 if (
+                    better_same_plans += 1 if ((
                             yb_v1_query.execution_time_ms > yb_v2_query.execution_time_ms and
-                            allowed_diff(self.config, yb_v1_query.execution_time_ms, yb_v2_query.execution_time_ms) and
+                            not allowed_diff(self.config, yb_v1_query.execution_time_ms, yb_v2_query.execution_time_ms)) and
                             yb_v1_query.compare_plans(yb_v2_query)) \
                         else 0
                     worse_same_plans += 1 if (
                             yb_v1_query.execution_time_ms < yb_v2_query.execution_time_ms and
-                            allowed_diff(self.config, yb_v1_query.execution_time_ms, yb_v2_query.execution_time_ms) and
+                            not allowed_diff(self.config, yb_v1_query.execution_time_ms, yb_v2_query.execution_time_ms) and
                             yb_v1_query.compare_plans(yb_v2_query)) \
                         else 0
                     same_plans += 1 if (
@@ -247,13 +247,13 @@ class RegressionReport(AbstractReportAction):
         self.content += f"|Statistic|{self.v1_name}|{self.v2_name}\n"
         self.content += f"|Best execution plan picked|{'{:.2f}'.format(float(yb_v1_bests) * 100 / total)}%" \
                         f"|{'{:.2f}'.format(float(yb_v2_bests) * 100 / total)}%\n"
-        self.content += f"|Different better plans (exec time v1 > v2)\n" \
+        self.content += f"|Different better plans (exec time v1 > v2, outside {self.config.skip_percentage_delta} range)\n" \
                         f"2+m|{better_different_plans}\n"
-        self.content += f"|Different worse plans (exec time v1 < v2)\n" \
+        self.content += f"|Different worse plans (exec time v1 < v2, not in {self.config.skip_percentage_delta} range)\n" \
                         f"2+m|{worse_different_plans}\n"
-        self.content += f"|Same better plans (exec time v1 > v2)\n" \
+        self.content += f"|Same better plans (exec time v1 > v2, outside {self.config.skip_percentage_delta} range)\n" \
                         f"2+m|{better_same_plans}\n"
-        self.content += f"|Same worse plans (exec time v1 < v2)\n" \
+        self.content += f"|Same worse plans (exec time v1 < v2, not in {self.config.skip_percentage_delta} range)\n" \
                         f"2+m|{worse_same_plans}\n"
         self.content += f"|Total same plans\n" \
                         f"2+m|{same_plans}\n"
