@@ -315,13 +315,13 @@ class RegressionReport(AbstractReportAction):
                         if yb_v1_best.execution_time_ms > 0 and success else 99999999
                     ratio_best_x3_str = "{:.2f}".format(yb_v2_best.execution_time_ms / yb_v1_best.execution_time_ms
                                                         if yb_v1_best.execution_time_ms > 0 and success else 99999999)
-                    ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
+                    ratio_best_color = "[green]" if ratio_best <= (1.0 + self.config.skip_percentage_delta) else "[red]"
                 else:
                     ratio_best = yb_v2_query.execution_time_ms / yb_v1_best.execution_time_ms \
                         if yb_v1_best.execution_time_ms > 0 and success else 99999999
                     ratio_best_x3_str = "{:.2f}".format(yb_v2_query.execution_time_ms / yb_v1_best.execution_time_ms
                                                         if yb_v1_best.execution_time_ms > 0 and success else 99999999)
-                    ratio_best_color = "[green]" if ratio_best <= 1.0 else "[red]"
+                    ratio_best_color = "[green]" if ratio_best <= (1.0 + self.config.skip_percentage_delta) else "[red]"
 
                 bitmap_flag = "[blue]" \
                     if success and "bitmap" in yb_v2_query.execution_plan.full_str.lower() else "[black]"
