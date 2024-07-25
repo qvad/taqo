@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--clean-db',
                         action=argparse.BooleanOptionalAction,
-                        default=True,
+                        default=False,
                         help='Keep database after test')
     parser.add_argument('--colocated',
                         action=argparse.BooleanOptionalAction,
