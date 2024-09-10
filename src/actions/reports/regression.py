@@ -607,6 +607,9 @@ class RegressionReport(AbstractReportAction):
         worksheet.write(0, 6, "Second - Best First", head_format)
         worksheet.write(0, 7, "Query", head_format)
         worksheet.write(0, 8, "Query Hash", head_format)
+        worksheet.write(0, 9, "First Plan", head_format)
+        worksheet.write(0, 10, "First Best Plan", head_format)
+        worksheet.write(0, 11, "Second Plan", head_format)
 
         row = 1
         # Iterate over the data and write it out row by row.
@@ -620,7 +623,8 @@ class RegressionReport(AbstractReportAction):
                 ratio_color = eq_bad_format if ratio > 1.0 else eq_format
                 delta = second_query.execution_time_ms - first_query.execution_time_ms
 
-                v1_best_time = first_query.get_best_optimization(self.config).execution_time_ms
+                v1_best = first_query.get_best_optimization(self.config)
+                v1_best_time = v1_best.execution_time_ms
                 ratio_v2_vs_v1_best = second_query.execution_time_ms / v1_best_time \
                     if v1_best_time > 0 else 99999999
                 ratio_v2_vs_v1_best_color = eq_bad_format \
@@ -637,6 +641,13 @@ class RegressionReport(AbstractReportAction):
                                 ratio_v2_vs_v1_best_color)
                 worksheet.write(row, 7, f'{format_sql(first_query.query)}')
                 worksheet.write(row, 8, f'{first_query.query_hash}')
+                worksheet.write(row, 9, f'{first_query.execution_plan}')
+                worksheet.write(row, 10,
+                                '<---' if v1_best.compare_plans(first_query)
+                                else f'{v1_best.execution_plan}')
+                worksheet.write(row, 11,
+                                '<---' if second_query.compare_plans(v1_best)
+                                else f'{second_query.execution_plan}')
                 row += 1
 
         worksheet.autofit()

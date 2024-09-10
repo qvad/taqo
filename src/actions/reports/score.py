@@ -474,6 +474,10 @@ class ScoreReport(AbstractReportAction):
         worksheet.write(0, 9, "Best EQ", head_format)
         worksheet.write(0, 10, "Query", head_format)
         worksheet.write(0, 11, "Query Hash", head_format)
+        worksheet.write(0, 12, "YB Plan", head_format)
+        worksheet.write(0, 13, "YB Best Plan", head_format)
+        worksheet.write(0, 14, "PG Plan", head_format)
+        worksheet.write(0, 15, "PG Best Plan", head_format)
 
         row = 1
         # Iterate over the data and write it out row by row.
@@ -540,6 +544,12 @@ class ScoreReport(AbstractReportAction):
                 worksheet.write(row, 9, best_yb_pg_equality)
                 worksheet.write(row, 10, f'{format_sql(pg_query.query)}')
                 worksheet.write(row, 11, f'{pg_query.query_hash}')
+                worksheet.write(row, 12, f'{yb_query.execution_plan}')
+                worksheet.write(row, 13,
+                                '<---' if default_yb_equality else f'{yb_best.execution_plan}')
+                worksheet.write(row, 14, f'{pg_query.execution_plan}')
+                worksheet.write(row, 15,
+                                '<---' if default_pg_equality else f'{pg_best.execution_plan}')
                 row += 1
 
         workbook.close()
