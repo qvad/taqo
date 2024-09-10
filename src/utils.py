@@ -137,11 +137,19 @@ def calculate_avg_execution_time(cur,
             traceback.print_exc(limit=None, file=None, chain=True)
             return False
         finally:
-            try:
-                connection.rollback()
-            except Exception as e:
-                # todo potential issue here, but triggers only in PG
-                config.logger.exception(e)
+            rolled_back_tries = 0
+            rolled_back = False
+            while rolled_back_tries < 5:
+                rolled_back_tries += 1
+                try:
+                    connection.rollback()
+                    rolled_back = True
+                    break
+                except Exception as e:
+                    time.sleep(2)
+            if not rolled_back:
+                config.logger.error(
+                    f"INTERNAL ERROR Failed to rollback transaction after failed query execution:\n{query_str}")
 
             if iteration >= num_warmup:
                 actual_evaluations += 1
