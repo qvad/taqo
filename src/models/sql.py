@@ -74,7 +74,7 @@ class SQLModel(QTFModel):
                 else:
                     with open(f"sql/{self.config.model}/{file_name}.sql", "r") as sql_file:
                         full_queries = self.apply_variables('\n'.join(sql_file.readlines()))
-                        for query in tqdm(full_queries.split(";")):
+                        for query in tqdm(sqlparse.split(full_queries)):
                             try:
                                 if cleaned := query.lstrip():
                                     model_queries.append(cleaned)
