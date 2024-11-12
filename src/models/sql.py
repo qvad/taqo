@@ -79,7 +79,7 @@ class SQLModel(QTFModel):
                 else:
                     with open(path_to_file, "r") as sql_file:
                         full_queries = self.apply_variables('\n'.join(sql_file.readlines()))
-                        for query in tqdm(full_queries.split(";")):
+                        for query in tqdm(sqlparse.split(full_queries)):
                             # Nasty fix for RPC timeout
                             executed = False
                             while not executed:
