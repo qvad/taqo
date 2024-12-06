@@ -16,7 +16,7 @@ from actions.report import AbstractReportAction
 from collect import CollectResult
 from db.postgres import PostgresQuery
 from objects import Query
-from utils import allowed_diff, get_plan_diff, extract_execution_time_from_analyze
+from utils import allowed_diff, get_plan_diff, extract_execution_time_from_analyze, calculate_client_execution_time
 
 
 class ScoreReport(AbstractReportAction):
@@ -635,16 +635,17 @@ class ScoreReport(AbstractReportAction):
             report.content += f"ERROR! YB Inconsistent hints - `{inconsistencies}`"
             report.add_double_newline()
 
-        report.add_double_newline()
-        report.content += f"YB Default explain hints - `{yb_query.explain_hints}`"
-        report.add_double_newline()
-
-        if show_best:
-            report.add_double_newline()
-            report.content += f"YB Best explain hints - `{yb_best.explain_hints}`"
-            report.add_double_newline()
-
-            self.__report_near_queries(report, yb_query)
+        # TODO disabled by dev request since it is not accurate sometimes
+        # report.add_double_newline()
+        # report.content += f"YB Default explain hints - `{yb_query.explain_hints}`"
+        # report.add_double_newline()
+        #
+        # if show_best:
+        #     report.add_double_newline()
+        #     report.content += f"YB Best explain hints - `{yb_best.explain_hints}`"
+        #     report.add_double_newline()
+        #
+        #     self.__report_near_queries(report, yb_query)
 
         report.start_table("2")
         report.content += "|Default|Log scale\n"
@@ -707,6 +708,20 @@ class ScoreReport(AbstractReportAction):
                               f"|{'{:.2f}'.format(pg_query.execution_time_ms)}" \
                               f"|{default_pg_equality}{'{:.2f}'.format(pg_best.execution_time_ms)}"
             report.end_table_row()
+            # report.start_table_row()
+            # report.content += f"Server execution time" \
+            #                   f"|{'{:.2f}'.format(extract_execution_time_from_analyze(yb_query.execution_plan.full_str))}" \
+            #                   f"|{'{:.2f}'.format(extract_execution_time_from_analyze(yb_best.execution_plan.full_str))}" \
+            #                   f"|{'{:.2f}'.format(extract_execution_time_from_analyze(pg_query.execution_plan.full_str))}" \
+            #                   f"|{'{:.2f}'.format(extract_execution_time_from_analyze(pg_best.execution_plan.full_str))}"
+            # report.end_table_row()
+            # report.start_table_row()
+            # report.content += f"Result collect time" \
+            #                   f"|{'{:.2f}'.format(calculate_client_execution_time(yb_query))}" \
+            #                   f"|{'{:.2f}'.format(calculate_client_execution_time(yb_best))}" \
+            #                   f"|{'{:.2f}'.format(calculate_client_execution_time(pg_query))}" \
+            #                   f"|{'{:.2f}'.format(calculate_client_execution_time(pg_best))}"
+            # report.end_table_row()
         else:
             report.start_table("3")
             report.content += "|Metric|YB|YB Best\n"

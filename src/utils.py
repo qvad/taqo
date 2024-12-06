@@ -214,6 +214,18 @@ def extract_execution_time_from_analyze(result):
     return extracted
 
 
+def calculate_client_execution_time(query):
+    execution_plan = query.execution_plan.full_str
+    client_time = query.execution_time_ms
+
+    extracted = -1
+    server_time = extract_execution_time_from_analyze(execution_plan)
+    if server_time == -1:
+        return extracted
+    else:
+        return server_time - client_time
+
+
 def extract_actual_cardinality(result):
     matches = re.finditer(r"\(actual\stime.*rows=(\d+).*\)", result.split("\n")[0], re.MULTILINE)
     for matchNum, match in enumerate(matches, start=1):

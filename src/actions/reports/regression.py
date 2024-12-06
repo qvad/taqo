@@ -9,7 +9,7 @@ from matplotlib import rcParams
 from collect import CollectResult
 from objects import Query
 from actions.report import AbstractReportAction
-from utils import allowed_diff, get_plan_diff
+from utils import allowed_diff, get_plan_diff, extract_execution_time_from_analyze, calculate_client_execution_time
 
 
 @dataclass
@@ -519,6 +519,20 @@ class RegressionReport(AbstractReportAction):
                           f"|{'{:.2f}'.format(v2_query.execution_time_ms)}" \
                           f"|{default_v2_equality}{'{:.2f}'.format(v2_best.execution_time_ms)}"
         report.end_table_row()
+        # report.start_table_row()
+        # report.content += f"Server execution time" \
+        #                   f"|{'{:.2f}'.format(extract_execution_time_from_analyze(v1_query.execution_plan.full_str))}" \
+        #                   f"|{default_v1_equality}{'{:.2f}'.format(extract_execution_time_from_analyze(v1_best.execution_plan.full_str))}" \
+        #                   f"|{'{:.2f}'.format(extract_execution_time_from_analyze(v2_query.execution_plan.full_str))}" \
+        #                   f"|{default_v2_equality}{'{:.2f}'.format(extract_execution_time_from_analyze(v2_best.execution_plan.full_str))}"
+        # report.end_table_row()
+        # report.start_table_row()
+        # report.content += f"Result collect time" \
+        #                   f"|{'{:.2f}'.format(calculate_client_execution_time(v1_query))}" \
+        #                   f"|{default_v1_equality}{'{:.2f}'.format(calculate_client_execution_time(v1_best))}" \
+        #                   f"|{'{:.2f}'.format(calculate_client_execution_time(v2_query))}" \
+        #                   f"|{default_v2_equality}{'{:.2f}'.format(calculate_client_execution_time(v2_best))}"
+        # report.end_table_row()
 
         report.end_table()
 
