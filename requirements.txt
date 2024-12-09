@@ -11,5 +11,5 @@ allpairspy~=2.5.0
 xlsxwriter
 numpy~=1.24.2
 scipy
-bokeh
+bokeh~=3.6.2
 requests
