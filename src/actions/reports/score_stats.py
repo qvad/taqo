@@ -1,3 +1,4 @@
+import ast
 import json
 from typing import Type
 
@@ -96,6 +97,7 @@ class ScoreStatsReport(AbstractReportAction):
             "version": loq.db_version,
             "commit": loq.git_message,
             "ddl_time": loq.ddl_execution_time,
+            "is_server_side": ast.literal_eval(loq.config).get("server_side_execution", False),
             "model_time": loq.model_execution_time,
         }
 
