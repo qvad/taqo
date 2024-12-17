@@ -35,7 +35,29 @@ def remove_with_ordinality(sql_str):
     return sql_str
 
 
-def get_result(cur, is_dml: bool, has_order_by: bool, has_limit: bool):
+def get_result_for_consistency_check(cur, is_dml: bool, has_order_by: bool, has_limit: bool):
+    if is_dml:
+        return cur.rowcount, f"{cur.rowcount} updates"
+    
+    # if there is a limit without order by we can't validate results
+    str_result = []
+    cardinality = 0
+    if has_limit and not has_order_by:
+        str_result = ["LIMIT_WITHOUT_ORDER_BY"]
+    else:
+        result = cur.fetchall()
+
+        for row in result:
+            cardinality += 1
+            for column_value in row:
+                str_result.append(f"{str(column_value)}")
+
+        if not has_order_by:
+            str_result.sort()
+
+    return cardinality, ''.join(str_result)
+
+def get_result(cur, is_dml: bool):
     if is_dml:
         return cur.rowcount, f"{cur.rowcount} updates"
 
@@ -47,13 +69,6 @@ def get_result(cur, is_dml: bool, has_order_by: bool, has_limit: bool):
         cardinality += 1
         for column_value in row:
             str_result.append(f"{str(column_value)}")
-
-    if not has_order_by:
-        str_result.sort()
-
-    # if there is a limit without order by we can't validate results
-    if has_limit and not has_order_by:
-        str_result = ["LIMIT_WITHOUT_ORDER_BY"]
 
     return cardinality, ''.join(str_result)
 
@@ -70,7 +85,7 @@ def calculate_avg_execution_time(cur,
     query_str_lower = query_str.lower() if query_str is not None else None
 
     has_order_by = query.has_order_by
-    has_limit = True if "limit" in query_str_lower else False
+    has_limit = True if " limit " in query_str_lower else False
 
     with_analyze = query_with_analyze(query_str_lower)
     is_dml = query_is_dml(query_str_lower)
@@ -98,14 +113,14 @@ def calculate_avg_execution_time(cur,
                 # using first iteration as a result collecting step
                 # even if EXPLAIN ANALYZE is explain query
                 query.parameters = evaluate_sql(cur, query.get_query())
-                cardinality, result = get_result(cur, is_dml, has_order_by, has_limit)
+                cardinality, result = get_result_for_consistency_check(cur, is_dml, has_order_by, has_limit)
 
                 query.result_cardinality = cardinality
                 query.result_hash = get_md5(result)
             else:
                 if iteration < num_warmup:
                     query.parameters = evaluate_sql(cur, query_str)
-                    _, result = get_result(cur, is_dml, has_order_by, has_limit)
+                    _, result = get_result(cur, is_dml)
                 else:
                     if not execution_plan_collected:
                         collect_execution_plan(cur, connection, query, sut_database)
@@ -118,7 +133,7 @@ def calculate_avg_execution_time(cur,
 
                     evaluate_sql(cur, query_str)
                     config.logger.debug("SQL >> Getting results")
-                    _, result = get_result(cur, is_dml, has_order_by, has_limit)
+                    _, result = get_result(cur, is_dml)
 
                     if with_analyze:
                         execution_times.append(extract_execution_time_from_analyze(result))
