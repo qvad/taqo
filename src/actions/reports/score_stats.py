@@ -103,7 +103,7 @@ class ScoreStatsReport(AbstractReportAction):
             "version": loq.db_version,
             "commit": loq.git_message,
             "ddl_time": loq.ddl_execution_time,
-            "is_server_side": ast.literal_eval(loq.config.replace("''''", "''")).get("server_side_execution", False),
+            "is_server_side": ast.literal_eval(loq.config.replace("''", "'")).get("server_side_execution", False),
             "model_time": loq.model_execution_time,
         }
 
