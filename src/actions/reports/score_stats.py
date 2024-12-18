@@ -16,11 +16,17 @@ class ScoreStatsReport(AbstractReportAction):
         self.json = {}
 
     @classmethod
-    def generate_report(cls, loq: CollectResult, pg_loq: CollectResult = None):
+    def generate_report(cls, logger, loq: CollectResult, pg_loq: CollectResult = None, pg_server_loq: CollectResult = None):
         report = ScoreStatsReport()
 
+        server_side_execution = ast.literal_eval(loq.config.replace("''''", "''")).get("server_side_execution", False)
+        pg_results = pg_server_loq if server_side_execution and pg_server_loq else pg_loq
+
+        if server_side_execution and not pg_server_loq:
+            logger.info("Warning: PG server side results are not available, while YB run is server side")
+
         for query in loq.queries:
-            report.add_query(query, pg_loq.find_query_by_hash(query.query_hash) if pg_loq else None)
+            report.add_query(query, pg_results.find_query_by_hash(query.query_hash) if pg_results else None)
 
         report.build_report(loq)
         report.dump_json()
@@ -97,7 +103,7 @@ class ScoreStatsReport(AbstractReportAction):
             "version": loq.db_version,
             "commit": loq.git_message,
             "ddl_time": loq.ddl_execution_time,
-            "is_server_side": ast.literal_eval(loq.config.replace("''", "'")).get("server_side_execution", False),
+            "is_server_side": ast.literal_eval(loq.config.replace("''''", "''")).get("server_side_execution", False),
             "model_time": loq.model_execution_time,
         }
 

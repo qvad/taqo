@@ -1,3 +1,4 @@
+import ast
 from typing import Type
 
 import numpy as np
@@ -16,7 +17,7 @@ from actions.report import AbstractReportAction
 from collect import CollectResult
 from db.postgres import PostgresQuery
 from objects import Query
-from utils import allowed_diff, get_plan_diff, extract_execution_time_from_analyze, calculate_client_execution_time
+from utils import allowed_diff, get_plan_diff, extract_execution_time_from_analyze
 
 
 class ScoreReport(AbstractReportAction):
@@ -31,7 +32,8 @@ class ScoreReport(AbstractReportAction):
         }
 
     @classmethod
-    def generate_report(cls, loq: CollectResult, pg_loq: CollectResult = None):
+    def generate_report(cls,
+                        logger, loq: CollectResult, pg_loq: CollectResult = None, pg_server_loq: CollectResult = None):
         report = ScoreReport()
 
         report.define_version(loq.db_version)
@@ -41,8 +43,14 @@ class ScoreReport(AbstractReportAction):
 
         report.report_model(loq.model_queries)
 
+        server_side_execution = ast.literal_eval(loq.config.replace("''''", "''")).get("server_side_execution", False)
+        pg_results = pg_server_loq if server_side_execution and pg_server_loq else pg_loq
+
+        if server_side_execution and not pg_server_loq:
+            logger.info("Warning: Server side results are not available")
+
         for query in loq.queries:
-            pg_query = pg_loq.find_query_by_hash(query.query_hash) if pg_loq else None
+            pg_query = pg_results.find_query_by_hash(query.query_hash) if pg_results else None
             if pg_query:
                 report.add_query(query, pg_query)
             else:

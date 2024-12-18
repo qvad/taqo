@@ -99,6 +99,9 @@ if __name__ == "__main__":
     parser.add_argument('--pg-results',
                         default=None,
                         help='TAQO/Comparison: Path to results for PG, optimizations are optional')
+    parser.add_argument('--pg-server-results',
+                        default='',
+                        help='TAQO/Comparison: Path to results for PG server side, optimizations are optional')
 
     # Regression
     parser.add_argument('--v1-results',
@@ -384,14 +387,18 @@ if __name__ == "__main__":
             yb_queries = loader.get_queries_from_previous_result(args.results)
             pg_queries = loader.get_queries_from_previous_result(
                 args.pg_results) if args.pg_results else None
+            pg_server_results = loader.get_queries_from_previous_result(
+                args.pg_server_results) if args.pg_server_results else None
 
-            ScoreReport.generate_report(yb_queries, pg_queries)
+            ScoreReport.generate_report(config.logger, yb_queries, pg_queries, pg_server_results)
         elif args.type == "score_stats":
             yb_queries = loader.get_queries_from_previous_result(args.results)
             pg_queries = loader.get_queries_from_previous_result(
                 args.pg_results) if args.pg_results else None
+            pg_server_results = loader.get_queries_from_previous_result(
+                args.pg_server_results) if args.pg_server_results else None
 
-            ScoreStatsReport.generate_report(yb_queries, pg_queries)
+            ScoreStatsReport.generate_report(config.logger, yb_queries, pg_queries, pg_server_results)
         elif args.type == "regression":
             v1_queries = loader.get_queries_from_previous_result(args.v1_results)
             v2_queries = loader.get_queries_from_previous_result(args.v2_results)
