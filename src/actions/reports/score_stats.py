@@ -19,7 +19,8 @@ class ScoreStatsReport(AbstractReportAction):
     def generate_report(cls, logger, loq: CollectResult, pg_loq: CollectResult = None, pg_server_loq: CollectResult = None):
         report = ScoreStatsReport()
 
-        server_side_execution = ast.literal_eval(loq.config.replace("''", "'")).get("server_side_execution", False)
+        loq_config = loq.config.replace("''", "'") if "''''" in loq.config else loq.config
+        server_side_execution = ast.literal_eval(loq_config).get("server_side_execution", False)
         pg_results = pg_server_loq if server_side_execution and pg_server_loq else pg_loq
 
         if server_side_execution and not pg_server_loq:
@@ -89,6 +90,9 @@ class ScoreStatsReport(AbstractReportAction):
         except Exception as e:
             self.logger.exception(e)
 
+        loq_config = loq.config.replace("''", "'") if "''''" in loq.config else loq.config
+        server_side_execution = ast.literal_eval(loq_config).get("server_side_execution", False)
+
         self.json = {
             "best_picked": '{:.2f}'.format(float(yb_bests) * 100 / total),
             "qe_default": '{:.2f}'.format(self.geo_mean(qe_default_geo)),
@@ -103,7 +107,7 @@ class ScoreStatsReport(AbstractReportAction):
             "version": loq.db_version,
             "commit": loq.git_message,
             "ddl_time": loq.ddl_execution_time,
-            "is_server_side": ast.literal_eval(loq.config.replace("''", "'")).get("server_side_execution", False),
+            "is_server_side": server_side_execution,
             "model_time": loq.model_execution_time,
         }
 

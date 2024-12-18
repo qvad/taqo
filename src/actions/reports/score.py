@@ -43,11 +43,12 @@ class ScoreReport(AbstractReportAction):
 
         report.report_model(loq.model_queries)
 
-        server_side_execution = ast.literal_eval(loq.config.replace("''", "'")).get("server_side_execution", False)
+        loq_config = loq.config.replace("''", "'") if "''''" in loq.config else loq.config
+        server_side_execution = ast.literal_eval(loq_config).get("server_side_execution", False)
         pg_results = pg_server_loq if server_side_execution and pg_server_loq else pg_loq
 
         if server_side_execution and not pg_server_loq:
-            logger.info("Warning: Server side results are not available")
+            logger.info("Warning: PG server side results are not available, while YB run is server side")
 
         for query in loq.queries:
             pg_query = pg_results.find_query_by_hash(query.query_hash) if pg_results else None
