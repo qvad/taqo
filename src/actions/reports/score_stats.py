@@ -19,7 +19,7 @@ class ScoreStatsReport(AbstractReportAction):
     def generate_report(cls, logger, loq: CollectResult, pg_loq: CollectResult = None, pg_server_loq: CollectResult = None):
         report = ScoreStatsReport()
 
-        server_side_execution = ast.literal_eval(loq.config.replace("''''", "''")).get("server_side_execution", False)
+        server_side_execution = ast.literal_eval(loq.config.replace("''", "'")).get("server_side_execution", False)
         pg_results = pg_server_loq if server_side_execution and pg_server_loq else pg_loq
 
         if server_side_execution and not pg_server_loq:
