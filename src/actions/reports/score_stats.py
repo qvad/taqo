@@ -94,8 +94,11 @@ class ScoreStatsReport(AbstractReportAction):
         except Exception as e:
             self.logger.exception(e)
 
-        loq_config = loq.config.replace("''", "'") if "''''" in loq.config else loq.config
-        server_side_execution = ast.literal_eval(loq_config).get("server_side_execution", False)
+        try:
+            loq_config = loq.config.replace("''", "'") if "''''" in loq.config else loq.config
+            server_side_execution = ast.literal_eval(loq_config).get("server_side_execution", False)
+        except Exception as e:
+            server_side_execution = False
 
         self.json = {
             "best_picked": '{:.2f}'.format(float(yb_bests) * 100 / total),
