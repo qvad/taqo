@@ -19,9 +19,13 @@ class ScoreStatsReport(AbstractReportAction):
     def generate_report(cls, logger, loq: CollectResult, pg_loq: CollectResult = None, pg_server_loq: CollectResult = None):
         report = ScoreStatsReport()
 
-        loq_config = loq.config.replace("''", "'") if "''''" in loq.config else loq.config
-        server_side_execution = ast.literal_eval(loq_config).get("server_side_execution", False)
-        pg_results = pg_server_loq if server_side_execution and pg_server_loq else pg_loq
+        try:
+            loq_config = loq.config.replace("''", "'") if "''''" in loq.config else loq.config
+            server_side_execution = ast.literal_eval(loq_config).get("server_side_execution", False)
+            pg_results = pg_server_loq if server_side_execution and pg_server_loq else pg_loq
+        except Exception as e:
+            server_side_execution = False
+            pg_results = pg_loq
 
         if server_side_execution and not pg_server_loq:
             logger.info("Warning: PG server side results are not available, while YB run is server side")
