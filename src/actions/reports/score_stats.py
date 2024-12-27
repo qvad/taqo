@@ -31,7 +31,12 @@ class ScoreStatsReport(AbstractReportAction):
             logger.info("Warning: PG server side results are not available, while YB run is server side")
 
         for query in loq.queries:
-            report.add_query(query, pg_results.find_query_by_hash(query.query_hash) if pg_results else None)
+            pg_query = pg_results.find_query_by_hash(query.query_hash) if pg_results else None
+            if pg_query:
+                report.add_query(query, pg_query)
+            else:
+                report.logger.exception("No PG query found for hash %s", query.query_hash)
+                report.add_query(query, query.create_copy())
 
         report.build_report(loq)
         report.dump_json()
