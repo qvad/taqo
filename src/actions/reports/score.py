@@ -739,6 +739,7 @@ class ScoreReport(AbstractReportAction):
             report.start_table("3")
             report.content += "|Metric|YB|YB Best\n"
 
+            report.start_table_row()
             if yb_best.result_hash != yb_query.result_hash:
                 report.content += f"!! Result hash|{yb_query.result_hash}|{yb_best.result_hash}"
             else:
@@ -783,7 +784,7 @@ class ScoreReport(AbstractReportAction):
             bitmap_used = "(bm) " if "bitmap" in pg_query.execution_plan.full_str.lower() else ""
             report.start_collapsible(f"{bitmap_used}PG plan")
             report.start_source(["diff"])
-            report.content += pg_query.execution_plan.full_str
+            report.content += pg_query.execution_plan.full_str.replace("|", "\|")
             report.end_source()
             report.end_collapsible()
 
@@ -791,7 +792,7 @@ class ScoreReport(AbstractReportAction):
             bitmap_used = "(bm) " if "bitmap" in pg_best.execution_plan.full_str.lower() else ""
             report.start_collapsible(f"{default_pg_equality}{bitmap_used}PG best")
             report.start_source(["diff"])
-            report.content += pg_best.execution_plan.full_str
+            report.content += pg_best.execution_plan.full_str.replace("|", "\|")
             report.end_source()
             report.end_collapsible()
 
