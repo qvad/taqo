@@ -299,10 +299,12 @@ class RegressionReport(AbstractReportAction):
                 default_v2_equality = "[green]" \
                     if success and yb_v2_query.compare_plans(yb_v2_best) else "[red]"
 
+                default_yb_equality = "(eq) " if yb_v1_query.compare_plans(yb_v2_query) and v2_has_optimizations else "(diff)"
+
                 if v2_has_optimizations:
-                    best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_best) else ""
+                    best_yb_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_best) else ""
                 else:
-                    best_yb_pg_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_query) else ""
+                    best_yb_equality = "(eq) " if yb_v1_best.compare_plans(yb_v2_query) else ""
 
                 ratio_x3 = yb_v2_query.execution_time_ms / yb_v1_query.execution_time_ms \
                     if yb_v1_query.execution_time_ms > 0 else 99999999
@@ -333,8 +335,8 @@ class RegressionReport(AbstractReportAction):
                                 f"a|{default_v1_equality}#*{'{:.2f}'.format(yb_v1_best.execution_time_ms)}*#\n" \
                                 f"a|{bitmap_flag}#*{'{:.2f}'.format(yb_v2_query.execution_time_ms)}*#\n" \
                                 f"{b2_best_col}" \
-                                f"a|{ratio_color}#*{ratio_x3_str}*#\n" \
-                                f"a|{ratio_best_color}#*{best_yb_pg_equality}{ratio_best_x3_str}*#\n"
+                                f"a|{ratio_color}#*{default_yb_equality}{ratio_x3_str}*#\n" \
+                                f"a|{ratio_best_color}#*{best_yb_equality}{ratio_best_x3_str}*#\n"
 
                 self.content += f"a|[#{yb_v1_query.query_hash}_top]"
                 self.append_tag_page_link(tag, yb_v1_query.query_hash, f"Query {yb_v1_query.query_hash}")
