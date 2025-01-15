@@ -147,6 +147,7 @@ class Query:
         return Query(self.tag, self.query, self.query_hash, self.tables,
                      execution_time_ms=-1,
                      has_order_by=self.has_order_by,
+                     explain_hints=self.explain_hints,
                      execution_plan=ExecutionPlan("NOT FOUND"),
                      optimizations=[])
 

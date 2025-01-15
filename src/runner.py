@@ -147,6 +147,10 @@ if __name__ == "__main__":
     parser.add_argument('--ddl-prefix',
                         default="",
                         help='DDL file prefix (default empty, might be postgres)')
+
+    parser.add_argument('--user-optimization-guc',
+                        default="",
+                        help='Additional user defined queries to multiply optimizations number. (E.g. tune parallel)')
     parser.add_argument('--remote-data-path',
                         default=None,
                         help='Path to remote data files ($DATA_PATH/*.csv)')
@@ -287,6 +291,15 @@ if __name__ == "__main__":
     configuration = configuration | options_config
     loader = PostgresResultsLoader()
 
+    user_optimization_guc = []
+    for guc in args.user_optimization_guc.split(":"):
+        optimization_guc = ""
+        if set not in guc:
+            optimization_guc += f"set {guc};"
+        else:
+            optimization_guc += f"{guc};"
+        user_optimization_guc.append(optimization_guc)
+
     config = Config(
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
         exit_on_fail=args.exit_on_fail,
@@ -320,6 +333,7 @@ if __name__ == "__main__":
         output=args.output,
         ddls=ddls,
         remote_data_path=args.remote_data_path,
+        user_optimization_guc=user_optimization_guc,
         ddl_prefix=args.ddl_prefix or (args.db if args.db != "yugabyte" else ""),
         with_optimizations=args.optimizations,
         plans_only=args.plans_only,
