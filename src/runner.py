@@ -292,13 +292,14 @@ if __name__ == "__main__":
     loader = PostgresResultsLoader()
 
     user_optimization_guc = []
-    for guc in args.user_optimization_guc.split(":"):
-        optimization_guc = ""
-        if 'set' not in guc:
-            optimization_guc += f"set {guc};"
-        else:
-            optimization_guc += f"{guc};"
-        user_optimization_guc.append(optimization_guc)
+    if args.user_optimization_guc:
+        for guc in args.user_optimization_guc.split(":"):
+            optimization_guc = ""
+            if 'set' not in guc:
+                optimization_guc += f"set {guc};"
+            else:
+                optimization_guc += f"{guc};"
+            user_optimization_guc.append(optimization_guc)
 
     config = Config(
         logger=init_logger("DEBUG" if args.verbose else "INFO"),
