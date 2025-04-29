@@ -109,50 +109,25 @@ final execution time will be AVG from later 5 tries)
 
 ### Collecting optimizations (Based on TAQO paper)
 
-This algorithm is inspired
-by [Testing the Accuracy of Query Optimizers](https://www.researchgate.net/publication/241623318_Testing_the_accuracy_of_query_optimizers)
-page, [Using pg_hint_plan in Yugabyte](https://docs.yugabyte.com/preview/explore/query-1-performance/pg-hint-plan/) and [Predictable plans with pg_hint_plan full hinting](https://dev.to/yugabyte/predictable-plans-with-pghintplan-full-hinting-1do3). Idea of "Testing Accuracy of Query Optimizers" page is to get insights of QO by executing different query plans for same query, using this and common knowledge how `pg_hint_plan` utility works we can generate possible hints using table combinations. After that we compare
-execution time and other parameters to tell if optimiser works well. Query evaluated few times (
-see `--num-retries`) to avoid inaccurate results.
+This tool is inspired by [Testing the Accuracy of Query Optimizers](https://www.researchgate.net/publication/241623318_Testing_the_accuracy_of_query_optimizers), [Using pg_hint_plan in Yugabyte](https://docs.yugabyte.com/preview/explore/query-1-performance/pg-hint-plan/), and [Predictable plans with pg_hint_plan full hinting](https://dev.to/yugabyte/predictable-plans-with-pghintplan-full-hinting-1do3). The idea behind "Testing the Accuracy of Query Optimizers" is to gain insights into the Query Optimizer (QO) by executing different query plans for the same query. Using this, along with common knowledge of how the `pg_hint_plan` utility works, we can generate possible hints based on table combinations. Afterward, we compare execution times and other parameters to determine if the optimizer is performing well. Each query is evaluated multiple times (see `--num-retries`) to avoid inaccurate results.
 
-This script detects all tables that are used in query, generates all possible permutations (framework tries to generate all possible `Leading` hints) and then tries to generate possible
-optimizations using pg_hint by combining current table permutation with different types of joins (
-Nested Loop Join, Merge, Hash) and scans (Index if available, Sequential, IndexOnly and BitMap).
+This script detects all tables used in a query, generates all possible permutations (the framework tries to generate all possible `Leading` hints), and then attempts to generate possible optimizations using `pg_hint_plan` by combining the current table permutation with different types of joins (Nested Loop Join, Merge Join, Hash Join) and scans (Index if available, Sequential, IndexOnly, and Bitmap).
 
-For example for 3 tables `‘a’, ‘b’, ‘c’` there will be following permutations generated:
-`[('a', 'b', 'c'), ('a', 'c', 'b'), ('b', 'a', 'c'), ('b', 'c', 'a'), ('c', 'a', 'b'), ('c', 'b', 'a')]]`
-. Each permutation will be transformed into a Leading hint (`Leading ((a b) c)` `Leading ((a c) b)`
-etc.). After all leading hints are generated, the tool will try to generate all possible
-combinations
-of NL, Merge, Hash joins
-(`Leading ((a b) c) Merge(a b) Merge(a b c)`, `Leading ((a b) c) Merge(a b) Hash(a b c)` etc) .
-After all joins are used, the tool will apply all possible combinations of scans based on the tables
-used and its indexes.
-(For now Index scan just applies on assumption that if there is an Index on table - it will be
-applied, no matter which columns are selected). For 4 tables there will be 423 possible `pg_hint`
-for example.
+For example, for 3 tables `‘a’, ‘b’, ‘c’`, the following permutations will be generated:  
+`[('a', 'b', 'c'), ('a', 'c', 'b'), ('b', 'a', 'c'), ('b', 'c', 'a'), ('c', 'a', 'b'), ('c', 'b', 'a')]`.  
 
-To reduce the number of generated optimizations, a pairwise approach is used (enabled by default if
-there is more than 4 tables in query): it guarantees that 3 different tables will be tried to be
-joined by NLJ, Merge, Hash combinations and all of them will be tried to be scanned by all possible
-Seq and Index combinations. But for 4 tables for example there is no such assumption.
+Each permutation will be transformed into a `Leading` hint (e.g., `Leading ((a b) c)` or `Leading ((a c) b)`, etc.). After all `Leading` hints are generated, the tool will try to generate all possible combinations of joins such as NL (Nested Loop), Merge, and Hash:  
+(e.g., `Leading ((a b) c) Merge(a b) Merge(a b c)`, `Leading ((a b) c) Merge(a b) Hash(a b c)`, etc.).  
 
-Here is an example how pairwise will reduce the number of join combinations: suppose we have 4
-tables t1, t2, t3 and t4 in the query. There are 3 joins that should appear in the execution plan,
-one of `['Nested','Hash','Merge']` for each 2 tables. Here is the list of combinations that
-generated
-by using pairwise approach: `[['Nested', 'Nested', 'Nested'], ['Hash', 'Hash', 'Nested']
-, ['Merge', 'Merge', 'Nested'], ['Merge', 'Hash', 'Hash'], ['Hash', 'Nested', 'Hash']
-, ['Nested', 'Merge', 'Hash'], ['Nested', 'Hash', 'Merge'], ['Hash', 'Merge', 'Merge']
-, ['Merge', 'Nested', 'Merge']]`. Note that here each 3 tables (2 joins) will be tried to be joined
-by each join type, but for example `[‘Merge’,'Merge','Merge']` combination is not here.
+Once all join combinations are generated, the tool applies all possible combinations of scans based on the tables used and their indexes.  
+(Note: For now, Index Scan is applied based on the assumption that if there is an index on a table, it will be used, regardless of which columns are selected.) For 4 tables, for example, there will be 423 possible `pg_hint_plan` hints.
 
-There is `all-pairs-threshold` parameter in configuration - it defines maximum number of tables in
-query after which
-pairwise approach will be used. By default, this threshold is equal to `3`. For this value, for
-example,`basic` model will
-be evaluated without using pairwise, while JOB and complex models will reduce number of
-combinations.
+To reduce the number of generated optimizations for queries involving a large number of tables (e.g., in join-order benchmarks), the tool uses scan hints only and relies on the optimizer to determine the best joins.
+
+### Configuration Parameter: `all-pairs-threshold`
+The `all-pairs-threshold` parameter in the configuration defines the maximum number of tables in a query after which the scan onlt approach is used. By default, this threshold is set to `3`. For this value:
+- Queries with up to 3 tables (e.g., `basic` models) will be evaluated without using the scans only approach.
+- Queries with more tables (e.g., JOB and complex models) will reduce the number of combinations using the scans only approach.
 
 Another option to
 reduce number of optimizations is using comment hints in `*.sql` files - comma separated accepted
